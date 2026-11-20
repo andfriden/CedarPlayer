@@ -1,0 +1,304 @@
+import SwiftUI
+import AppKit
+
+@main
+struct CedarPlayerApp: App {
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+    @StateObject private var library = Library()
+    @StateObject private var engine = PlayerEngine()
+    @AppStorage("showPlaylist") private var showPlaylist = true
+    @AppStorage("meterStyle") private var meterStyleRaw = MeterStyle.segments.rawValue
+    @Environment(\.openWindow) private var openWindow
+
+    init() {
+        if let path = Self.selfTestPath() {
+            Self.runSelfTest(path: path)
+        }
+        if CommandLine.arguments.contains("--eqdump") {
+            let d = UserDefaults.standard
+            let engine = PlayerEngine()
+            print("EQ enabled=\(engine.isEQEnabled) preamp=\(engine.preamp)")
+            print("EQ bands=\(engine.bands.map { String(format: "%.1f", $0) }.joined(separator: ","))")
+            exit(0)
+        }
+
+        if let index = CommandLine.arguments.firstIndex(of: "--import") {
+            var paths: [String] = []
+            var cursor = index + 1
+            while cursor < CommandLine.arguments.count, !CommandLine.arguments[cursor].hasPrefix("--") {
+                paths.append(CommandLine.arguments[cursor])
+                cursor += 1
+            }
+            Self.runImportTest(paths: paths)
+        }
+
+        if let path = Self.argumentValue("--cuesheet") {
+            guard let sheet = CueParser.parse(url: URL(fileURLWithPath: path)) else {
+                print("CUE parse failed"); exit(1)
+            }
+            print("CUE file=\(sheet.fileURL.lastPathComponent) album=\(sheet.title) performer=\(sheet.performer) tracks=\(sheet.tracks.count)")
+            for track in sheet.tracks {
+                print(String(format: "  %02d %@ %@ start=%.2f end=%@", track.number, track.title,
+                             track.performer, track.start,
+                             track.end.map { String(format: "%.2f", $0) } ?? "-"))
+            }
+            exit(0)
+        }
+
+        if let path = Self.argumentValue("--segment") {
+            let args = CommandLine.arguments
+            let index = args.count > (args.firstIndex(of: "--segment") ?? 0) + 2
+                ? Int(args[(args.firstIndex(of: "--segment") ?? 0) + 2]) ?? 0 : 0
+            Self.runSegmentTest(cuePath: path, index: index)
+        }
+
+        if let path = Self.argumentValue("--tags") {
+            let tags = TagReader.read(url: URL(fileURLWithPath: path))
+            print("TAGS title=\(tags.title ?? "-") artist=\(tags.artist ?? "-") album=\(tags.album ?? "-") albumArtist=\(tags.albumArtist ?? "-") track=\(tags.trackNumber.map(String.init) ?? "-")")
+            print("TAGS artworkBytes=\(tags.artwork?.count ?? 0) sampleRate=\(tags.sampleRate ?? 0) bitDepth=\(tags.bitDepth ?? 0) channels=\(tags.channels ?? 0) duration=\(String(format: "%.2f", tags.duration ?? 0))")
+            exit(0)
+        }
+    }
+
+    private static func argumentValue(_ name: String) -> String? {
+        let args = CommandLine.arguments
+        guard let index = args.firstIndex(of: name), args.count > index + 1 else { return nil }
+        return args[index + 1]
+    }
+
+    /// Проверка движка без интерфейса: `CedarPlayer --selftest /путь/файл.wav`
+    private static func selfTestPath() -> String? {
+        let args = CommandLine.arguments
+        guard let index = args.firstIndex(of: "--selftest"), args.count > index + 1 else { return nil }
+        return args[index + 1]
+    }
+
+    @MainActor
+    private static func runImportTest(paths: [String]) -> Never {
+        let library = Library()
+        library.tracks.removeAll()
+        let urls = paths.map { URL(fileURLWithPath: $0) }
+        let semaphore = DispatchSemaphore(value: 0)
+        Task { @MainActor in
+            let imported = await library.importFiles(urls)
+            print("IMPORT count=\(imported.count)")
+            for track in imported {
+                print(String(format: "  %@ | %@ | %@ | cue=%@..%@ | dur=%.2f | art=%d | %@",
+                             track.title, track.artist, track.album,
+                             track.cueStart.map { String(format: "%.2f", $0) } ?? "-",
+                             track.cueEnd.map { String(format: "%.2f", $0) } ?? "-",
+                             track.duration, track.artwork?.count ?? 0, track.qualityText))
+            }
+            semaphore.signal()
+        }
+        while semaphore.wait(timeout: .now()) == .timedOut {
+            RunLoop.main.run(until: Date().addingTimeInterval(0.1))
+        }
+        // Дать библиотеке сохранить состояние (debounce 0.6 с).
+        RunLoop.main.run(until: Date().addingTimeInterval(1.0))
+        exit(0)
+    }
+
+    @MainActor
+    private static func runSegmentTest(cuePath: String, index: Int) -> Never {
+        guard let sheet = CueParser.parse(url: URL(fileURLWithPath: cuePath)),
+              sheet.tracks.indices.contains(index) else {
+            print("SEGMENT error: cue/трек не найдены"); exit(2)
+        }
+        let entry = sheet.tracks[index]
+        var track = Track(url: sheet.fileURL)
+        track.title = entry.title
+        track.artist = entry.performer
+        track.album = sheet.title
+        track.cueStart = entry.start
+        track.cueEnd = entry.end
+
+        let engine = PlayerEngine()
+        engine.setQueue([track], startAt: 0)
+        RunLoop.main.run(until: Date().addingTimeInterval(1.2))
+        print(String(format: "SEGMENT %02d title=%@ duration=%.2f position=%.2f playing=%@ error=%@",
+                     entry.number, entry.title, engine.duration, engine.position,
+                     engine.isPlaying ? "yes" : "no", engine.errorMessage ?? "нет"))
+        exit(engine.errorMessage == nil ? 0 : 1)
+    }
+
+    @MainActor
+    private static func runSelfTest(path: String) -> Never {
+        let engine = PlayerEngine()
+        let url = URL(fileURLWithPath: path)
+        var report: [String] = []
+        guard FileManager.default.fileExists(atPath: path) else {
+            print("SELFTEST error: файл не найден")
+            exit(2)
+        }
+        let track = Track(url: url)
+        engine.setQueue([track], startAt: 0)
+        report.append("loaded=\(engine.currentTrack != nil)")
+        report.append("duration=\(String(format: "%.2f", engine.duration))")
+        report.append("error=\(engine.errorMessage ?? "нет")")
+        engine.play()
+        RunLoop.main.run(until: Date().addingTimeInterval(1.2))
+        report.append("playing=\(engine.isPlaying)")
+        report.append("position=\(String(format: "%.2f", engine.position))")
+        report.append("spectrumMax=\(String(format: "%.3f", engine.spectrum.max() ?? 0))")
+        report.append("spectrumBands=\(engine.spectrum.count)")
+        report.append("levelL=\(String(format: "%.2f", engine.levelL))")
+        report.append("levelR=\(String(format: "%.2f", engine.levelR))")
+        report.append("peak=\(String(format: "%.2f", engine.peakL))")
+        engine.apply(preset: PlayerEngine.presets[1])
+        report.append("eq=\(engine.isEQEnabled) bands=\(engine.bands.count)")
+        engine.seek(to: engine.duration / 2)
+        RunLoop.main.run(until: Date().addingTimeInterval(0.4))
+        report.append("seek=\(String(format: "%.2f", engine.position))")
+        engine.pause()
+        report.append("paused=\(!engine.isPlaying)")
+        print("SELFTEST " + report.joined(separator: " "))
+        exit(engine.errorMessage == nil && engine.duration > 0 ? 0 : 1)
+    }
+
+    var body: some Scene {
+        WindowGroup("Cedar Player", id: "main") {
+            MainWindowView()
+                .environmentObject(library)
+                .environmentObject(engine)
+                .onAppear { appDelegate.configure(library: library, engine: engine) }
+        }
+        .defaultSize(width: 425, height: 1006)
+        .windowResizability(.contentMinSize)
+        .commands {
+            CommandGroup(replacing: .newItem) {
+                Button("Добавить файлы…") { library.presentImportPanel() }
+                    .keyboardShortcut("o", modifiers: .command)
+                Button("Окно обложки") { openWindow(id: "albumart") }
+                    .keyboardShortcut("p", modifiers: [.command, .shift])
+            }
+
+            CommandMenu("Управление") {
+                Button(engine.isPlaying ? "Пауза" : "Воспроизвести") { engine.toggle() }
+                    .keyboardShortcut(.space, modifiers: [])
+                    .disabled(engine.currentTrack == nil)
+                Button("Следующий трек") { engine.next(manual: true) }
+                    .keyboardShortcut(.rightArrow, modifiers: .command)
+                Button("Предыдущий трек") { engine.previous() }
+                    .keyboardShortcut(.leftArrow, modifiers: .command)
+                Divider()
+                Button("Громче") { engine.volume = min(1, engine.volume + 0.1) }
+                    .keyboardShortcut(.upArrow, modifiers: .command)
+                Button("Тише") { engine.volume = max(0, engine.volume - 0.1) }
+                    .keyboardShortcut(.downArrow, modifiers: .command)
+                Button(engine.isMuted ? "Включить звук" : "Заглушить") { engine.isMuted.toggle() }
+                    .keyboardShortcut("m", modifiers: [.command, .shift])
+                Divider()
+                Toggle("Перемешивание", isOn: $engine.isShuffle)
+                    .keyboardShortcut("s", modifiers: [.command, .shift])
+                Picker("Повтор", selection: $engine.repeatMode) {
+                    Text("Выключен").tag(RepeatMode.off)
+                    Text("Список").tag(RepeatMode.all)
+                    Text("Один трек").tag(RepeatMode.one)
+                }
+                Divider()
+                Button("Эквалайзер") { openWindow(id: "equalizer") }
+                    .keyboardShortcut("e", modifiers: .command)
+                Button("Текст песни") { openWindow(id: "lyrics") }
+                    .keyboardShortcut("l", modifiers: .command)
+                Button("Мини-плеер") { openWindow(id: "mini") }
+                    .keyboardShortcut("m", modifiers: [.command, .option])
+                Divider()
+                Menu("Индикатор") {
+                    ForEach(MeterStyle.allCases) { style in
+                        Button(style.title) { meterStyleRaw = style.rawValue }
+                    }
+                    Divider()
+                    Button("Аналоговый VU-метр") { openWindow(id: "vu") }
+                        .keyboardShortcut("u", modifiers: .command)
+                }
+
+                Toggle("Плейлист", isOn: $showPlaylist)
+                    .keyboardShortcut("p", modifiers: [.command, .option])
+                Button("Библиотека") { openWindow(id: "library") }
+                    .keyboardShortcut("b", modifiers: .command)
+            }
+        }
+
+        Window("Библиотека", id: "library") {
+            ContentView()
+                .environmentObject(library)
+                .environmentObject(engine)
+        }
+        .defaultSize(width: 900, height: 560)
+
+        Window("VU-метр", id: "vu") {
+            AnalogVUMeterView()
+                .preferredColorScheme(.dark)
+                .environmentObject(engine)
+        }
+        .defaultSize(width: 472, height: 276)
+
+        Window("Обложка", id: "albumart") {
+            ArtworkWindowView()
+                .preferredColorScheme(.dark)
+                .environmentObject(library)
+                .environmentObject(engine)
+        }
+        .defaultSize(width: 430, height: 560)
+        .keyboardShortcut("1", modifiers: [.command])
+
+        Window("Эквалайзер", id: "equalizer") {
+            EqualizerView()
+                .preferredColorScheme(.dark)
+                .environmentObject(engine)
+        }
+        .defaultSize(width: 700, height: 480)
+        .windowResizability(.contentSize)
+
+        Window("Текст песни", id: "lyrics") {
+            LyricsView()
+                .environmentObject(engine)
+        }
+        .defaultSize(width: 480, height: 460)
+
+        Window("Мини-плеер", id: "mini") {
+            MiniPlayerView()
+                .environmentObject(library)
+                .environmentObject(engine)
+        }
+        .windowResizability(.contentSize)
+
+        Settings {
+            SettingsView()
+                .environmentObject(library)
+                .environmentObject(engine)
+        }
+    }
+}
+
+final class AppDelegate: NSObject, NSApplicationDelegate {
+    private weak var engine: PlayerEngine?
+    private weak var library: Library?
+
+    func configure(library: Library, engine: PlayerEngine) {
+        self.library = library
+        self.engine = engine
+    }
+
+    func application(_ application: NSApplication, open urls: [URL]) {
+        guard let library, let engine else { return }
+        Task { @MainActor in
+            let imported = await library.importFiles(urls)
+            guard let first = imported.first else { return }
+            let queue = library.visibleTracks
+            if let index = queue.firstIndex(where: { $0.id == first.id }) {
+                engine.setQueue(queue, startAt: index)
+            }
+        }
+    }
+
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        false
+    }
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        NSApp.setActivationPolicy(.regular)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+}
