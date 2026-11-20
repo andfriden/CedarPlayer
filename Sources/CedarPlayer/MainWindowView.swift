@@ -42,6 +42,7 @@ struct MainWindowView: View {
                 guard let window else { return }
                 window.minSize = NSSize(width: width, height: playerHeight)
                 forceDesignSize(window)
+                NowPlayingService.shared.attach(engine)
                 restoreLastPlayback()
             }
         }

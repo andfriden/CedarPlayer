@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import MediaPlayer
 
 @main
 struct CedarPlayerApp: App {
@@ -78,6 +79,10 @@ struct CedarPlayerApp: App {
             }
         }
 
+        if let path = Self.argumentValue("--nowplaying") {
+            Self.runNowPlayingTest(path: path)
+        }
+
         if let path = Self.argumentValue("--tags") {
             let tags = TagReader.read(url: URL(fileURLWithPath: path))
             print("TAGS title=\(tags.title ?? "-") artist=\(tags.artist ?? "-") album=\(tags.album ?? "-") albumArtist=\(tags.albumArtist ?? "-") track=\(tags.trackNumber.map(String.init) ?? "-")")
@@ -121,6 +126,43 @@ struct CedarPlayerApp: App {
         }
         // Дать библиотеке сохранить состояние (debounce 0.6 с).
         RunLoop.main.run(until: Date().addingTimeInterval(1.0))
+        exit(0)
+    }
+
+    /// Проверка интеграции с Now Playing и медиа-клавишами без интерфейса.
+    private static func runNowPlayingTest(path: String) -> Never {
+        let url = URL(fileURLWithPath: path)
+        let engine = PlayerEngine()
+        let semaphore = DispatchSemaphore(value: 0)
+        Task { @MainActor in
+            let track = await MetadataReader.read(url: url)
+            engine.setQueue([track], startAt: 0, autoplay: false)
+            NowPlayingService.shared.attach(engine)
+            NowPlayingService.shared.refreshNow()
+
+            let info = MPNowPlayingInfoCenter.default().nowPlayingInfo ?? [:]
+            print("NP title=\(info[MPMediaItemPropertyTitle] ?? "-")")
+            print("NP artist=\(info[MPMediaItemPropertyArtist] ?? "-") album=\(info[MPMediaItemPropertyAlbumTitle] ?? "-")")
+            print(String(format: "NP elapsed=%.2f duration=%.2f rate=%.1f artwork=%@",
+                         (info[MPNowPlayingInfoPropertyElapsedPlaybackTime] as? Double) ?? -1,
+                         (info[MPMediaItemPropertyPlaybackDuration] as? Double) ?? -1,
+                         (info[MPNowPlayingInfoPropertyPlaybackRate] as? Double) ?? -1,
+                         info[MPMediaItemPropertyArtwork] == nil ? "no" : "yes"))
+            let remote = MPRemoteCommandCenter.shared()
+            print("NP state=\(MPNowPlayingInfoCenter.default().playbackState.rawValue) next=\(remote.nextTrackCommand.isEnabled) seek=\(remote.changePlaybackPositionCommand.isEnabled) toggle=\(remote.togglePlayPauseCommand.isEnabled)")
+
+            engine.play()
+            semaphore.signal()
+        }
+        while semaphore.wait(timeout: .now()) == .timedOut {
+            RunLoop.main.run(until: Date().addingTimeInterval(0.1))
+        }
+        RunLoop.main.run(until: Date().addingTimeInterval(1.2))
+        let updated = MPNowPlayingInfoCenter.default().nowPlayingInfo ?? [:]
+        print(String(format: "NP playing elapsed=%.2f rate=%.1f state=%d",
+                     (updated[MPNowPlayingInfoPropertyElapsedPlaybackTime] as? Double) ?? -1,
+                     (updated[MPNowPlayingInfoPropertyPlaybackRate] as? Double) ?? -1,
+                     MPNowPlayingInfoCenter.default().playbackState.rawValue))
         exit(0)
     }
 

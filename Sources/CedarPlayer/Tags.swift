@@ -279,7 +279,8 @@ struct ByteReader {
     var remaining: Int { max(0, data.count - offset) }
 
     mutating func readBytes(_ count: Int) -> Data {
-        guard count > 0, offset + count <= data.count else { offset = data.count; return Data() }
+        guard count > 0 else { return Data() }
+        guard offset + count <= data.count else { offset = data.count; return Data() }
         let slice = data.subdata(in: offset..<offset+count)
         offset += count
         return slice
