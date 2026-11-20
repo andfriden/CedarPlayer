@@ -229,6 +229,19 @@ final class Library: ObservableObject {
         "\(track.url.standardizedFileURL.path)#\(track.cueStart.map { String(format: "%.3f", $0) } ?? "file")"
     }
 
+    /// Записывает теги в файл и обновляет запись в библиотеке.
+    @discardableResult
+    func applyTags(_ edit: TagEdit, to trackID: UUID) throws -> Track? {
+        guard let index = tracks.firstIndex(where: { $0.id == trackID }) else { return nil }
+        try TagWriter.write(edit, to: tracks[index].url)
+        tracks[index].title = edit.title
+        tracks[index].artist = edit.artist
+        tracks[index].album = edit.album
+        tracks[index].albumArtist = edit.albumArtist
+        tracks[index].trackNumber = edit.trackNumber
+        return tracks[index]
+    }
+
     func remove(_ ids: Set<UUID>) {
         tracks.removeAll { ids.contains($0.id) }
         for index in playlists.indices {

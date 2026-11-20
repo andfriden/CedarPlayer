@@ -11,6 +11,13 @@ final class PlayerEngine: ObservableObject {
 
     @Published private(set) var isPlaying = false
     @Published private(set) var currentTrack: Track?
+
+    /// Подменяет метаданные играющего трека после правки тегов.
+    func syncCurrentTrack(with track: Track) {
+        guard let current = currentTrack, current.id == track.id else { return }
+        currentTrack = track
+    }
+
     @Published private(set) var position: TimeInterval = 0
     @Published private(set) var duration: TimeInterval = 0
     @Published var volume: Double = 0.8 {

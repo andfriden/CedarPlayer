@@ -18,6 +18,12 @@ CUE-образы, 10-полосный эквалайзер, индикаторы
 - Свои парсеры: FLAC (STREAMINFO, Vorbis comments, PICTURE), ID3v2.2/2.3/2.4
   (TIT2, TPE1, TALB, TPE2, TRCK, APIC), AVFoundation — как фолбэк для m4a/aac.
 - Обложки: встроенные, из папки (`cover`, `folder`, `front`, `album`).
+- Правка тегов (⌘T или контекстное меню плеера) с записью в файл: FLAC
+  (Vorbis comments) и MP3 (ID3v2.4); обложка APIC сохраняется, аудиоданные не
+  перекодируются, запись атомарная через временный файл.
+- Обложки хранятся в дисковом кэше `~/Library/Application Support/CedarPlayer/Artwork`
+  по SHA-256: в `library.json` остаются только ключи, повторяющиеся картинки
+  занимают один файл.
 
 **CUE**
 - Разбор `.cue` (FILE/TRACK/INDEX 01/PERFORMER/TITLE), один файл → треки-сегменты.

@@ -52,6 +52,32 @@ struct CedarPlayerApp: App {
             Self.runSegmentTest(cuePath: path, index: index)
         }
 
+        if let path = Self.argumentValue("--writetags") {
+            let url = URL(fileURLWithPath: path)
+            var edit = TagEdit(title: "", artist: "", album: "", albumArtist: "", trackNumber: 0)
+            for argument in CommandLine.arguments where argument.contains("=") {
+                let parts = argument.split(separator: "=", maxSplits: 1).map(String.init)
+                guard parts.count == 2 else { continue }
+                switch parts[0].lowercased() {
+                case "title": edit.title = parts[1]
+                case "artist": edit.artist = parts[1]
+                case "album": edit.album = parts[1]
+                case "albumartist": edit.albumArtist = parts[1]
+                case "track": edit.trackNumber = Int(parts[1]) ?? 0
+                default: break
+                }
+            }
+            do {
+                try TagWriter.write(edit, to: url)
+                let tags = TagReader.read(url: url)
+                print("WRITE ok title=\(tags.title ?? "-") artist=\(tags.artist ?? "-") album=\(tags.album ?? "-") albumArtist=\(tags.albumArtist ?? "-") track=\(tags.trackNumber.map(String.init) ?? "-") artwork=\(tags.artwork?.count ?? 0)")
+                exit(0)
+            } catch {
+                print("WRITE failed: \(error.localizedDescription)")
+                exit(1)
+            }
+        }
+
         if let path = Self.argumentValue("--tags") {
             let tags = TagReader.read(url: URL(fileURLWithPath: path))
             print("TAGS title=\(tags.title ?? "-") artist=\(tags.artist ?? "-") album=\(tags.album ?? "-") albumArtist=\(tags.albumArtist ?? "-") track=\(tags.trackNumber.map(String.init) ?? "-")")
@@ -181,6 +207,12 @@ struct CedarPlayerApp: App {
                     .keyboardShortcut(.rightArrow, modifiers: .command)
                 Button("Предыдущий трек") { engine.previous() }
                     .keyboardShortcut(.leftArrow, modifiers: .command)
+                Divider()
+                Button("Изменить теги…") {
+                    NotificationCenter.default.post(name: .editTags, object: nil)
+                }
+                .keyboardShortcut("t", modifiers: .command)
+                .disabled(engine.currentTrack == nil)
                 Divider()
                 Button("Громче") { engine.volume = min(1, engine.volume + 0.1) }
                     .keyboardShortcut(.upArrow, modifiers: .command)

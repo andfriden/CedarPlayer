@@ -9,6 +9,7 @@ struct MainWindowView: View {
     @AppStorage("showPlaylist") private var showPlaylist = true
     @AppStorage("resumeLastTrack") private var resumeLastTrack = true
     @State private var window: NSWindow?
+    @State private var editingTrack: Track?
 
     private let width: CGFloat = 425
     private let playerHeight: CGFloat = 300
@@ -17,6 +18,10 @@ struct MainWindowView: View {
     var body: some View {
         VStack(spacing: 0) {
             PlayerPane()
+                .contextMenu {
+                    Button("Изменить теги…") { editingTrack = engine.currentTrack }
+                        .disabled(engine.currentTrack == nil)
+                }
             if showPlaylist {
                 Divider().overlay(.white.opacity(0.10))
                 PlaylistPane()
@@ -42,6 +47,14 @@ struct MainWindowView: View {
         }
         .animation(.easeInOut(duration: 0.16), value: showPlaylist)
         .preferredColorScheme(.dark)
+        .onReceive(NotificationCenter.default.publisher(for: .editTags)) { _ in
+            editingTrack = engine.currentTrack
+        }
+        .sheet(item: $editingTrack) { track in
+            TagEditorSheet(track: track)
+                .environmentObject(library)
+                .environmentObject(engine)
+        }
     }
 
     /// Восстанавливает последний трек и позицию (настройка «Запоминать последний трек»).
