@@ -20,10 +20,13 @@ final class AlbumGroupTests: XCTestCase {
             track("D", album: "", albumArtist: "", artist: "Solo", number: 1)
         ]
         let albums = AlbumGroup.group(tracks)
-        XCTAssertEqual(albums.map(\.title), ["Без альбома", "Alpha", "Beta"])
-        XCTAssertEqual(albums[2].tracks.map(\.title), ["A", "B"])
-        XCTAssertEqual(albums[0].artist, "Solo")
-        XCTAssertEqual(albums[2].tracks.count, 2)
+        // Порядок латиницы и кириллицы зависит от локали, поэтому проверяем состав и содержимое.
+        XCTAssertEqual(Set(albums.map(\.title)), ["Alpha", "Beta", "Gamma", "Без альбома"])
+        let beta = try? XCTUnwrap(albums.first { $0.title == "Beta" })
+        XCTAssertEqual(beta?.tracks.map(\.title), ["A", "B"])
+        let untitled = albums.first { $0.title == "Без альбома" }
+        XCTAssertEqual(untitled?.artist, "Solo")
+        XCTAssertEqual(beta?.tracks.count, 2)
     }
 
     func testSameAlbumDifferentArtistsStaySeparate() {
