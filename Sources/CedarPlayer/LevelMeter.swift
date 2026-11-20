@@ -49,18 +49,29 @@ final class LevelMeter {
             peaks[1] = peaks[0]
         }
 
+        // Баллистика по времени, а не по числу буферов: быстрая атака, упругий спад.
+        let dt = Float(Double(frames) / buffer.format.sampleRate)
+        let attack = 1 - exp(-dt / 0.004)
+        let release = 1 - exp(-dt / 0.09)
+        let peakFall = dt * 1.1
+
         lock.lock()
-        let targetL = normalize(squares[0])
-        let targetR = normalize(squares[1])
-        rmsL = smooth(current: rmsL, target: targetL, attack: 0.9, release: 0.4)
-        rmsR = smooth(current: rmsR, target: targetR, attack: 0.9, release: 0.4)
-        peakL = max(normalize(peaks[0]), peakL - 0.03)
-        peakR = max(normalize(peaks[1]), peakR - 0.03)
+        let targetL = display(normalize(squares[0]))
+        let targetR = display(normalize(squares[1]))
+        rmsL = smooth(current: rmsL, target: targetL, attack: attack, release: release)
+        rmsR = smooth(current: rmsR, target: targetR, attack: attack, release: release)
+        peakL = max(display(normalize(peaks[0])), peakL - peakFall)
+        peakR = max(display(normalize(peaks[1])), peakR - peakFall)
         let reading = Reading(rms: [rmsL, rmsR], peaks: [peakL, peakR])
         lock.unlock()
 
         let handler = onUpdate
         DispatchQueue.main.async { handler?(reading) }
+    }
+
+    /// Небольшое расширение тихих участков, чтобы движения было видно.
+    private func display(_ value: Float) -> Float {
+        pow(max(0, min(1, value)), 0.85)
     }
 
     private func normalize(_ meanSquare: Float) -> Float {

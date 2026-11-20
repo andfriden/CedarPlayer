@@ -174,6 +174,10 @@ struct CedarPlayerApp: App {
             engine.setQueue([current], startAt: 0, autoplay: true)
             try? await Task.sleep(nanoseconds: 1_000_000_000)
 
+            if let style = ProcessInfo.processInfo.environment["CEDAR_RENDER_STYLE"] {
+                UserDefaults.standard.set(style, forKey: "meterStyle")
+            }
+
             let view = VStack(spacing: 0) {
                 PlayerPane()
                 Divider().overlay(Theme.separator)

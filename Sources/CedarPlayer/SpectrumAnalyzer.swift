@@ -128,16 +128,20 @@ final class SpectrumAnalyzer {
                     let rms = sqrt(sum / Float(count))
                     let db = 20 * log10(max(rms, 1e-7))
                     let normalized = (db + 60) / 60
-                    newBands[index] = min(1, max(0, normalized))
+                    newBands[index] = pow(max(0, min(1, normalized)), 0.72)
                 }
 
+                // Баллистика по времени: атака ~5 мс, спад ~90 мс, пики держатся дольше.
+                let dt = Float(buffer.frameLength) / max(1, Float(buffer.format.sampleRate))
+                let attack = 1 - exp(-dt / 0.005)
+                let release = 1 - exp(-dt / 0.09)
                 lock.lock()
                 for index in 0..<SpectrumAnalyzer.bandCount {
                     let target = newBands[index]
                     let current = smoothed[index]
-                    let coefficient: Float = target > current ? 0.85 : 0.3
+                    let coefficient = target > current ? attack : release
                     smoothed[index] = current + (target - current) * coefficient
-                    peaks[index] = max(smoothed[index], peaks[index] - 0.04)
+                    peaks[index] = max(smoothed[index], peaks[index] - dt * 0.9)
                 }
                 let resultBands = smoothed
                 let resultPeaks = peaks

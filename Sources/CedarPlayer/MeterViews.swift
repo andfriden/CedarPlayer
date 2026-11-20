@@ -125,24 +125,30 @@ struct LevelMeterStrip: View {
 
     private func drawDots(context: GraphicsContext, size: CGSize) {
         let barHeight = rowHeight(size)
-        let dot: CGFloat = 6
+        let dotCount = 42
+        let dot: CGFloat = 5
+        let step = (size.width - dot) / CGFloat(dotCount - 1)
+
         for (row, pair) in [(0, (levelLeft, peakLeft)), (1, (levelRight, peakRight))] {
             let y = CGFloat(row) * (barHeight + 3) + (barHeight - dot) / 2
-            let track = CGRect(x: 0, y: y + dot / 2 - 0.5, width: size.width, height: 1)
-            context.fill(Path(track), with: .color(unlitColor))
-
             let level = CGFloat(min(1, max(0, pair.0)))
-            let x = size.width * level - dot / 2
-            let circle = Path(ellipseIn: CGRect(x: max(-dot / 2, x), y: y, width: dot, height: dot))
-            context.fill(circle, with: .color(zoneColor(index: Int(level * CGFloat(segments - 1)))))
+            let lit = Int((level * CGFloat(dotCount)).rounded())
+
+            for index in 0..<dotCount {
+                let rect = CGRect(x: CGFloat(index) * step, y: y, width: dot, height: dot)
+                if index < lit {
+                    let colorIndex = index * segments / dotCount
+                    context.fill(Path(ellipseIn: rect), with: .color(zoneColor(index: colorIndex)))
+                } else {
+                    context.fill(Path(ellipseIn: rect), with: .color(unlitColor))
+                }
+            }
 
             let peak = CGFloat(min(1, max(0, pair.1)))
             if peak > 0.02 {
-                let peakX = size.width * peak - 0.75
-                var line = Path()
-                line.move(to: CGPoint(x: peakX, y: y))
-                line.addLine(to: CGPoint(x: peakX, y: y + dot))
-                context.stroke(line, with: .color(.white.opacity(0.85)), lineWidth: 1.5)
+                let peakIndex = Int((peak * CGFloat(dotCount - 1)).rounded())
+                let rect = CGRect(x: CGFloat(peakIndex) * step, y: y, width: dot, height: dot)
+                context.fill(Path(ellipseIn: rect), with: .color(.white.opacity(0.9)))
             }
         }
     }
