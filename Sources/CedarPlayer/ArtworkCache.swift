@@ -1,0 +1,63 @@
+import Foundation
+import CryptoKit
+
+/// Кэш обложек на диске: файлы по SHA-256, в библиотеке хранится только ключ.
+final class ArtworkCache {
+
+    static let shared = ArtworkCache()
+
+    private let directory: URL
+    private let queue = DispatchQueue(label: "cedar.artwork.cache")
+
+    private init() {
+        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("CedarPlayer", isDirectory: true)
+            .appendingPathComponent("Artwork", isDirectory: true)
+        try? FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
+        directory = base
+    }
+
+    /// Сохраняет изображение и возвращает ключ (nil, если данных нет).
+    @discardableResult
+    func store(_ data: Data?) -> String? {
+        guard let data, !data.isEmpty else { return nil }
+        let key = Self.key(for: data)
+        let url = directory.appendingPathComponent(key)
+        if !FileManager.default.fileExists(atPath: url.path) {
+            queue.sync {
+                try? data.write(to: url, options: .atomic)
+            }
+        }
+        return key
+    }
+
+    func data(for key: String) -> Data? {
+        let url = directory.appendingPathComponent(key)
+        return try? Data(contentsOf: url)
+    }
+
+    /// Удаляет файлы, на которые больше не ссылается библиотека.
+    func prune(keeping keys: Set<String>) {
+        queue.sync {
+            guard let files = try? FileManager.default.contentsOfDirectory(at: directory,
+                                                                          includingPropertiesForKeys: nil) else { return }
+            for file in files where !keys.contains(file.lastPathComponent) {
+                try? FileManager.default.removeItem(at: file)
+            }
+        }
+    }
+
+    func size() -> Int64 {
+        let files = (try? FileManager.default.contentsOfDirectory(at: directory,
+                                                                  includingPropertiesForKeys: [.fileSizeKey])) ?? []
+        return files.reduce(0) { total, url in
+            let size = (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
+            return total + Int64(size)
+        }
+    }
+
+    private static func key(for data: Data) -> String {
+        let digest = SHA256.hash(data: data)
+        return digest.map { String(format: "%02x", $0) }.joined()
+    }
+}

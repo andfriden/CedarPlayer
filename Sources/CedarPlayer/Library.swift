@@ -60,6 +60,12 @@ final class Library: ObservableObject {
             let store = Store(tracks: self.tracks, playlists: self.playlists)
             guard let data = try? JSONEncoder().encode(store) else { return }
             try? data.write(to: Self.storeURL, options: .atomic)
+
+            var keys = Set(self.tracks.compactMap { $0.artworkID })
+            for track in self.tracks where track.artworkID == nil {
+                if let key = ArtworkCache.shared.store(track.artwork) { keys.insert(key) }
+            }
+            ArtworkCache.shared.prune(keeping: keys)
         }
         saveWorkItem = work
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.6, execute: work)

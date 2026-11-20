@@ -17,6 +17,7 @@ struct Track: Identifiable, Hashable, Codable {
     var trackNumber: Int
     var addedAt: Date
     var artwork: Data?
+    var artworkID: String?
     var cueStart: TimeInterval?
     var cueEnd: TimeInterval?
 
@@ -35,6 +36,7 @@ struct Track: Identifiable, Hashable, Codable {
         self.trackNumber = 0
         self.addedAt = Date()
         self.artwork = nil
+        self.artworkID = nil
         self.cueStart = nil
         self.cueEnd = nil
     }
@@ -202,5 +204,70 @@ enum MetadataReader {
         }
 
         return track
+    }
+}
+
+
+// MARK: - Кодирование с кэшем обложек
+
+extension Track {
+    enum CodingKeys: String, CodingKey {
+        case id, url, title, artist, album, albumArtist, trackNumber
+        case duration, sampleRate, bitDepth, channels, bitrate
+        case addedAt, artwork, artworkID, cueStart, cueEnd
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        url = try container.decode(URL.self, forKey: .url)
+        title = try container.decodeIfPresent(String.self, forKey: .title) ?? ""
+        artist = try container.decodeIfPresent(String.self, forKey: .artist) ?? ""
+        album = try container.decodeIfPresent(String.self, forKey: .album) ?? ""
+        albumArtist = try container.decodeIfPresent(String.self, forKey: .albumArtist) ?? ""
+        trackNumber = try container.decodeIfPresent(Int.self, forKey: .trackNumber) ?? 0
+        duration = try container.decodeIfPresent(TimeInterval.self, forKey: .duration) ?? 0
+        sampleRate = try container.decodeIfPresent(Double.self, forKey: .sampleRate) ?? 0
+        bitDepth = try container.decodeIfPresent(Int.self, forKey: .bitDepth) ?? 0
+        channels = try container.decodeIfPresent(Int.self, forKey: .channels) ?? 0
+        bitrate = try container.decodeIfPresent(Int.self, forKey: .bitrate) ?? 0
+        addedAt = try container.decodeIfPresent(Date.self, forKey: .addedAt) ?? Date()
+        cueStart = try container.decodeIfPresent(TimeInterval.self, forKey: .cueStart)
+        cueEnd = try container.decodeIfPresent(TimeInterval.self, forKey: .cueEnd)
+        artworkID = try container.decodeIfPresent(String.self, forKey: .artworkID)
+
+        if let legacy = try container.decodeIfPresent(Data.self, forKey: .artwork), !legacy.isEmpty {
+            artwork = legacy
+            if artworkID == nil {
+                artworkID = ArtworkCache.shared.store(legacy)
+            }
+        } else if let key = artworkID {
+            artwork = ArtworkCache.shared.data(for: key)
+        } else {
+            artwork = nil
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(url, forKey: .url)
+        try container.encode(title, forKey: .title)
+        try container.encode(artist, forKey: .artist)
+        try container.encode(album, forKey: .album)
+        try container.encode(albumArtist, forKey: .albumArtist)
+        try container.encode(trackNumber, forKey: .trackNumber)
+        try container.encode(duration, forKey: .duration)
+        try container.encode(sampleRate, forKey: .sampleRate)
+        try container.encode(bitDepth, forKey: .bitDepth)
+        try container.encode(channels, forKey: .channels)
+        try container.encode(bitrate, forKey: .bitrate)
+        try container.encode(addedAt, forKey: .addedAt)
+        try container.encodeIfPresent(cueStart, forKey: .cueStart)
+        try container.encodeIfPresent(cueEnd, forKey: .cueEnd)
+
+        // В JSON пишем только ключ, сами байты лежат в ArtworkCache.
+        let identifier = artworkID ?? ArtworkCache.shared.store(artwork)
+        try container.encodeIfPresent(identifier, forKey: .artworkID)
     }
 }
