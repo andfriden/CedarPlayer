@@ -2,6 +2,7 @@ import Foundation
 import AppKit
 import UniformTypeIdentifiers
 import Combine
+import AVFoundation
 
 /// Библиотека: треки, плейлисты, поиск, сортировка, сохранение состояния.
 @MainActor
@@ -22,8 +23,14 @@ final class Library: ObservableObject {
     @Published var statusMessage: String?
 
     private var saveWorkItem: DispatchWorkItem?
+    private var importTask: Task<Void, Never>?
 
     private static let supportDirectory: URL = {
+        if let custom = ProcessInfo.processInfo.environment["CEDAR_LIBRARY_DIR"], !custom.isEmpty {
+            let base = URL(fileURLWithPath: custom, isDirectory: true)
+            try? FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
+            return base
+        }
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("CedarPlayer", isDirectory: true)
         try? FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
@@ -122,34 +129,72 @@ final class Library: ObservableObject {
     }
 
     func importURLs(_ urls: [URL]) {
-        Task { await importFiles(urls) }
+        importTask?.cancel()
+        importTask = Task { await importFiles(urls) }
+    }
+
+    /// Прерывает текущий импорт: уже прочитанные треки остаются в библиотеке.
+    func cancelImport() {
+        importTask?.cancel()
     }
 
     /// Добавляет файлы и папки, возвращает только что добавленные треки.
+    /// Битые, пустые и дублирующиеся файлы пропускаются и попадают в отчёт.
     @discardableResult
     func importFiles(_ urls: [URL]) async -> [Track] {
+        let fm = FileManager.default
         var files: [URL] = []
         var cueFiles: [URL] = []
-        let fm = FileManager.default
+        var duplicates = 0
+        var ignored = 0
+        var unreadableDirectories = 0
+        var unreadableNames: [String] = []
+        var cueFailures = 0
+        var cancelled = false
+
+        var seenPaths = Set<String>()
+        func register(_ url: URL) {
+            let path = url.standardizedFileURL.path
+            guard seenPaths.insert(path).inserted else {
+                duplicates += 1
+                return
+            }
+            if url.lastPathComponent.hasPrefix(".") {
+                ignored += 1
+                return
+            }
+            if url.pathExtension.lowercased() == "cue" {
+                cueFiles.append(url)
+            } else {
+                files.append(url)
+            }
+        }
 
         for url in urls {
             var isDirectory: ObjCBool = false
-            if fm.fileExists(atPath: url.path, isDirectory: &isDirectory), isDirectory.boolValue {
-                if let enumerator = fm.enumerator(at: url, includingPropertiesForKeys: nil) {
-                    for case let child as URL in enumerator where Track.isSupported(child) {
-                        if child.pathExtension.lowercased() == "cue" {
-                            cueFiles.append(child)
-                        } else {
-                            files.append(child)
-                        }
-                    }
+            guard fm.fileExists(atPath: url.path, isDirectory: &isDirectory) else {
+                ignored += 1
+                continue
+            }
+            if isDirectory.boolValue {
+                var failed = false
+                let enumerator = fm.enumerator(at: url,
+                                               includingPropertiesForKeys: [.isRegularFileKey, .fileSizeKey],
+                                               options: [.skipsHiddenFiles, .skipsPackageDescendants],
+                                               errorHandler: { _, _ in
+                                                   failed = true
+                                                   return true
+                                               })
+                if enumerator == nil { unreadableDirectories += 1 }
+                while let child = enumerator?.nextObject() as? URL {
+                    guard Track.isSupported(child) else { continue }
+                    register(child)
                 }
+                if failed { unreadableDirectories += 1 }
             } else if Track.isSupported(url) {
-                if url.pathExtension.lowercased() == "cue" {
-                    cueFiles.append(url)
-                } else {
-                    files.append(url)
-                }
+                register(url)
+            } else {
+                ignored += 1
             }
         }
 
@@ -161,12 +206,13 @@ final class Library: ObservableObject {
 
         // CUE-листы: один аудиофайл превращается в несколько треков-сегментов.
         for cueURL in cueFiles {
+            if Task.isCancelled { cancelled = true; break }
             guard let sheet = CueParser.parse(url: cueURL) else {
-                statusMessage = "CUE не разобран: \(cueURL.lastPathComponent)"
+                cueFailures += 1
                 continue
             }
             guard fm.fileExists(atPath: sheet.fileURL.path) else {
-                statusMessage = "Нет аудиофайла для \(cueURL.lastPathComponent)"
+                cueFailures += 1
                 continue
             }
             referencedAudio.insert(sheet.fileURL.standardizedFileURL.path)
@@ -198,30 +244,68 @@ final class Library: ObservableObject {
         var knownKeys = existingKeys
         imported = imported.filter { track in
             let key = Self.key(for: track)
-            if knownKeys.contains(key) { return false }
+            if knownKeys.contains(key) {
+                duplicates += 1
+                return false
+            }
             knownKeys.insert(key)
             return true
         }
-        files = files.filter { !existingKeys.contains(Self.key(for: Track(url: $0))) }
-
-        guard !files.isEmpty || !imported.isEmpty else {
-            isImporting = false
-            statusMessage = "Новых треков не найдено"
-            return []
+        files = files.filter { url in
+            if existingKeys.contains(Self.key(for: Track(url: url))) {
+                duplicates += 1
+                return false
+            }
+            return true
         }
 
         for (index, url) in files.enumerated() {
-            let track = await MetadataReader.read(url: url)
-            imported.append(track)
-            if index % 8 == 0 {
+            if Task.isCancelled { cancelled = true; break }
+
+            let size = (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
+            if size == 0 {
+                unreadableNames.append(url.lastPathComponent)
+                continue
+            }
+
+            guard await Self.canDecode(url: url) else {
+                unreadableNames.append(url.lastPathComponent)
+                continue
+            }
+            imported.append(await MetadataReader.read(url: url))
+            if index % 8 == 0 || index == files.count - 1 {
                 statusMessage = "Читаю метаданные: \(index + 1) из \(files.count)"
             }
         }
 
         tracks.append(contentsOf: imported)
         isImporting = false
-        statusMessage = imported.count == 1 ? "Добавлен 1 трек" : "Добавлено треков: \(imported.count)"
+        importTask = nil
+
+        var parts: [String] = []
+        if cancelled { parts.append("Импорт отменён") }
+        if imported.isEmpty {
+            parts.append("Новых треков не найдено")
+        } else {
+            parts.append(imported.count == 1 ? "Добавлен 1 трек" : "Добавлено: \(imported.count)")
+        }
+        if duplicates > 0 { parts.append("дубликатов: \(duplicates)") }
+        if !unreadableNames.isEmpty {
+            let preview = unreadableNames.prefix(3).joined(separator: ", ")
+            parts.append("не читается: \(unreadableNames.count) (\(preview))")
+        }
+        if cueFailures > 0 { parts.append("CUE с ошибками: \(cueFailures)") }
+        if ignored > 0 { parts.append("пропущено: \(ignored)") }
+        if unreadableDirectories > 0 { parts.append("папок с ошибкой чтения: \(unreadableDirectories)") }
+        statusMessage = parts.joined(separator: " · ")
         return imported
+    }
+
+    /// Проверяет, что файл действительно открывается декодером Core Audio.
+    private static func canDecode(url: URL) async -> Bool {
+        if (try? AVAudioFile(forReading: url)) != nil { return true }
+        let asset = AVURLAsset(url: url)
+        return (try? await asset.load(.isPlayable)) ?? false
     }
 
     /// Ключ уникальности: файл + смещение внутри CUE.

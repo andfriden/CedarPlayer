@@ -10,9 +10,14 @@ final class ArtworkCache {
     private let queue = DispatchQueue(label: "cedar.artwork.cache")
 
     private init() {
-        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("CedarPlayer", isDirectory: true)
-            .appendingPathComponent("Artwork", isDirectory: true)
+        let root: URL
+        if let custom = ProcessInfo.processInfo.environment["CEDAR_LIBRARY_DIR"], !custom.isEmpty {
+            root = URL(fileURLWithPath: custom, isDirectory: true)
+        } else {
+            root = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+                .appendingPathComponent("CedarPlayer", isDirectory: true)
+        }
+        let base = root.appendingPathComponent("Artwork", isDirectory: true)
         try? FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
         directory = base
     }

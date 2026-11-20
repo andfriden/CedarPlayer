@@ -102,12 +102,11 @@ struct CedarPlayerApp: App {
     @MainActor
     private static func runImportTest(paths: [String]) -> Never {
         let library = Library()
-        library.tracks.removeAll()
         let urls = paths.map { URL(fileURLWithPath: $0) }
         let semaphore = DispatchSemaphore(value: 0)
         Task { @MainActor in
             let imported = await library.importFiles(urls)
-            print("IMPORT count=\(imported.count)")
+            print("IMPORT count=\(imported.count) status=\(library.statusMessage ?? "-")")
             for track in imported {
                 print(String(format: "  %@ | %@ | %@ | cue=%@..%@ | dur=%.2f | art=%d | %@",
                              track.title, track.artist, track.album,
@@ -208,6 +207,8 @@ struct CedarPlayerApp: App {
                 Button("Предыдущий трек") { engine.previous() }
                     .keyboardShortcut(.leftArrow, modifiers: .command)
                 Divider()
+                Button("Отменить импорт") { library.cancelImport() }
+                    .disabled(!library.isImporting)
                 Button("Изменить теги…") {
                     NotificationCenter.default.post(name: .editTags, object: nil)
                 }
