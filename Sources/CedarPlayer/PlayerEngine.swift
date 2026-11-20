@@ -28,12 +28,13 @@ final class PlayerEngine: ObservableObject {
         didSet { applyEQState(); persistEQ() }
     }
     @Published var preamp: Double = 0 {
-        didSet { equalizer.globalGain = Float(preamp); persistEQ() }
+        didSet { applyEQState(); persistEQ() }
     }
     @Published var bands: [Double] = Array(repeating: 0, count: 10) {
         didSet { applyBands(); persistEQ() }
     }
     @Published var errorMessage: String?
+    @Published private(set) var usesDSPEqualizer = false
 
     @Published private(set) var spectrum = [Float](repeating: 0, count: SpectrumAnalyzer.bandCount)
     @Published private(set) var spectrumPeaks = [Float](repeating: 0, count: SpectrumAnalyzer.bandCount)
@@ -55,7 +56,8 @@ final class PlayerEngine: ObservableObject {
 
     private let engine = AVAudioEngine()
     private let player = AVAudioPlayerNode()
-    private let equalizer = AVAudioUnitEQ(numberOfBands: 10)
+    private var equalizer: AVAudioUnit!
+    private var biquad: BiquadEQAudioUnit?
     private let timePitch = AVAudioUnitTimePitch()
 
     private var file: AVAudioFile?
@@ -91,20 +93,30 @@ final class PlayerEngine: ObservableObject {
     }
 
     private func configureGraph() {
+        if let node = BiquadEQAudioUnit.makeNode(),
+           let unit = node.auAudioUnit as? BiquadEQAudioUnit {
+            equalizer = node
+            biquad = unit
+            usesDSPEqualizer = true
+        } else {
+            let fallback = AVAudioUnitEQ(numberOfBands: 10)
+            for (index, frequency) in frequencies.enumerated() {
+                let band = fallback.bands[index]
+                band.filterType = .parametric
+                band.frequency = Float(frequency)
+                band.bandwidth = 1.0
+                band.gain = 0
+                band.bypass = false
+            }
+            fallback.globalGain = 0
+            equalizer = fallback
+        }
+
         engine.attach(player)
         engine.attach(timePitch)
         engine.attach(equalizer)
-
-        for (index, frequency) in frequencies.enumerated() {
-            let band = equalizer.bands[index]
-            band.filterType = .parametric
-            band.frequency = Float(frequency)
-            band.bandwidth = 1.0
-            band.gain = 0
-            band.bypass = false
-        }
-        equalizer.globalGain = 0
         applyEQState()
+        applyBands()
 
         let format = AVAudioFormat(standardFormatWithSampleRate: 44100, channels: 2)
         engine.connect(player, to: timePitch, format: format)
@@ -160,13 +172,24 @@ final class PlayerEngine: ObservableObject {
     }
 
     private func applyEQState() {
-        equalizer.bypass = !isEQEnabled
-        equalizer.globalGain = isEQEnabled ? Float(preamp) : 0
+        guard let equalizer else { return }
+        if let biquad {
+            biquad.setEnabled(isEQEnabled)
+            biquad.setPreamp(preamp)
+        } else if let legacy = equalizer as? AVAudioUnitEQ {
+            legacy.bypass = !isEQEnabled
+            legacy.globalGain = isEQEnabled ? Float(preamp) : 0
+        }
     }
 
     private func applyBands() {
-        for (index, gain) in bands.enumerated() where index < equalizer.bands.count {
-            equalizer.bands[index].gain = Float(gain)
+        guard let equalizer else { return }
+        if let biquad {
+            biquad.setBands(bands, frequencies: frequencies)
+        } else if let legacy = equalizer as? AVAudioUnitEQ {
+            for (index, gain) in bands.enumerated() where index < legacy.bands.count {
+                legacy.bands[index].gain = Float(gain)
+            }
         }
     }
 

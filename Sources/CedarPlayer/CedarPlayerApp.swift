@@ -146,7 +146,7 @@ struct CedarPlayerApp: App {
         report.append("levelR=\(String(format: "%.2f", engine.levelR))")
         report.append("peak=\(String(format: "%.2f", engine.peakL))")
         engine.apply(preset: PlayerEngine.presets[1])
-        report.append("eq=\(engine.isEQEnabled) bands=\(engine.bands.count)")
+        report.append("eq=\(engine.isEQEnabled) bands=\(engine.bands.count) dsp=\(engine.usesDSPEqualizer)")
         engine.seek(to: engine.duration / 2)
         RunLoop.main.run(until: Date().addingTimeInterval(0.4))
         report.append("seek=\(String(format: "%.2f", engine.position))")
