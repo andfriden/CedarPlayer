@@ -63,7 +63,14 @@ open "build/Cedar Player.app"
 ```
 
 Сборка — SwiftPM-пакет без внешних зависимостей; `build.sh` собирает `.app`,
-кладёт `Info.plist` и подписывает ad-hoc.
+кладёт `Info.plist`, иконку `Resources/AppIcon.icns` и подписывает ad-hoc.
+
+Иконка рисуется кодом (тёмный скруглённый квадрат, голубая крона и значок play):
+
+```bash
+swift Scripts/make-icon.swift Resources/AppIcon   # PNG + .iconset
+iconutil -c icns Resources/AppIcon.iconset -o Resources/AppIcon.icns
+```
 
 ## Горячие клавиши
 
@@ -132,7 +139,8 @@ CEDAR_SHOT_TRACK=/путь/трек.flac \
 ```
 CedarPlayer/
 ├── Package.swift                 SwiftPM: executable + test target
-├── build.sh                      сборка .app и ad-hoc подпись
+├── build.sh                      сборка .app, иконка и ad-hoc подпись
+├── Scripts/make-icon.swift       генерация иконки (PNG, iconset, icns)
 ├── Docs/main-window.png          скриншот для README
 ├── Resources/Info.plist          бандл, типы документов (аудио + CUE)
 ├── Tests/CedarPlayerTests/       XCTest
