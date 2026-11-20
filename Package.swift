@@ -8,6 +8,11 @@ let package = Package(
         .executableTarget(
             name: "CedarPlayer",
             path: "Sources/CedarPlayer"
+        ),
+        .testTarget(
+            name: "CedarPlayerTests",
+            dependencies: ["CedarPlayer"],
+            path: "Tests/CedarPlayerTests"
         )
     ]
 )

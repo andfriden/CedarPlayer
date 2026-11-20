@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Версия Swift
+        run: swift --version
+
+      - name: Сборка
+        run: swift build -c release
+
+      - name: Тесты
+        run: swift test
+
+      - name: Бандл приложения
+        run: ./build.sh release
+
+      - name: Проверка CLI
+        run: |
+          APP="build/Cedar Player.app/Contents/MacOS/CedarPlayer"
+          "$APP" --eqdump | head -2
