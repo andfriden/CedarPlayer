@@ -79,6 +79,10 @@ struct CedarPlayerApp: App {
             }
         }
 
+        if let path = Self.argumentValue("--albums") {
+            Self.runAlbumsTest(path: path)
+        }
+
         if let path = Self.argumentValue("--nowplaying") {
             Self.runNowPlayingTest(path: path)
         }
@@ -126,6 +130,27 @@ struct CedarPlayerApp: App {
         }
         // Дать библиотеке сохранить состояние (debounce 0.6 с).
         RunLoop.main.run(until: Date().addingTimeInterval(1.0))
+        exit(0)
+    }
+
+    /// Проверка группировки по альбомам: импорт папки и печать групп.
+    private static func runAlbumsTest(path: String) -> Never {
+        let library = Library()
+        let url = URL(fileURLWithPath: path)
+        let semaphore = DispatchSemaphore(value: 0)
+        Task { @MainActor in
+            await library.importFiles([url])
+            for album in AlbumGroup.group(library.tracks) {
+                print("ALBUM \(album.title) | \(album.artist) | tracks=\(album.tracks.count) | dur=\(Int(album.duration)) | art=\(album.artwork?.count ?? 0)")
+                for track in album.tracks {
+                    print("   \(track.trackNumber). \(track.displayTitle) — \(track.displayArtist)")
+                }
+            }
+            semaphore.signal()
+        }
+        while semaphore.wait(timeout: .now()) == .timedOut {
+            RunLoop.main.run(until: Date().addingTimeInterval(0.1))
+        }
         exit(0)
     }
 
