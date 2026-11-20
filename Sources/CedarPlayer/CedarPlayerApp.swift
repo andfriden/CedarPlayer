@@ -16,7 +16,6 @@ struct CedarPlayerApp: App {
             Self.runSelfTest(path: path)
         }
         if CommandLine.arguments.contains("--eqdump") {
-            let d = UserDefaults.standard
             let engine = PlayerEngine()
             print("EQ enabled=\(engine.isEQEnabled) preamp=\(engine.preamp)")
             print("EQ bands=\(engine.bands.map { String(format: "%.1f", $0) }.joined(separator: ","))")

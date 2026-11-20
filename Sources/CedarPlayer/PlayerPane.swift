@@ -6,7 +6,6 @@ import AppKit
 struct PlayerPane: View {
     @EnvironmentObject private var engine: PlayerEngine
     @EnvironmentObject private var library: Library
-    @Environment(\.openWindow) private var openWindow
     @AppStorage("showPlaylist") private var showPlaylist = true
     @AppStorage("meterStyle") private var meterStyleRaw = MeterStyle.segments.rawValue
     @State private var coverTrack: Track?
@@ -239,7 +238,7 @@ struct PlayerPane: View {
 
             HStack(spacing: Theme.Space.xs) {
                 Spacer()
-                moreMenu
+                MoreMenuButton { coverTrack = engine.currentTrack }
                 playlistButton
             }
         }
@@ -255,50 +254,6 @@ struct PlayerPane: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-    }
-
-    private var moreMenu: some View {
-        Menu {
-            Toggle("Перемешивание", isOn: $engine.isShuffle)
-            Picker("Повтор", selection: $engine.repeatMode) {
-                Text("Выключен").tag(RepeatMode.off)
-                Text("Список").tag(RepeatMode.all)
-                Text("Один трек").tag(RepeatMode.one)
-            }
-            Divider()
-            Button("Найти обложку…") { coverTrack = engine.currentTrack }
-                .disabled(engine.currentTrack == nil)
-            Divider()
-            Toggle("Эквалайзер включён", isOn: $engine.isEQEnabled)
-            Button("Открыть эквалайзер") { openWindow(id: "equalizer") }
-            Divider()
-            Button("Текст песни") { openWindow(id: "lyrics") }
-            Button("Окно обложки") { openWindow(id: "albumart") }
-            Button("Библиотека") { openWindow(id: "library") }
-            Divider()
-            Menu("Индикатор") {
-                ForEach(MeterStyle.allCases) { style in
-                    Button(style.title) { meterStyleRaw = style.rawValue }
-                }
-            }
-            Picker("Скорость", selection: $engine.playbackRate) {
-                Text("0.5×").tag(0.5)
-                Text("0.75×").tag(0.75)
-                Text("1×").tag(1.0)
-                Text("1.25×").tag(1.25)
-                Text("1.5×").tag(1.5)
-                Text("2×").tag(2.0)
-            }
-        } label: {
-            Image(systemName: "ellipsis")
-                .font(.system(size: 14, weight: .regular))
-                .foregroundStyle(Theme.secondaryText)
-                .frame(width: 36, height: 36)
-                .contentShape(Rectangle())
-        }
-        .menuStyle(.borderlessButton)
-        .menuIndicator(.hidden)
-        .help("Ещё")
     }
 
     private var playlistButton: some View {
