@@ -55,7 +55,6 @@ struct Track: Identifiable, Hashable, Codable {
 
     var formatText: String {
         let ext = url.pathExtension.uppercased()
-        if isCueTrack { return "\(ext) · CUE" }
         if ext == "FLAC" || ext == "ALAC" {
             return bitDepth > 0 ? "\(ext) \(bitDepth)/\(sampleRateKHz)" : ext
         }
@@ -75,9 +74,6 @@ struct Track: Identifiable, Hashable, Codable {
         }
         if bitrate > 0 {
             parts.append("\(bitrate / 1000) кбит/с")
-        }
-        if isCueTrack, trackNumber > 0 {
-            parts.append("CUE \(String(format: "%02d", trackNumber))")
         }
         return parts.joined(separator: " · ")
     }
