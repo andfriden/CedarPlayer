@@ -171,7 +171,8 @@ struct CedarPlayerApp: App {
             current.duration = 243
             current.artwork = art
             library.tracks = [current] + sample.dropFirst()
-            engine.setQueue([current], startAt: 0, autoplay: false)
+            engine.setQueue([current], startAt: 0, autoplay: true)
+            try? await Task.sleep(nanoseconds: 1_000_000_000)
 
             let view = VStack(spacing: 0) {
                 PlayerPane()

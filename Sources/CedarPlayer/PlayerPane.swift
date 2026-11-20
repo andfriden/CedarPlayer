@@ -12,7 +12,7 @@ struct PlayerPane: View {
     var artworkSize: CGFloat = 92
 
     var body: some View {
-        VStack(spacing: Theme.Space.m) {
+        VStack(spacing: Theme.Space.s) {
             topRow
             meter
             volumeRow
@@ -20,7 +20,7 @@ struct PlayerPane: View {
             transportRow
         }
         .padding(.horizontal, Theme.Space.l)
-        .padding(.vertical, Theme.Space.l)
+        .padding(.vertical, Theme.Space.m)
         .frame(width: 425, height: 300, alignment: .top)
         .background(Theme.background)
     }
@@ -96,8 +96,9 @@ struct PlayerPane: View {
 
     // MARK: Индикатор
 
+    /// Визуализатор: уровень L/R или спектр. Клик по нему меняет стиль.
     private var meter: some View {
-        LevelMeterStrip(style: MeterStyle(rawValue: meterStyleRaw) ?? .segments,
+        LevelMeterStrip(style: currentStyle,
                         levelLeft: engine.levelL,
                         levelRight: engine.levelR,
                         peakLeft: engine.peakL,
@@ -105,8 +106,21 @@ struct PlayerPane: View {
                         bands: engine.spectrum,
                         isPlaying: engine.isPlaying,
                         showsScale: false,
-                        monochrome: true)
-            .frame(height: 20)
+                        monochrome: false)
+            .frame(height: 40)
+            .contentShape(Rectangle())
+            .onTapGesture { cycleMeterStyle() }
+            .help("Визуализатор: \(currentStyle.title) — нажмите, чтобы сменить")
+    }
+
+    private var currentStyle: MeterStyle {
+        MeterStyle(rawValue: meterStyleRaw) ?? .segments
+    }
+
+    private func cycleMeterStyle() {
+        let all = MeterStyle.allCases
+        guard let index = all.firstIndex(of: currentStyle) else { return }
+        meterStyleRaw = all[(index + 1) % all.count].rawValue
     }
 
     // MARK: Громкость
@@ -129,6 +143,7 @@ struct PlayerPane: View {
                 .controlSize(.mini)
                 .tint(Theme.accent)
         }
+        .frame(height: 32)
     }
 
     // MARK: Позиция

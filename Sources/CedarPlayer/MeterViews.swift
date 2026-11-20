@@ -186,7 +186,7 @@ struct LevelMeterStrip: View {
     }
 
     private var unlitColor: Color {
-        monochrome ? Theme.separator.opacity(0.9) : .white.opacity(0.055)
+        monochrome ? Theme.separator.opacity(0.9) : Theme.separator.opacity(0.75)
     }
 
     private func zoneColor(index: Int) -> Color {
