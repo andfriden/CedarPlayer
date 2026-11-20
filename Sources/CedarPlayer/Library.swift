@@ -313,6 +313,25 @@ final class Library: ObservableObject {
         "\(track.url.standardizedFileURL.path)#\(track.cueStart.map { String(format: "%.3f", $0) } ?? "file")"
     }
 
+    /// Ставит обложку выбранным трекам (хранится в кэше, в JSON — только ключ).
+    func setArtwork(_ data: Data?, for trackIDs: Set<UUID>) {
+        let key = data.flatMap { ArtworkCache.shared.store($0) }
+        for index in tracks.indices where trackIDs.contains(tracks[index].id) {
+            tracks[index].artwork = data
+            tracks[index].artworkID = key
+        }
+    }
+
+    /// Треки того же альбома и исполнителя альбома.
+    func albumTrackIDs(for track: Track) -> Set<UUID> {
+        guard !track.album.isEmpty else { return [] }
+        let albumArtist = track.albumArtist.isEmpty ? track.artist : track.albumArtist
+        return Set(tracks.filter {
+            $0.album == track.album
+            && ($0.albumArtist.isEmpty ? $0.artist : $0.albumArtist) == albumArtist
+        }.map(\.id))
+    }
+
     /// Записывает теги в файл и обновляет запись в библиотеке.
     @discardableResult
     func applyTags(_ edit: TagEdit, to trackID: UUID) throws -> Track? {

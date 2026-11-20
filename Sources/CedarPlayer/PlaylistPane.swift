@@ -13,6 +13,7 @@ struct PlaylistPane: View {
     @State private var selection: Set<UUID> = []
     @State private var isDropping = false
     @State private var hoveredTrackID: UUID?
+    @State private var coverTrack: Track?
     /// Для офскрин-отрисовки: ImageRenderer не показывает содержимое ScrollView.
     var scrolling = true
 
@@ -60,6 +61,11 @@ struct PlaylistPane: View {
         }
         .frame(width: 425)
         .background(Theme.panel)
+        .sheet(item: $coverTrack) { track in
+            CoverPickerSheet(track: track)
+                .environmentObject(library)
+                .environmentObject(engine)
+        }
         .onDrop(of: [.fileURL], isTargeted: $isDropping) { providers in
             for provider in providers {
                 _ = provider.loadObject(ofClass: URL.self) { url, _ in
@@ -267,6 +273,7 @@ struct PlaylistPane: View {
                 }
                 if library.playlists.isEmpty { Text("Нет плейлистов") }
             }
+            Button("Найти обложку в базе…") { coverTrack = track }
             Button("Показать в Finder") {
                 NSWorkspace.shared.activateFileViewerSelecting([track.url])
             }

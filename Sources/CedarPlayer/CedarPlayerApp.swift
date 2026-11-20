@@ -79,6 +79,11 @@ struct CedarPlayerApp: App {
             }
         }
 
+        if let index = CommandLine.arguments.firstIndex(of: "--cover") {
+            let rest = Array(CommandLine.arguments.dropFirst(index + 1))
+            Self.runCoverTest(artist: rest.first ?? "", album: rest.count > 1 ? rest[1] : "")
+        }
+
         if let path = Self.argumentValue("--render-ui") {
             Self.runRenderUITest(path: path)
         }
@@ -137,6 +142,27 @@ struct CedarPlayerApp: App {
         exit(0)
     }
 
+    /// Проверка поиска обложек: `--cover "Исполнитель" "Альбом"`.
+    private static func runCoverTest(artist: String, album: String) -> Never {
+        let semaphore = DispatchSemaphore(value: 0)
+        Task {
+            do {
+                let candidates = try await CoverArtService.shared.search(artist: artist, album: album)
+                print("COVER count=\(candidates.count)")
+                for candidate in candidates.prefix(6) {
+                    print("  \(candidate.source) | \(candidate.artist) | \(candidate.album) | bytes=\(candidate.imageData.count)")
+                }
+            } catch {
+                print("COVER failed: \(error.localizedDescription)")
+            }
+            semaphore.signal()
+        }
+        while semaphore.wait(timeout: .now()) == .timedOut {
+            RunLoop.main.run(until: Date().addingTimeInterval(0.1))
+        }
+        exit(0)
+    }
+
     /// Отрисовка интерфейса в PNG без экрана (для проверки вёрстки).
     /// Требует CEDAR_LIBRARY_DIR, чтобы не тронуть рабочую библиотеку.
     private static func runRenderUITest(path: String) -> Never {
@@ -169,7 +195,9 @@ struct CedarPlayerApp: App {
             current.bitDepth = 16
             current.channels = 2
             current.duration = 243
-            current.artwork = art
+            if ProcessInfo.processInfo.environment["CEDAR_RENDER_NO_ART"] == nil {
+                current.artwork = art
+            }
             library.tracks = [current] + sample.dropFirst()
             engine.setQueue([current], startAt: 0, autoplay: true)
             try? await Task.sleep(nanoseconds: 1_000_000_000)

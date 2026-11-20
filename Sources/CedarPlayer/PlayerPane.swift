@@ -5,9 +5,11 @@ import AppKit
 /// индикатор, громкость, прогресс и основные кнопки. Редкие действия — в меню «Ещё».
 struct PlayerPane: View {
     @EnvironmentObject private var engine: PlayerEngine
+    @EnvironmentObject private var library: Library
     @Environment(\.openWindow) private var openWindow
     @AppStorage("showPlaylist") private var showPlaylist = true
     @AppStorage("meterStyle") private var meterStyleRaw = MeterStyle.segments.rawValue
+    @State private var coverTrack: Track?
 
     var artworkSize: CGFloat = 92
 
@@ -23,6 +25,11 @@ struct PlayerPane: View {
         .padding(.vertical, Theme.Space.m)
         .frame(width: 425, height: 300, alignment: .top)
         .background(Theme.background)
+        .sheet(item: $coverTrack) { track in
+            CoverPickerSheet(track: track)
+                .environmentObject(library)
+                .environmentObject(engine)
+        }
     }
 
     // MARK: Обложка и метаданные
@@ -91,7 +98,29 @@ struct PlayerPane: View {
             RoundedRectangle(cornerRadius: Theme.Radius.medium, style: .continuous)
                 .strokeBorder(Theme.separator, lineWidth: 1)
         }
+        .overlay(alignment: .bottomTrailing) {
+            if engine.currentTrack != nil, engine.currentTrack?.artwork == nil {
+                Button {
+                    coverTrack = engine.currentTrack
+                } label: {
+                    Image(systemName: "magnifyingglass")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(Theme.text)
+                        .frame(width: 26, height: 26)
+                        .background(Color.black.opacity(0.45), in: RoundedRectangle(cornerRadius: 6))
+                }
+                .buttonStyle(.plain)
+                .padding(6)
+                .help("Найти обложку в базе")
+            }
+        }
         .shadow(color: .black.opacity(0.22), radius: 4, y: 2)
+        .contextMenu {
+            Button("Найти обложку в базе…") {
+                coverTrack = engine.currentTrack
+            }
+            .disabled(engine.currentTrack == nil)
+        }
     }
 
     // MARK: Индикатор
@@ -236,6 +265,9 @@ struct PlayerPane: View {
                 Text("Список").tag(RepeatMode.all)
                 Text("Один трек").tag(RepeatMode.one)
             }
+            Divider()
+            Button("Найти обложку…") { coverTrack = engine.currentTrack }
+                .disabled(engine.currentTrack == nil)
             Divider()
             Toggle("Эквалайзер включён", isOn: $engine.isEQEnabled)
             Button("Открыть эквалайзер") { openWindow(id: "equalizer") }
