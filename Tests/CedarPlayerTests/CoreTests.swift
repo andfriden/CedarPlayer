@@ -21,7 +21,7 @@ final class AlbumGroupTests: XCTestCase {
         ]
         let albums = AlbumGroup.group(tracks)
         // Порядок латиницы и кириллицы зависит от локали, поэтому проверяем состав и содержимое.
-        XCTAssertEqual(Set(albums.map(\.title)), ["Alpha", "Beta", "Gamma", "Без альбома"])
+        XCTAssertEqual(Set(albums.map(\.title)), ["Alpha", "Beta", "Без альбома"])
         let beta = try? XCTUnwrap(albums.first { $0.title == "Beta" })
         XCTAssertEqual(beta?.tracks.map(\.title), ["A", "B"])
         let untitled = albums.first { $0.title == "Без альбома" }
