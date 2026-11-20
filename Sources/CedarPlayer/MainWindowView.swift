@@ -43,7 +43,11 @@ struct MainWindowView: View {
                 window.minSize = NSSize(width: width, height: playerHeight)
                 forceDesignSize(window)
                 NowPlayingService.shared.attach(engine)
-                restoreLastPlayback()
+                if let shotPath = ProcessInfo.processInfo.environment["CEDAR_WINDOW_SHOT"] {
+                    prepareScreenshot(path: shotPath)
+                } else {
+                    restoreLastPlayback()
+                }
             }
         }
         .animation(.easeInOut(duration: 0.16), value: showPlaylist)
@@ -56,6 +60,51 @@ struct MainWindowView: View {
             TagEditorSheet(track: track)
                 .environmentObject(library)
                 .environmentObject(engine)
+        }
+    }
+
+    /// Снимок окна для README: рисует собственный слой окна, без записи экрана.
+    private func prepareScreenshot(path: String) {
+        let trackPath = ProcessInfo.processInfo.environment["CEDAR_SHOT_TRACK"] ?? ""
+        Task { @MainActor in
+            if !trackPath.isEmpty {
+                let shotURL = URL(fileURLWithPath: trackPath).standardizedFileURL
+                if let index = library.tracks.firstIndex(where: { $0.url.standardizedFileURL.path == shotURL.path }) {
+                    engine.setQueue(library.tracks, startAt: index, autoplay: true)
+                } else {
+                    let track = await MetadataReader.read(url: URL(fileURLWithPath: trackPath))
+                    engine.setQueue([track], startAt: 0, autoplay: true)
+                }
+            }
+            try? await Task.sleep(nanoseconds: 1_800_000_000)
+            guard let view = window?.contentView else {
+                print("window shot: нет содержимого окна")
+                exit(1)
+            }
+            let scale: CGFloat = 2
+            let bounds = view.bounds
+            guard let rep = NSBitmapImageRep(bitmapDataPlanes: nil,
+                                             pixelsWide: Int(bounds.width * scale),
+                                             pixelsHigh: Int(bounds.height * scale),
+                                             bitsPerSample: 8,
+                                             samplesPerPixel: 4,
+                                             hasAlpha: true,
+                                             isPlanar: false,
+                                             colorSpaceName: .deviceRGB,
+                                             bytesPerRow: 0,
+                                             bitsPerPixel: 0) else {
+                print("window shot: не удалось создать буфер")
+                exit(1)
+            }
+            rep.size = bounds.size
+            view.cacheDisplay(in: bounds, to: rep)
+            guard let data = rep.representation(using: .png, properties: [:]) else {
+                print("window shot: не удалось закодировать PNG")
+                exit(1)
+            }
+            try? data.write(to: URL(fileURLWithPath: path))
+            print("window shot: \(path) \(rep.pixelsWide)x\(rep.pixelsHigh)")
+            exit(0)
         }
     }
 

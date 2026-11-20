@@ -17,6 +17,10 @@ struct PlaylistPane: View {
     /// Для офскрин-отрисовки: ImageRenderer не показывает содержимое ScrollView.
     var scrolling = true
 
+    private var isShot: Bool {
+        ProcessInfo.processInfo.environment["CEDAR_WINDOW_SHOT"] != nil
+    }
+
     private var selectedPlaylist: Playlist? {
         filterID == "all" ? nil : library.playlists.first { $0.id.uuidString == filterID }
     }
@@ -61,6 +65,7 @@ struct PlaylistPane: View {
         }
         .frame(width: 425)
         .background(Theme.panel)
+        .onAppear { if isShot { search = "" } }
         .sheet(item: $coverTrack) { track in
             CoverPickerSheet(track: track)
                 .environmentObject(library)
@@ -123,16 +128,25 @@ struct PlaylistPane: View {
                 }
             }
             .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
             .frame(maxWidth: 120)
 
             HStack(spacing: 4) {
                 Image(systemName: "magnifyingglass")
                     .font(.system(size: 9))
                     .foregroundStyle(.secondary)
-                TextField("Поиск", text: $search)
-                    .textFieldStyle(.plain)
-                    .font(.system(size: 12))
-                    .frame(height: 26)
+                if isShot {
+                    // Для снимка окна поле поиска не должно перехватывать ввод.
+                    Text("Поиск")
+                        .font(.system(size: 12))
+                        .foregroundStyle(Theme.secondaryText)
+                        .frame(height: 26, alignment: .leading)
+                } else {
+                    TextField("Поиск", text: $search)
+                        .textFieldStyle(.plain)
+                        .font(.system(size: 12))
+                        .frame(height: 26)
+                }
             }
             .padding(.horizontal, Theme.Space.s)
             .background(Color(hex: 0x2B2F36), in: RoundedRectangle(cornerRadius: Theme.Radius.small))
