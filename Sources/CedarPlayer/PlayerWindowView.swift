@@ -12,7 +12,8 @@ struct LyricsView: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
                 Text(engine.currentTrack?.displayTitle ?? "Нет трека")
-                    .font(.headline)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(Theme.text)
                 Spacer()
                 Text(status)
                     .font(.caption)
@@ -22,10 +23,10 @@ struct LyricsView: View {
             TextEditor(text: $text)
                 .font(.system(size: 13, design: .monospaced))
                 .scrollContentBackground(.hidden)
-                .background(Color(nsColor: .textBackgroundColor))
+                .background(Theme.panel)
                 .overlay(
-                    RoundedRectangle(cornerRadius: 6)
-                        .stroke(.quaternary, lineWidth: 1)
+                    RoundedRectangle(cornerRadius: Theme.Radius.small)
+                        .stroke(Theme.separator, lineWidth: 1)
                 )
 
             HStack {
@@ -37,8 +38,9 @@ struct LyricsView: View {
                     .foregroundStyle(.tertiary)
             }
         }
-        .padding(16)
+        .padding(Theme.Space.l)
         .frame(minWidth: 460, minHeight: 420)
+        .background(Theme.background)
         .onAppear { syncTrack() }
         .onChange(of: engine.currentTrack?.id) { _ in syncTrack() }
     }
@@ -85,37 +87,52 @@ struct MiniPlayerView: View {
                     Image(nsImage: image).resizable().aspectRatio(contentMode: .fill)
                 } else {
                     ZStack {
-                        Color(nsColor: .quaternaryLabelColor).opacity(0.3)
-                        Image(systemName: "music.note").foregroundStyle(.secondary)
+                        Color(hex: 0x2B2F36)
+                        Image(systemName: "music.note").foregroundStyle(Theme.secondaryText)
                     }
                 }
             }
             .frame(width: 54, height: 54)
-            .clipShape(RoundedRectangle(cornerRadius: 7))
+            .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.medium))
+            .overlay {
+                RoundedRectangle(cornerRadius: Theme.Radius.medium)
+                    .strokeBorder(Theme.separator, lineWidth: 1)
+            }
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(engine.currentTrack?.displayTitle ?? "Ничего не играет")
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(Theme.text)
                     .lineLimit(1)
                 Text(engine.currentTrack?.displayArtist ?? "—")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
+                    .font(Theme.Fonts.artist)
+                    .foregroundStyle(Theme.secondaryText)
                     .lineLimit(1)
                 ProgressView(value: engine.duration > 0 ? engine.position / engine.duration : 0)
                     .progressViewStyle(.linear)
+                    .tint(Theme.accent)
                     .frame(height: 3)
             }
 
-            HStack(spacing: 10) {
-                Button { engine.previous() } label: { Image(systemName: "backward.fill") }
+            HStack(spacing: Theme.Space.xs) {
+                Button { engine.previous() } label: {
+                    Image(systemName: "backward.fill").frame(width: 30, height: 30)
+                }
                 Button { engine.toggle() } label: {
                     Image(systemName: engine.isPlaying ? "pause.fill" : "play.fill")
+                        .font(.system(size: 15, weight: .medium))
+                        .frame(width: 32, height: 32)
                 }
-                Button { engine.next(manual: true) } label: { Image(systemName: "forward.fill") }
+                Button { engine.next(manual: true) } label: {
+                    Image(systemName: "forward.fill").frame(width: 30, height: 30)
+                }
             }
             .buttonStyle(.plain)
+            .foregroundStyle(Theme.text.opacity(0.9))
         }
-        .padding(10)
+        .padding(Theme.Space.m)
         .frame(minWidth: 380, minHeight: 74)
+        .background(Theme.background)
+        .tint(Theme.accent)
     }
 }

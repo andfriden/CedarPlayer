@@ -12,6 +12,9 @@ struct PlaylistPane: View {
     @State private var search = ""
     @State private var selection: Set<UUID> = []
     @State private var isDropping = false
+    @State private var hoveredTrackID: UUID?
+    /// Для офскрин-отрисовки: ImageRenderer не показывает содержимое ScrollView.
+    var scrolling = true
 
     private var selectedPlaylist: Playlist? {
         filterID == "all" ? nil : library.playlists.first { $0.id.uuidString == filterID }
@@ -44,22 +47,19 @@ struct PlaylistPane: View {
     var body: some View {
         VStack(spacing: 0) {
             header
-            Divider().overlay(.white.opacity(0.08))
+            Divider().overlay(Theme.separator)
             if tracks.isEmpty {
                 emptyState
-            } else {
+            } else if scrolling {
                 ScrollView {
-                    LazyVStack(spacing: 0) {
-                        ForEach(Array(tracks.enumerated()), id: \.element.id) { index, track in
-                            row(track, index: index)
-                        }
-                    }
-                    .padding(.vertical, 4)
+                    listContent
                 }
+            } else {
+                listContent
             }
         }
         .frame(width: 425)
-        .background(Color(white: 0.075))
+        .background(Theme.panel)
         .onDrop(of: [.fileURL], isTargeted: $isDropping) { providers in
             for provider in providers {
                 _ = provider.loadObject(ofClass: URL.self) { url, _ in
@@ -71,12 +71,21 @@ struct PlaylistPane: View {
         }
         .overlay {
             if isDropping {
-                RoundedRectangle(cornerRadius: 8)
-                    .strokeBorder(Color.accentColor, style: StrokeStyle(lineWidth: 2, dash: [6, 4]))
+                RoundedRectangle(cornerRadius: Theme.Radius.medium)
+                    .strokeBorder(Theme.accent, style: StrokeStyle(lineWidth: 2, dash: [6, 4]))
                     .padding(4)
                     .allowsHitTesting(false)
             }
         }
+    }
+
+    private var listContent: some View {
+        LazyVStack(spacing: 0) {
+            ForEach(Array(tracks.enumerated()), id: \.element.id) { index, track in
+                row(track, index: index)
+            }
+        }
+        .padding(.vertical, 6)
     }
 
     // MARK: Заголовок панели
@@ -99,7 +108,8 @@ struct PlaylistPane: View {
             } label: {
                 HStack(spacing: 4) {
                     Text(selectedPlaylist?.name ?? "Все треки")
-                        .font(.system(size: 11, weight: .semibold))
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(Theme.text)
                         .lineLimit(1)
                     Image(systemName: "chevron.down")
                         .font(.system(size: 8, weight: .semibold))
@@ -115,88 +125,128 @@ struct PlaylistPane: View {
                     .foregroundStyle(.secondary)
                 TextField("Поиск", text: $search)
                     .textFieldStyle(.plain)
-                    .font(.system(size: 11))
-                    .frame(height: 24)
+                    .font(.system(size: 12))
+                    .frame(height: 26)
             }
-            .padding(.horizontal, 6)
-            .background(Color.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 5))
-            .frame(height: 24)
+            .padding(.horizontal, Theme.Space.s)
+            .background(Color(hex: 0x2B2F36), in: RoundedRectangle(cornerRadius: Theme.Radius.small))
+            .frame(height: 26)
 
             Spacer(minLength: 4)
 
             Text("\(tracks.count)")
-                .font(.system(size: 10, design: .monospaced))
-                .foregroundStyle(.secondary)
+                .font(Theme.Fonts.captionMono)
+                .foregroundStyle(Theme.secondaryText)
 
             Button {
                 library.presentImportPanel()
             } label: {
                 Image(systemName: "plus")
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.7))
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(Theme.secondaryText)
+                    .frame(width: 28, height: 28)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .help("Добавить файлы (⌘O)")
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 7)
+        .padding(.horizontal, Theme.Space.m)
+        .padding(.vertical, Theme.Space.s)
     }
 
     private var emptyState: some View {
         VStack(spacing: 4) {
             Text("Плейлист пуст")
-                .font(.system(size: 11))
-                .foregroundStyle(.secondary)
+                .font(Theme.Fonts.artist)
+                .foregroundStyle(Theme.secondaryText)
             Text("Перетащите файлы сюда")
-                .font(.system(size: 10))
-                .foregroundStyle(.tertiary)
+                .font(Theme.Fonts.caption)
+                .foregroundStyle(Theme.secondaryText.opacity(0.8))
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     // MARK: Строка
 
+    /// Обложки в строках нужны, только когда список смешивает разные альбомы.
+    private var showsArtwork: Bool {
+        let withArtwork = tracks.filter { $0.artwork != nil }
+        guard withArtwork.count > 1 else { return false }
+        return Set(withArtwork.map(coverSignature)).count > 1
+    }
+
+    private func coverSignature(_ track: Track) -> String {
+        if let id = track.artworkID { return id }
+        return "\(track.album)|\(track.albumArtist)|\(track.artist)"
+    }
+
     private func row(_ track: Track, index: Int) -> some View {
         let isCurrent = engine.currentTrack?.id == track.id
-        return HStack(spacing: 8) {
+        let isSelected = selection.contains(track.id)
+        let isHovered = hoveredTrackID == track.id
+
+        let background: Color = isSelected
+            ? Theme.accent.opacity(0.18)
+            : (isCurrent ? Theme.accent.opacity(0.10) : (isHovered ? Theme.hover : .clear))
+
+        return HStack(spacing: Theme.Space.s) {
             ZStack {
-                if isCurrent && engine.isPlaying {
-                    Image(systemName: "speaker.wave.2.fill")
-                        .font(.system(size: 9))
-                        .foregroundStyle(Color.accentColor)
+                if isCurrent {
+                    Image(systemName: engine.isPlaying ? "waveform" : "pause.fill")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(Theme.accent)
                 } else {
                     Text("\(index + 1)")
-                        .font(.system(size: 9, design: .monospaced))
-                        .foregroundStyle(.secondary)
+                        .font(Theme.Fonts.captionMono)
+                        .foregroundStyle(Theme.secondaryText)
                 }
             }
-            .frame(width: 18)
+            .frame(width: 20)
 
-            artwork(track)
-                .frame(width: 35, height: 35)
-                .clipShape(RoundedRectangle(cornerRadius: 3, style: .continuous))
+            if showsArtwork {
+                artwork(track)
+                    .frame(width: 28, height: 28)
+                    .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.small, style: .continuous))
+            }
 
-            VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: 3) {
                 Text(track.displayTitle)
-                    .font(.system(size: 11, weight: isCurrent ? .semibold : .regular))
-                    .foregroundStyle(isCurrent ? Color.accentColor : .white.opacity(0.92))
+                    .font(Theme.Fonts.listTitle)
+                    .foregroundStyle(isCurrent ? Theme.accent : Theme.text)
                     .lineLimit(1)
                 Text(track.displayArtist)
-                    .font(.system(size: 9))
-                    .foregroundStyle(.white.opacity(0.45))
+                    .font(Theme.Fonts.artist)
+                    .foregroundStyle(Theme.secondaryText)
                     .lineLimit(1)
             }
 
-            Spacer(minLength: 4)
+            Spacer(minLength: Theme.Space.s)
 
             Text(track.timeText)
-                .font(.system(size: 9, design: .monospaced))
-                .foregroundStyle(.secondary)
+                .font(Theme.Fonts.timeMono)
+                .foregroundStyle(Theme.secondaryText)
+                .monospacedDigit()
+                .frame(width: 44, alignment: .trailing)
         }
-        .frame(height: 38)
-        .padding(.horizontal, 10)
-        .background(selection.contains(track.id) ? Color.accentColor.opacity(0.18) : .clear)
+        .padding(.horizontal, Theme.Space.m)
+        .frame(height: 42)
+        .background(background)
+        .overlay(alignment: .leading) {
+            if isCurrent {
+                Rectangle()
+                    .fill(Theme.accent)
+                    .frame(width: 2)
+                    .padding(.vertical, 10)
+            }
+        }
         .contentShape(Rectangle())
+        .onHover { inside in
+            if inside {
+                hoveredTrackID = track.id
+            } else if hoveredTrackID == track.id {
+                hoveredTrackID = nil
+            }
+        }
         .help(track.qualityText)
         .onTapGesture { selection = [track.id] }
         .onTapGesture(count: 2) {
@@ -233,10 +283,10 @@ struct PlaylistPane: View {
             Image(nsImage: image).resizable().aspectRatio(contentMode: .fill)
         } else {
             ZStack {
-                Color.white.opacity(0.07)
+                Color(hex: 0x2B2F36)
                 Image(systemName: "music.note")
-                    .font(.system(size: 12))
-                    .foregroundStyle(.white.opacity(0.3))
+                    .font(.system(size: 11))
+                    .foregroundStyle(Theme.secondaryText.opacity(0.8))
             }
         }
     }

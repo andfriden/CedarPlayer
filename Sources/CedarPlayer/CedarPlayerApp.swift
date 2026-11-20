@@ -79,6 +79,10 @@ struct CedarPlayerApp: App {
             }
         }
 
+        if let path = Self.argumentValue("--render-ui") {
+            Self.runRenderUITest(path: path)
+        }
+
         if let path = Self.argumentValue("--albums") {
             Self.runAlbumsTest(path: path)
         }
@@ -130,6 +134,73 @@ struct CedarPlayerApp: App {
         }
         // Дать библиотеке сохранить состояние (debounce 0.6 с).
         RunLoop.main.run(until: Date().addingTimeInterval(1.0))
+        exit(0)
+    }
+
+    /// Отрисовка интерфейса в PNG без экрана (для проверки вёрстки).
+    /// Требует CEDAR_LIBRARY_DIR, чтобы не тронуть рабочую библиотеку.
+    private static func runRenderUITest(path: String) -> Never {
+        guard ProcessInfo.processInfo.environment["CEDAR_LIBRARY_DIR"] != nil else {
+            print("render-ui: задайте CEDAR_LIBRARY_DIR, чтобы не затронуть рабочую библиотеку")
+            exit(1)
+        }
+        let semaphore = DispatchSemaphore(value: 0)
+        Task { @MainActor in
+            let engine = PlayerEngine()
+            let library = Library()
+
+            let art = try? Data(contentsOf: URL(fileURLWithPath: "/tmp/cover-test.png"))
+            var sample: [Track] = []
+            let names = ["Midnight City", "Reunion", "Wait", "Outro"]
+            for (index, name) in names.enumerated() {
+                var track = Track(url: URL(fileURLWithPath: "/tmp/cedar-ui-demo-\(index).flac"))
+                track.title = name
+                track.artist = "M83"
+                track.album = "Hurry Up, We're Dreaming"
+                track.duration = 243
+                track.artwork = art
+                sample.append(track)
+            }
+            var current = Track(url: URL(fileURLWithPath: "/tmp/cedar-music/cover.flac"))
+            current.title = "Midnight City"
+            current.artist = "M83"
+            current.album = "Hurry Up, We're Dreaming"
+            current.sampleRate = 44100
+            current.bitDepth = 16
+            current.channels = 2
+            current.duration = 243
+            current.artwork = art
+            library.tracks = [current] + sample.dropFirst()
+            engine.setQueue([current], startAt: 0, autoplay: false)
+
+            let view = VStack(spacing: 0) {
+                PlayerPane()
+                Divider().overlay(Theme.separator)
+                PlaylistPane(scrolling: false)
+                    .frame(height: 299)
+            }
+            .environmentObject(library)
+            .environmentObject(engine)
+            .frame(width: 425, height: 600)
+            .background(Theme.background)
+            let renderer = ImageRenderer(content: view)
+            renderer.scale = 2
+            guard let cgImage = renderer.cgImage else {
+                print("render-ui: не удалось отрисовать")
+                exit(1)
+            }
+            let rep = NSBitmapImageRep(cgImage: cgImage)
+            guard let png = rep.representation(using: .png, properties: [:]) else {
+                print("render-ui: не удалось закодировать PNG")
+                exit(1)
+            }
+            try? png.write(to: URL(fileURLWithPath: path))
+            print("render-ui: \(path) \(cgImage.width)x\(cgImage.height)")
+            semaphore.signal()
+        }
+        while semaphore.wait(timeout: .now()) == .timedOut {
+            RunLoop.main.run(until: Date().addingTimeInterval(0.1))
+        }
         exit(0)
     }
 

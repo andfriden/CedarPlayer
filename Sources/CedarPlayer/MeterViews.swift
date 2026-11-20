@@ -28,6 +28,8 @@ struct LevelMeterStrip: View {
     var peakRight: Float
     var bands: [Float] = []
     var isPlaying: Bool
+    var showsScale: Bool = true
+    var monochrome: Bool = false
 
     private let segments = 56
     private let scaleMarks: [(Float, String)] = [
@@ -42,9 +44,11 @@ struct LevelMeterStrip: View {
             case .dots: drawDots(context: context, size: size)
             case .spectrum: drawSpectrum(context: context, size: size)
             }
-            drawScale(context: context, size: size)
+            if showsScale {
+                drawScale(context: context, size: size)
+            }
         }
-        .opacity(isPlaying ? 1 : 0.7)
+        .opacity(isPlaying ? 1 : 0.55)
         .accessibilityHidden(true)
     }
 
@@ -52,7 +56,7 @@ struct LevelMeterStrip: View {
 
     private func drawSegments(context: GraphicsContext, size: CGSize) {
         let gap: CGFloat = 1.6
-        let barHeight: CGFloat = 15
+        let barHeight = rowHeight(size)
         let segmentWidth = (size.width - gap * CGFloat(segments - 1)) / CGFloat(segments)
 
         drawSegmentRow(context: context, size: size, y: 0, height: barHeight,
@@ -72,7 +76,7 @@ struct LevelMeterStrip: View {
             if index < lit {
                 context.fill(path, with: .color(zoneColor(index: index)))
             } else {
-                context.fill(path, with: .color(.white.opacity(0.055)))
+                context.fill(path, with: .color(unlitColor))
             }
             if index == peakSegment && peak > 0.02 {
                 context.fill(path, with: .color(.white.opacity(0.85)))
@@ -84,23 +88,27 @@ struct LevelMeterStrip: View {
     // MARK: Сплошные шкалы
 
     private func drawBars(context: GraphicsContext, size: CGSize) {
-        let barHeight: CGFloat = 15
+        let barHeight = rowHeight(size)
         for (row, pair) in [(0, (levelLeft, peakLeft)), (1, (levelRight, peakRight))] {
             let y = CGFloat(row) * (barHeight + 3)
             let rect = CGRect(x: 0, y: y, width: size.width, height: barHeight)
             let background = Path(roundedRect: rect, cornerRadius: 3)
-            context.fill(background, with: .color(.white.opacity(0.06)))
+            context.fill(background, with: .color(unlitColor))
 
             let level = CGFloat(min(1, max(0, pair.0)))
             let fillRect = CGRect(x: 0, y: y, width: size.width * level, height: barHeight)
             let fill = Path(roundedRect: fillRect, cornerRadius: 3)
-            context.fill(fill, with: .linearGradient(
-                Gradient(colors: [Color(red: 0.32, green: 0.86, blue: 0.46),
-                                  Color(red: 0.98, green: 0.74, blue: 0.22),
-                                  Color(red: 0.98, green: 0.30, blue: 0.26)]),
-                startPoint: CGPoint(x: 0, y: y),
-                endPoint: CGPoint(x: size.width, y: y)
-            ))
+            if monochrome {
+                context.fill(fill, with: .color(Theme.accent.opacity(0.9)))
+            } else {
+                context.fill(fill, with: .linearGradient(
+                    Gradient(colors: [Color(red: 0.32, green: 0.86, blue: 0.46),
+                                      Color(red: 0.98, green: 0.74, blue: 0.22),
+                                      Color(red: 0.98, green: 0.30, blue: 0.26)]),
+                    startPoint: CGPoint(x: 0, y: y),
+                    endPoint: CGPoint(x: size.width, y: y)
+                ))
+            }
 
             let peak = CGFloat(min(1, max(0, pair.1)))
             if peak > 0.02 {
@@ -116,12 +124,12 @@ struct LevelMeterStrip: View {
     // MARK: Точка с пиком
 
     private func drawDots(context: GraphicsContext, size: CGSize) {
-        let barHeight: CGFloat = 15
+        let barHeight = rowHeight(size)
         let dot: CGFloat = 6
         for (row, pair) in [(0, (levelLeft, peakLeft)), (1, (levelRight, peakRight))] {
             let y = CGFloat(row) * (barHeight + 3) + (barHeight - dot) / 2
             let track = CGRect(x: 0, y: y + dot / 2 - 0.5, width: size.width, height: 1)
-            context.fill(Path(track), with: .color(.white.opacity(0.09)))
+            context.fill(Path(track), with: .color(unlitColor))
 
             let level = CGFloat(min(1, max(0, pair.0)))
             let x = size.width * level - dot / 2
@@ -173,8 +181,19 @@ struct LevelMeterStrip: View {
         }
     }
 
+    private func rowHeight(_ size: CGSize) -> CGFloat {
+        showsScale ? 15 : max(4, (size.height - 3) / 2)
+    }
+
+    private var unlitColor: Color {
+        monochrome ? Theme.separator.opacity(0.9) : .white.opacity(0.055)
+    }
+
     private func zoneColor(index: Int) -> Color {
         let ratio = Double(index) / Double(segments - 1)
+        if monochrome {
+            return Theme.accent.opacity(0.55 + 0.45 * ratio)
+        }
         if ratio > 0.90 { return Color(red: 0.98, green: 0.30, blue: 0.26) }
         if ratio > 0.78 { return Color(red: 0.98, green: 0.74, blue: 0.22) }
         return Color(red: 0.32, green: 0.86, blue: 0.46)
@@ -201,8 +220,9 @@ struct AnalogVUMeterView: View {
         }
         .padding(16)
         .frame(width: 472, height: 276)
+        .tint(Theme.accent)
         .background(
-            LinearGradient(colors: [Color(white: 0.16), Color(white: 0.07)],
+            LinearGradient(colors: [Theme.background, Theme.background],
                            startPoint: .top, endPoint: .bottom)
         )
     }

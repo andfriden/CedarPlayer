@@ -58,7 +58,7 @@ struct EqualizerView: View {
     // MARK: Фон
 
     private var background: some View {
-        LinearGradient(colors: [Color(white: 0.16), Color(white: 0.08)],
+        LinearGradient(colors: [Theme.background, Theme.background],
                        startPoint: .top, endPoint: .bottom)
     }
 

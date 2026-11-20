@@ -30,7 +30,7 @@ struct MainWindowView: View {
             }
         }
         .frame(width: width)
-        .background(Color(white: 0.07))
+        .background(Theme.background)
         .background(WindowAccessor { candidate in
             if window !== candidate { window = candidate }
         })
@@ -48,6 +48,7 @@ struct MainWindowView: View {
         }
         .animation(.easeInOut(duration: 0.16), value: showPlaylist)
         .preferredColorScheme(.dark)
+        .tint(Theme.accent)
         .onReceive(NotificationCenter.default.publisher(for: .editTags)) { _ in
             editingTrack = engine.currentTrack
         }

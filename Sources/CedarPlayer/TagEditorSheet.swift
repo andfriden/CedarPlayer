@@ -54,7 +54,7 @@ struct TagEditorSheet: View {
         }
         .padding(20)
         .frame(width: 380)
-        .background(Color(white: 0.10))
+        .background(Theme.panel)
         .preferredColorScheme(.dark)
     }
 
