@@ -27,6 +27,7 @@ struct LevelMeterStrip: View {
     var peakLeft: Float
     var peakRight: Float
     var bands: [Float] = []
+    var spectrumPeaks: [Float] = []
     var isPlaying: Bool
     var showsScale: Bool = true
     var monochrome: Bool = false
@@ -159,14 +160,37 @@ struct LevelMeterStrip: View {
         guard !bands.isEmpty else { return }
         let gap: CGFloat = 1.4
         let width = max(1, (size.width - gap * CGFloat(bands.count - 1)) / CGFloat(bands.count))
+
+        let gradient = Gradient(colors: [
+            Color(red: 0.32, green: 0.86, blue: 0.46),
+            Color(red: 0.98, green: 0.74, blue: 0.22),
+            Color(red: 0.98, green: 0.30, blue: 0.26)
+        ])
+
         for (index, value) in bands.enumerated() {
             let level = CGFloat(min(1, max(0, value)))
-            let height = max(1, size.height * level)
+            guard level > 0.004 else { continue }
+            let height = max(1.5, size.height * level)
             let rect = CGRect(x: CGFloat(index) * (width + gap),
                               y: size.height - height,
                               width: width, height: height)
+            // Градиент по высоте, как у спектральных визуализаторов плееров.
             context.fill(Path(roundedRect: rect, cornerRadius: width / 2.6),
-                         with: .color(zoneColor(index: Int(level * CGFloat(segments - 1))).opacity(0.9)))
+                         with: .linearGradient(gradient,
+                                               startPoint: CGPoint(x: 0, y: size.height),
+                                               endPoint: CGPoint(x: 0, y: 0)))
+        }
+
+        // Пики: отдельные штрихи над столбиками, медленно сползают вниз.
+        guard spectrumPeaks.count == bands.count else { return }
+        for (index, value) in spectrumPeaks.enumerated() {
+            let peak = CGFloat(min(1, max(0, value)))
+            guard peak > 0.015 else { continue }
+            let y = size.height - size.height * peak
+            let rect = CGRect(x: CGFloat(index) * (width + gap),
+                              y: max(0, y - 2),
+                              width: width, height: 2)
+            context.fill(Path(roundedRect: rect, cornerRadius: 1), with: .color(.white.opacity(0.85)))
         }
     }
 

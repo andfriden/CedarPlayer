@@ -104,6 +104,7 @@ struct PlayerPane: View {
                         peakLeft: engine.peakL,
                         peakRight: engine.peakR,
                         bands: engine.spectrum,
+                        spectrumPeaks: engine.spectrumPeaks,
                         isPlaying: engine.isPlaying,
                         showsScale: false,
                         monochrome: false)
