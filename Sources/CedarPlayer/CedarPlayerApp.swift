@@ -653,6 +653,40 @@ struct CedarPlayerApp: App {
                 Divider()
                 Button("Отменить импорт") { library.cancelImport() }
                     .disabled(!library.isImporting)
+                Menu("Оценка текущего трека") {
+                    ForEach(1...5, id: \.self) { value in
+                        Button(String(repeating: "★", count: value)) {
+                            if let track = engine.currentTrack {
+                                library.setRating(value, for: [track.id])
+                            }
+                        }
+                        .keyboardShortcut(KeyEquivalent(Character("\(value)")), modifiers: [.option])
+                    }
+                    Divider()
+                    Button("Без оценки") {
+                        if let track = engine.currentTrack {
+                            library.setRating(0, for: [track.id])
+                        }
+                    }
+                    .keyboardShortcut("0", modifiers: [.option])
+                }
+                .disabled(engine.currentTrack == nil)
+
+                Menu("Добавить в плейлист") {
+                    if library.playlists.isEmpty {
+                        Text("Нет плейлистов")
+                    }
+                    ForEach(library.playlists) { playlist in
+                        Button(playlist.name) {
+                            if let track = engine.currentTrack {
+                                library.add([track.id], to: playlist.id)
+                                library.statusMessage = "Добавлено в «\(playlist.name)»"
+                            }
+                        }
+                    }
+                }
+                .disabled(engine.currentTrack == nil)
+
                 Button("Отменить удаление") { library.undoRemove() }
                     .keyboardShortcut("z", modifiers: [.option, .command])
                     .disabled(!library.canUndoRemove)

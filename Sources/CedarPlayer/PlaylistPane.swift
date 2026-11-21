@@ -15,6 +15,8 @@ struct PlaylistPane: View {
     @State private var isDropping = false
     @State private var hoveredTrackID: UUID?
     @State private var coverTrack: Track?
+    @State private var keyboardTrackID: UUID?
+    @FocusState private var listFocused: Bool
     /// Для офскрин-отрисовки: ImageRenderer не показывает содержимое ScrollView.
     var scrolling = true
 
@@ -66,8 +68,17 @@ struct PlaylistPane: View {
             if tracks.isEmpty {
                 emptyState
             } else if scrolling {
-                ScrollView {
-                    listContent
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        listContent
+                    }
+                    .focusable()
+                    .focused($listFocused)
+                    .onMoveCommand { direction in
+                        moveSelection(direction, proxy: proxy)
+                    }
+                    .modifier(EnterKeyModifier { playKeyboardSelection() })
+                    .onTapGesture { listFocused = true }
                 }
             } else {
                 listContent
@@ -104,6 +115,7 @@ struct PlaylistPane: View {
         LazyVStack(spacing: 0) {
             ForEach(Array(tracks.enumerated()), id: \.element.id) { index, track in
                 row(track, index: index)
+                    .id(track.id)
             }
         }
         .padding(.vertical, 6)
@@ -262,7 +274,10 @@ struct PlaylistPane: View {
         let isSelected = selection.contains(track.id)
         let isHovered = hoveredTrackID == track.id
 
-        let background: Color = isSelected
+        let isKeyboard = keyboardTrackID == track.id
+        let background: Color = isKeyboard
+            ? Theme.accent.opacity(0.22)
+            : isSelected
             ? Theme.accent.opacity(0.18)
             : (isCurrent ? Theme.accent.opacity(0.10) : (isHovered ? Theme.hover : .clear))
 
@@ -333,7 +348,11 @@ struct PlaylistPane: View {
         .help(track.extendedInfoText)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(index + 1). \(track.displayTitle), \(track.displayArtist), \(track.timeText)")
-        .onTapGesture { selection = [track.id] }
+        .onTapGesture {
+            selection = [track.id]
+            keyboardTrackID = track.id
+            listFocused = true
+        }
         .onTapGesture(count: 2) {
             let list = tracks
             guard let start = list.firstIndex(where: { $0.id == track.id }) else { return }
@@ -384,6 +403,33 @@ struct PlaylistPane: View {
         }
     }
 
+    private func moveSelection(_ direction: MoveCommandDirection, proxy: ScrollViewProxy) {
+        guard !tracks.isEmpty else { return }
+        let currentID = keyboardTrackID ?? selection.first
+        let current = currentID.flatMap { id in tracks.firstIndex { $0.id == id } } ?? -1
+        let next: Int
+        switch direction {
+        case .up:
+            next = current <= 0 ? 0 : current - 1
+        case .down:
+            next = current < 0 ? 0 : min(tracks.count - 1, current + 1)
+        default:
+            return
+        }
+        let track = tracks[next]
+        keyboardTrackID = track.id
+        selection = [track.id]
+        withAnimation(.easeInOut(duration: 0.12)) {
+            proxy.scrollTo(track.id, anchor: .center)
+        }
+    }
+
+    private func playKeyboardSelection() {
+        guard let id = keyboardTrackID ?? selection.first,
+              let index = tracks.firstIndex(where: { $0.id == id }) else { return }
+        engine.setQueue(tracks, startAt: index)
+    }
+
     private func promptForName() -> String? {
         let alert = NSAlert()
         alert.messageText = "Новый плейлист"
@@ -396,5 +442,24 @@ struct PlaylistPane: View {
         guard alert.runModal() == .alertFirstButtonReturn else { return nil }
         let name = field.stringValue.trimmingCharacters(in: .whitespaces)
         return name.isEmpty ? nil : name
+    }
+}
+
+
+/// Enter в списке: на macOS 14+ перехватываем клавишу, на 13 просто не мешаем.
+private struct EnterKeyModifier: ViewModifier {
+    let action: () -> Void
+
+    func body(content: Content) -> some View {
+        Group {
+            if #available(macOS 14.0, *) {
+                content.onKeyPress(.return) {
+                    action()
+                    return .handled
+                }
+            } else {
+                content
+            }
+        }
     }
 }
