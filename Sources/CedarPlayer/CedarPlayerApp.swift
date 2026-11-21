@@ -96,6 +96,10 @@ struct CedarPlayerApp: App {
             }
         }
 
+        if CommandLine.arguments.contains("--doctor") {
+            Self.runDoctor()
+        }
+
         if let index = CommandLine.arguments.firstIndex(of: "--watchtest") {
             guard ProcessInfo.processInfo.environment["CEDAR_LIBRARY_DIR"] != nil else {
                 print("watchtest: задайте CEDAR_LIBRARY_DIR")
@@ -211,6 +215,74 @@ struct CedarPlayerApp: App {
         let wait: TimeInterval = ProcessInfo.processInfo.environment["CEDAR_WAIT_IMPORT"] != nil ? 8 : 1.0
         RunLoop.main.run(until: Date().addingTimeInterval(wait))
         exit(0)
+    }
+
+    /// Диагностика: библиотека, файлы, кэш обложек, настройки.
+    private static func runDoctor() -> Never {
+        let fm = FileManager.default
+        let support = ProcessInfo.processInfo.environment["CEDAR_LIBRARY_DIR"].map { URL(fileURLWithPath: $0) }
+            ?? fm.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("CedarPlayer")
+        print("DOCTOR data=\(support.path)")
+
+        var problems = 0
+        let probe = support.appendingPathComponent(".write-test")
+        do {
+            try Data("ok".utf8).write(to: probe)
+            try fm.removeItem(at: probe)
+            print("DOCTOR writable=true")
+        } catch {
+            print("DOCTOR writable=false error=\(error.localizedDescription)")
+            problems += 1
+        }
+
+        let libraryURL = support.appendingPathComponent("library.json")
+        var artworkIDs = Set<String>()
+        if let data = try? Data(contentsOf: libraryURL),
+           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+            let tracks = json["tracks"] as? [[String: Any]] ?? []
+            let playlists = json["playlists"] as? [[String: Any]] ?? []
+            let stations = json["stations"] as? [[String: Any]] ?? []
+            let folders = json["watchFolders"] as? [String] ?? []
+            let urls: [URL] = tracks.compactMap { ($0["url"] as? String).flatMap { URL(string: $0) } }
+            let missingURLs = urls.filter { !fm.fileExists(atPath: $0.path) }
+            let offlineVolumes = Set(missingURLs.compactMap { url -> String? in
+                let parts = url.pathComponents
+                guard parts.count > 2, parts[1] == "Volumes" else { return nil }
+                let root = "/Volumes/\(parts[2])"
+                return fm.fileExists(atPath: root) ? nil : root
+            })
+            let missingOnMounted = missingURLs.filter { url in
+                !offlineVolumes.contains { url.path.hasPrefix($0 + "/") }
+            }
+            let missing = missingURLs
+            for track in tracks {
+                if let key = track["artworkID"] as? String { artworkIDs.insert(key) }
+            }
+            print("DOCTOR library bytes=\(data.count) tracks=\(tracks.count) playlists=\(playlists.count) stations=\(stations.count) watch=\(folders.count)")
+            print("DOCTOR missingFiles=\(missing.count) offlineVolumes=\(offlineVolumes.sorted().joined(separator: ","))")
+            let missingWatch = folders.filter { !fm.fileExists(atPath: $0) }
+            if !missingWatch.isEmpty { print("DOCTOR missingWatchFolders=\(missingWatch.count)") }
+            if !missingOnMounted.isEmpty {
+                print("DOCTOR missingOnMounted=\(missingOnMounted.count)")
+                problems += 1
+            }
+        } else if fm.fileExists(atPath: libraryURL.path) {
+            print("DOCTOR library corrupt")
+            problems += 1
+        } else {
+            print("DOCTOR library absent (пустая библиотека)")
+        }
+
+        let artworkDir = support.appendingPathComponent("Artwork")
+        let files = (try? fm.contentsOfDirectory(at: artworkDir, includingPropertiesForKeys: [.fileSizeKey])) ?? []
+        let size = files.reduce(0) { $0 + Int64((try? $1.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0) }
+        let orphan = files.map(\.lastPathComponent).filter { !artworkIDs.contains($0) }
+        print("DOCTOR artwork files=\(files.count) bytes=\(size) orphan=\(orphan.count)")
+
+        let defaults = UserDefaults.standard
+        print("DOCTOR eq=\(defaults.bool(forKey: "eqEnabled")) replayGain=\(defaults.bool(forKey: "replayGainEnabled")) crossfade=\(defaults.object(forKey: "crossfadeSeconds") as? Double ?? 0) fade=\(defaults.object(forKey: "transitionFadeSeconds") as? Double ?? 1)")
+        print(problems == 0 ? "DOCTOR result=ok" : "DOCTOR result=issues=\(problems)")
+        exit(problems == 0 ? 0 : 1)
     }
 
     /// Проверка импорта в конкретный плейлист: `--playlist-import <папка> <имя>`.
