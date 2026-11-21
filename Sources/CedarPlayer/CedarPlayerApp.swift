@@ -779,6 +779,15 @@ struct CedarPlayerApp: App {
         .windowResizability(.contentMinSize)
         .defaultSize(width: 320, height: 96)
 
+        MenuBarExtra {
+            MenuBarPlayerView()
+                .environmentObject(library)
+                .environmentObject(engine)
+        } label: {
+            Image(systemName: "music.note")
+        }
+        .menuBarExtraStyle(.window)
+
         Settings {
             SettingsView()
                 .environmentObject(library)
@@ -805,6 +814,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             if let index = queue.firstIndex(where: { $0.id == first.id }) {
                 engine.setQueue(queue, startAt: index)
             }
+        }
+    }
+
+    func applicationDockMenu(_ sender: NSApplication) -> NSMenu? {
+        guard let engine else { return nil }
+        let menu = NSMenu()
+        menu.addItem(dockItem(engine.isPlaying ? "Пауза" : "Воспроизвести", action: #selector(dockToggle)))
+        menu.addItem(dockItem("Следующий трек", action: #selector(dockNext)))
+        menu.addItem(dockItem("Предыдущий трек", action: #selector(dockPrevious)))
+        menu.addItem(.separator())
+        menu.addItem(dockItem("Показать плеер", action: #selector(dockShowPlayer)))
+        return menu
+    }
+
+    private func dockItem(_ title: String, action: Selector) -> NSMenuItem {
+        let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
+        item.target = self
+        return item
+    }
+
+    @MainActor @objc private func dockToggle() { engine?.toggle() }
+    @MainActor @objc private func dockNext() { engine?.next(manual: true) }
+    @MainActor @objc private func dockPrevious() { engine?.previous() }
+
+    @MainActor @objc private func dockShowPlayer() {
+        NSApp.activate(ignoringOtherApps: true)
+        for window in NSApp.windows
+        where window.identifier?.rawValue.contains("main-AppWindow") == true {
+            window.makeKeyAndOrderFront(nil)
         }
     }
 

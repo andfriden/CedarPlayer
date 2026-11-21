@@ -139,6 +139,13 @@ final class UISnapshotTests: XCTestCase {
         _ = try image(eq, width: 760, height: 540, name: "equalizer")
     }
 
+    func testMenuBarPlayerSnapshot() throws {
+        let engine = PlayerEngine()
+        let library = Library(testTracks: [makeTrack(1)])
+        let view = MenuBarPlayerView().environmentObject(engine).environmentObject(library)
+        _ = try image(view, width: 300, height: 170, name: "menu-bar-player")
+    }
+
     func testVUMeterSnapshot() throws {
         let engine = PlayerEngine()
         let vu = AnalogVUMeterView().environmentObject(engine)
