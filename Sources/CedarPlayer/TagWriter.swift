@@ -1,4 +1,5 @@
 import Foundation
+import ImageIO
 
 /// Поля, которые плеер умеет записывать обратно в файл.
 struct TagEdit {
@@ -26,6 +27,29 @@ enum TagWriteError: LocalizedError {
 /// Перезаписывает теги FLAC (Vorbis comments) и MP3 (ID3v2.4), не трогая аудиоданные.
 enum TagWriter {
 
+    /// Встраивает обложку в файл, сохраняя текущие теги и аудиоданные.
+    static func embedArtwork(_ image: Data, in url: URL) throws {
+        guard let handle = try? FileHandle(forReadingFrom: url) else {
+            throw TagWriteError.corrupt("не удалось открыть файл")
+        }
+        defer { try? handle.close() }
+        let head = handle.readData(ofLength: 12)
+        let tags = TagReader.read(url: url)
+        let edit = TagEdit(title: tags.title ?? "",
+                           artist: tags.artist ?? "",
+                           album: tags.album ?? "",
+                           albumArtist: tags.albumArtist ?? "",
+                           trackNumber: tags.trackNumber ?? 0)
+
+        if head.count >= 4, head.prefix(4) == Data("fLaC".utf8) {
+            try rewriteFLAC(edit, url: url, handle: handle, artwork: image)
+        } else if head.count >= 3, head.prefix(3) == Data("ID3".utf8) {
+            try rewriteID3(edit, url: url, handle: handle, head: head, overrideArtwork: image)
+        } else {
+            throw TagWriteError.unsupportedFormat
+        }
+    }
+
     static func write(_ edit: TagEdit, to url: URL) throws {
         guard let handle = try? FileHandle(forReadingFrom: url) else {
             throw TagWriteError.corrupt("не удалось открыть файл")
@@ -43,7 +67,8 @@ enum TagWriter {
 
     // MARK: - FLAC
 
-    private static func rewriteFLAC(_ edit: TagEdit, url: URL, handle: FileHandle) throws {
+    private static func rewriteFLAC(_ edit: TagEdit, url: URL, handle: FileHandle,
+                                    artwork: Data? = nil) throws {
         var blocks: [(type: UInt8, data: Data)] = []
         var audioOffset: UInt64 = 4
 
@@ -64,6 +89,8 @@ enum TagWriter {
             case 4:
                 let comments = parseVorbisComment(body)
                 blocks.append((4, buildVorbisComment(update(comments, with: edit))))
+            case 6:
+                if artwork == nil { blocks.append((type, body)) }
             default:
                 blocks.append((type, body))
             }
@@ -74,6 +101,9 @@ enum TagWriter {
             let block = buildVorbisComment(update([], with: edit))
             let index = blocks.firstIndex(where: { $0.type == 0 }).map { $0 + 1 } ?? 0
             blocks.insert((4, block), at: min(index, blocks.count))
+        }
+        if let artwork {
+            blocks.append((6, buildPictureBlock(artwork)))
         }
         blocks.append((1, Data(count: 8192)))
 
@@ -142,7 +172,8 @@ enum TagWriter {
 
     // MARK: - ID3v2
 
-    private static func rewriteID3(_ edit: TagEdit, url: URL, handle: FileHandle, head: Data) throws {
+    private static func rewriteID3(_ edit: TagEdit, url: URL, handle: FileHandle, head: Data,
+                                   overrideArtwork: Data? = nil) throws {
         guard head.count >= 10 else { throw TagWriteError.corrupt("короткий заголовок ID3") }
         let major = Int(head[3])
         let flags = head[5]
@@ -152,7 +183,7 @@ enum TagWriter {
 
         handle.seek(toFileOffset: 10)
         let payload = handle.readData(ofLength: size)
-        let artwork = findAPIC(in: payload, major: major)
+        let existingArtwork = findAPIC(in: payload, major: major)
 
         var frames = Data()
         func appendText(_ id: String, _ value: String) {
@@ -166,7 +197,11 @@ enum TagWriter {
         appendText("TALB", edit.album)
         appendText("TPE2", edit.albumArtist)
         if edit.trackNumber > 0 { appendText("TRCK", String(edit.trackNumber)) }
-        if let artwork { appendFrame("APIC", body: artwork, to: &frames) }
+        if let overrideArtwork {
+            appendFrame("APIC", body: buildAPIC(overrideArtwork), to: &frames)
+        } else if let existingArtwork {
+            appendFrame("APIC", body: existingArtwork, to: &frames)
+        }
         frames.append(Data(count: 2048))                // запас под будущие правки
 
         var tag = Data("ID3".utf8)
@@ -234,6 +269,55 @@ enum TagWriter {
         while let chunk = try input.read(upToCount: 1 << 20), !chunk.isEmpty {
             output.write(chunk)
         }
+    }
+
+    // MARK: Обложки
+
+    private static func buildAPIC(_ image: Data) -> Data {
+        var body = Data([0x00])                         // latin1 для описания
+        body.append(Data(mime(for: image).utf8))
+        body.append(0)
+        body.append(3)                                  // front cover
+        body.append(0)                                  // пустое описание
+        body.append(image)
+        return body
+    }
+
+    private static func buildPictureBlock(_ image: Data) -> Data {
+        let size = imageSize(image)
+        let mime = Data(mime(for: image).utf8)
+        var body = Data()
+        body.append(bigEndian(UInt32(3)))               // front cover
+        body.append(bigEndian(UInt32(mime.count)))
+        body.append(mime)
+        body.append(bigEndian(0))                       // пустое описание
+        body.append(bigEndian(UInt32(size.width)))
+        body.append(bigEndian(UInt32(size.height)))
+        body.append(bigEndian(24))
+        body.append(bigEndian(0))
+        body.append(bigEndian(UInt32(image.count)))
+        body.append(image)
+        return body
+    }
+
+    private static func mime(for image: Data) -> String {
+        image.starts(with: [0x89, 0x50, 0x4E, 0x47]) ? "image/png" : "image/jpeg"
+    }
+
+    private static func imageSize(_ data: Data) -> (width: Int, height: Int) {
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil),
+              let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any] else {
+            return (0, 0)
+        }
+        return (properties[kCGImagePropertyPixelWidth] as? Int ?? 0,
+                properties[kCGImagePropertyPixelHeight] as? Int ?? 0)
+    }
+
+    private static func bigEndian(_ value: UInt32) -> Data {
+        Data([UInt8((value >> 24) & 0xFF),
+              UInt8((value >> 16) & 0xFF),
+              UInt8((value >> 8) & 0xFF),
+              UInt8(value & 0xFF)])
     }
 
     private static func littleEndian(_ value: UInt32) -> Data {

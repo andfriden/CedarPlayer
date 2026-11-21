@@ -78,6 +78,21 @@ struct CedarPlayerApp: App {
             }
         }
 
+        if let index = CommandLine.arguments.firstIndex(of: "--embedcover") {
+            let rest = Array(CommandLine.arguments.dropFirst(index + 1))
+            guard rest.count >= 2 else { print("нужны файл и картинка"); exit(1) }
+            do {
+                let image = try Data(contentsOf: URL(fileURLWithPath: rest[1]))
+                try TagWriter.embedArtwork(image, in: URL(fileURLWithPath: rest[0]))
+                let tags = TagReader.read(url: URL(fileURLWithPath: rest[0]))
+                print("EMBED ok artwork=\(tags.artwork?.count ?? 0) title=\(tags.title ?? "-")")
+                exit(0)
+            } catch {
+                print("EMBED failed: \(error.localizedDescription)")
+                exit(1)
+            }
+        }
+
         if let index = CommandLine.arguments.firstIndex(of: "--playlist-import") {
             let rest = Array(CommandLine.arguments.dropFirst(index + 1))
             Self.runPlaylistImportTest(path: rest.first ?? "", name: rest.count > 1 ? rest[1] : "Плейлист")
@@ -239,6 +254,22 @@ struct CedarPlayerApp: App {
 
             if let style = ProcessInfo.processInfo.environment["CEDAR_RENDER_STYLE"] {
                 UserDefaults.standard.set(style, forKey: "meterStyle")
+            }
+
+            if ProcessInfo.processInfo.environment["CEDAR_RENDER_MINI"] != nil {
+                let mini = MiniPlayerView()
+                    .environmentObject(library)
+                    .environmentObject(engine)
+                    .frame(width: 372, height: 96)
+                let renderer = ImageRenderer(content: mini)
+                renderer.scale = 2
+                if let cg = renderer.cgImage,
+                   let png = NSBitmapImageRep(cgImage: cg).representation(using: .png, properties: [:]) {
+                    try? png.write(to: URL(fileURLWithPath: path))
+                    print("render-ui mini: \(path)")
+                }
+                semaphore.signal()
+                return
             }
 
             let view = VStack(spacing: 0) {
@@ -502,6 +533,7 @@ struct CedarPlayerApp: App {
                 .environmentObject(engine)
         }
         .windowResizability(.contentSize)
+        .defaultSize(width: 372, height: 96)
 
         Settings {
             SettingsView()

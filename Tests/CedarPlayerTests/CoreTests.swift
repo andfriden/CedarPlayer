@@ -133,6 +133,25 @@ final class TagWriterTests: XCTestCase {
         XCTAssertEqual(Array(data.suffix(64)), Array(repeating: 0, count: 64))
     }
 
+    func testEmbedsArtworkIntoMP3() throws {
+        let url = directory.appendingPathComponent("embed.mp3")
+        var file = Data("ID3".utf8)
+        file.append(contentsOf: [3, 0, 0])
+        file.append(contentsOf: [0, 0, 0, 0])
+        file.append(contentsOf: [0xFF, 0xFB, 0x90, 0x00])
+        file.append(Data(count: 96))
+        try file.write(to: url)
+
+        let image = Data([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 1, 2, 3])
+        try TagWriter.embedArtwork(image, in: url)
+
+        let tags = TagReader.read(url: url)
+        XCTAssertEqual(tags.artwork, image)
+
+        let data = try Data(contentsOf: url)
+        XCTAssertEqual(Array(data.suffix(96)), Array(repeating: 0, count: 96))
+    }
+
     func testRejectsUnsupportedFormat() throws {
         let url = directory.appendingPathComponent("note.wav")
         try Data("RIFF".utf8).write(to: url)

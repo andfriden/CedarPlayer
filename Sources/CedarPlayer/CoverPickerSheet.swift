@@ -14,6 +14,11 @@ struct CoverPickerSheet: View {
     @State private var errorMessage: String?
     @State private var selectedID: UUID?
     @State private var applyToAlbum = true
+    @State private var embedInFile = true
+
+    private var canEmbed: Bool {
+        ["flac", "mp3"].contains(track.url.pathExtension.lowercased())
+    }
 
     private var queryTitle: String {
         if !track.album.isEmpty { return track.album }
@@ -38,6 +43,10 @@ struct CoverPickerSheet: View {
             Toggle("Применить ко всему альбому", isOn: $applyToAlbum)
                 .font(Theme.Fonts.artist)
                 .disabled(track.album.isEmpty)
+
+            Toggle("Встроить обложку в файл (FLAC, MP3)", isOn: $embedInFile)
+                .font(Theme.Fonts.artist)
+                .disabled(!canEmbed)
 
             HStack {
                 Spacer()
@@ -141,10 +150,32 @@ struct CoverPickerSheet: View {
             ids.formUnion(library.albumTrackIDs(for: track))
         }
         library.setArtwork(candidate.imageData, for: ids)
+
+        var failures = 0
+        if embedInFile {
+            for id in ids {
+                guard let target = library.track(with: id),
+                      ["flac", "mp3"].contains(target.url.pathExtension.lowercased()) else { continue }
+                do {
+                    try TagWriter.embedArtwork(candidate.imageData, in: target.url)
+                } catch {
+                    failures += 1
+                }
+            }
+        }
+
         if let updated = library.track(with: track.id) {
             engine.syncCurrentTrack(with: updated)
         }
         NowPlayingService.shared.refreshNow()
+
+        if !embedInFile {
+            library.statusMessage = "Обложка добавлена в библиотеку"
+        } else if failures > 0 {
+            library.statusMessage = "Обложка в библиотеке; в файл не записалось: \(failures)"
+        } else {
+            library.statusMessage = "Обложка сохранена в файл"
+        }
         dismiss()
     }
 }

@@ -75,64 +75,125 @@ struct LyricsView: View {
     }
 }
 
-/// Компактный плеер поверх остальных окон.
+/// Компактный плеер в духе мини-плеера Яндекс.Музыки:
+/// обложка, две строки текста, тонкий прогресс и три кнопки.
 struct MiniPlayerView: View {
     @EnvironmentObject private var engine: PlayerEngine
     @EnvironmentObject private var library: Library
 
     var body: some View {
-        HStack(spacing: 12) {
-            Group {
-                if let data = engine.currentTrack?.artwork, let image = NSImage(data: data) {
-                    Image(nsImage: image).resizable().aspectRatio(contentMode: .fill)
-                } else {
-                    ZStack {
-                        Color(hex: 0x2B2F36)
-                        Image(systemName: "music.note").foregroundStyle(Theme.secondaryText)
-                    }
-                }
-            }
-            .frame(width: 54, height: 54)
-            .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.medium))
-            .overlay {
-                RoundedRectangle(cornerRadius: Theme.Radius.medium)
-                    .strokeBorder(Theme.separator, lineWidth: 1)
-            }
+        HStack(spacing: Theme.Space.m) {
+            artwork
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: Theme.Space.xs) {
                 Text(engine.currentTrack?.displayTitle ?? "Ничего не играет")
-                    .font(.system(size: 13, weight: .medium))
+                    .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(Theme.text)
                     .lineLimit(1)
+
                 Text(engine.currentTrack?.displayArtist ?? "—")
                     .font(Theme.Fonts.artist)
                     .foregroundStyle(Theme.secondaryText)
                     .lineLimit(1)
-                ProgressView(value: engine.duration > 0 ? engine.position / engine.duration : 0)
-                    .progressViewStyle(.linear)
-                    .tint(Theme.accent)
-                    .frame(height: 3)
+
+                progress
             }
+
+            Spacer(minLength: Theme.Space.s)
 
             HStack(spacing: Theme.Space.xs) {
                 Button { engine.previous() } label: {
-                    Image(systemName: "backward.fill").frame(width: 30, height: 30)
+                    Image(systemName: "backward.fill")
+                        .font(.system(size: 13))
+                        .frame(width: 30, height: 30)
+                        .contentShape(Rectangle())
                 }
                 Button { engine.toggle() } label: {
-                    Image(systemName: engine.isPlaying ? "pause.fill" : "play.fill")
-                        .font(.system(size: 15, weight: .medium))
-                        .frame(width: 32, height: 32)
+                    ZStack {
+                        Circle().fill(Theme.accent)
+                        Image(systemName: engine.isPlaying ? "pause.fill" : "play.fill")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(Theme.background)
+                            .offset(x: engine.isPlaying ? 0 : 1)
+                    }
+                    .frame(width: 34, height: 34)
+                    .contentShape(Rectangle())
                 }
                 Button { engine.next(manual: true) } label: {
-                    Image(systemName: "forward.fill").frame(width: 30, height: 30)
+                    Image(systemName: "forward.fill")
+                        .font(.system(size: 13))
+                        .frame(width: 30, height: 30)
+                        .contentShape(Rectangle())
                 }
             }
             .buttonStyle(.plain)
             .foregroundStyle(Theme.text.opacity(0.9))
         }
         .padding(Theme.Space.m)
-        .frame(minWidth: 380, minHeight: 74)
-        .background(Theme.background)
+        .frame(width: 372, height: 96)
+        .background(Theme.panel)
+        .overlay {
+            RoundedRectangle(cornerRadius: Theme.Radius.medium)
+                .strokeBorder(Theme.separator, lineWidth: 1)
+                .padding(1)
+        }
         .tint(Theme.accent)
+    }
+
+    private var artwork: some View {
+        Group {
+            if let data = engine.currentTrack?.artwork, let image = NSImage(data: data) {
+                Image(nsImage: image).resizable().aspectRatio(contentMode: .fill)
+            } else {
+                ZStack {
+                    Color(hex: 0x2B2F36)
+                    Image(systemName: "music.note")
+                        .font(.system(size: 20, weight: .light))
+                        .foregroundStyle(Theme.secondaryText.opacity(0.8))
+                }
+            }
+        }
+        .frame(width: 64, height: 64)
+        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.medium, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: Theme.Radius.medium, style: .continuous)
+                .strokeBorder(Theme.separator, lineWidth: 1)
+        }
+    }
+
+    private var progress: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            GeometryReader { geometry in
+                ZStack(alignment: .leading) {
+                    Capsule()
+                        .fill(Theme.separator)
+                    Capsule()
+                        .fill(Theme.accent)
+                        .frame(width: max(0, geometry.size.width * fraction))
+                }
+            }
+            .frame(height: 3)
+
+            HStack(spacing: 4) {
+                Text(timeText(engine.position))
+                Text("/")
+                    .foregroundStyle(Theme.secondaryText.opacity(0.6))
+                Text(timeText(engine.duration))
+                Spacer(minLength: 0)
+            }
+            .font(.system(size: 10, design: .monospaced))
+            .foregroundStyle(Theme.secondaryText)
+        }
+    }
+
+    private var fraction: CGFloat {
+        guard engine.duration > 0 else { return 0 }
+        return CGFloat(min(1, max(0, engine.position / engine.duration)))
+    }
+
+    private func timeText(_ seconds: TimeInterval) -> String {
+        guard seconds.isFinite, seconds >= 0 else { return "0:00" }
+        let total = Int(seconds.rounded())
+        return String(format: "%d:%02d", total / 60, total % 60)
     }
 }
