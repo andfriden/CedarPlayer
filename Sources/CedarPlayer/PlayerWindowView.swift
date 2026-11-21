@@ -75,6 +75,17 @@ struct LyricsView: View {
     }
 }
 
+/// Скорость вращения «пластинки»: 33⅓ об/мин, как у винила и в мини-плеере
+/// Яндекс.Музыки.
+enum MiniRotation {
+    static let degreesPerSecond: Double = 200
+
+    static func advance(_ angle: Double, by seconds: Double) -> Double {
+        guard seconds.isFinite, seconds > 0 else { return angle }
+        return (angle + degreesPerSecond * seconds).truncatingRemainder(dividingBy: 360)
+    }
+}
+
 /// Компактный мини-плеер: вращающаяся «пластинка» с обложкой, две строки
 /// текста, тонкий прогресс и кнопки. Окно тянется за угол.
 struct MiniPlayerView: View {
@@ -82,8 +93,9 @@ struct MiniPlayerView: View {
     @EnvironmentObject private var library: Library
 
     @State private var angle: Double = 0
+    @State private var lastTick: Date?
     @State private var miniWindow: NSWindow?
-    private let tick = Timer.publish(every: 1.0 / 30.0, on: .main, in: .common).autoconnect()
+    private let tick = Timer.publish(every: 1.0 / 60.0, on: .main, in: .common).autoconnect()
 
     var body: some View {
         HStack(spacing: Theme.Space.m) {
@@ -154,9 +166,15 @@ struct MiniPlayerView: View {
         }
         .onAppear { setMainWindowHidden(true) }
         .onDisappear { setMainWindowHidden(false) }
-        .onReceive(tick) { _ in
-            guard engine.isPlaying else { return }
-            angle = (angle + 1.2).truncatingRemainder(dividingBy: 360)
+        .onReceive(tick) { now in
+            guard engine.isPlaying else {
+                lastTick = nil
+                return
+            }
+            if let lastTick {
+                angle = MiniRotation.advance(angle, by: now.timeIntervalSince(lastTick))
+            }
+            lastTick = now
         }
     }
 

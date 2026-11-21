@@ -300,3 +300,17 @@ final class IcySplitTests: XCTestCase {
         XCTAssertEqual(parts.title, "Song")
     }
 }
+
+final class MiniRotationTests: XCTestCase {
+    func testFullTurnMatchesVinylSpeed() {
+        XCTAssertEqual(MiniRotation.degreesPerSecond, 200, accuracy: 0.001)
+        // Полный оборот переходит в 0, а не в 360.
+        XCTAssertEqual(MiniRotation.advance(0, by: 1.8), 0, accuracy: 0.001)
+    }
+
+    func testAdvanceWrapsAndIgnoresBadDeltas() {
+        XCTAssertEqual(MiniRotation.advance(350, by: 0.1), 10, accuracy: 0.001)
+        XCTAssertEqual(MiniRotation.advance(42, by: 0), 42, accuracy: 0.001)
+        XCTAssertEqual(MiniRotation.advance(42, by: -1), 42, accuracy: 0.001)
+    }
+}
