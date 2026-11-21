@@ -51,6 +51,48 @@ final class QueryTests: XCTestCase {
         XCTAssertEqual(result.tracks.count, 2)
     }
 
+    func testMissingFilesStayInLibraryAndCanBeRelinked() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let existing = directory.appendingPathComponent("exists.flac")
+        let missing = directory.appendingPathComponent("missing.flac")
+        try Data([0]).write(to: existing)
+
+        var first = track("Present")
+        first.url = existing
+        var second = track("Gone")
+        second.url = missing
+        let library = Library(testTracks: [first, second])
+
+        library.refreshAvailability()
+
+        XCTAssertEqual(library.tracks.count, 2)
+        XCTAssertFalse(try XCTUnwrap(library.track(with: first.id)).isMissing)
+        XCTAssertTrue(try XCTUnwrap(library.track(with: second.id)).isMissing)
+        XCTAssertEqual(library.missingCount, 1)
+
+        let replacement = directory.appendingPathComponent("replacement.flac")
+        try Data([0]).write(to: replacement)
+        library.replaceFile(for: second.id, with: replacement)
+
+        XCTAssertFalse(try XCTUnwrap(library.track(with: second.id)).isMissing)
+        XCTAssertEqual(library.track(with: second.id)?.url.lastPathComponent, "replacement.flac")
+    }
+
+    func testQueueDropsMissingTracks() {
+        var missing = track("Missing")
+        missing.url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        missing.isMissing = true
+        let engine = PlayerEngine()
+
+        engine.setQueue([missing], startAt: 0, autoplay: false)
+
+        XCTAssertTrue(engine.queue.isEmpty)
+        XCTAssertEqual(engine.errorMessage, "Файлы не найдены")
+    }
+
     func testMixedArtworkFlag() {
         var one = track("One", album: "Same")
         one.artwork = Data([1])

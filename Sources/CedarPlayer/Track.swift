@@ -27,6 +27,8 @@ struct Track: Identifiable, Hashable, Codable {
     var replayGainPeak: Double?
     var cueStart: TimeInterval?
     var cueEnd: TimeInterval?
+    /// Файл не найден при последней проверке; в JSON не пишется.
+    var isMissing: Bool = false
 
     init(url: URL) {
         self.id = UUID()
@@ -79,6 +81,7 @@ struct Track: Identifiable, Hashable, Codable {
         if !year.isEmpty { parts.append(year) }
         if !composer.isEmpty { parts.append(composer) }
         if let replayGainText { parts.append(replayGainText) }
+        if isMissing { parts.append("файл не найден") }
         return parts.joined(separator: " · ")
     }
 

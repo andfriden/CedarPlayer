@@ -292,10 +292,27 @@ final class PlayerEngine: ObservableObject {
     // MARK: Загрузка
 
     func setQueue(_ tracks: [Track], startAt index: Int, autoplay: Bool = true) {
-        queue = tracks
-        queueIndex = index
-        guard tracks.indices.contains(index) else { return }
-        load(tracks[index], autoplay: autoplay)
+        var checked = tracks
+        // Восстановленный файл перестаёт считаться пропавшим без полной проверки библиотеки.
+        for position in checked.indices where checked[position].isMissing {
+            if FileManager.default.fileExists(atPath: checked[position].url.path) {
+                checked[position].isMissing = false
+            }
+        }
+        let requested = checked.indices.contains(index) ? checked[index] : nil
+        let playable = checked.enumerated().filter { !$0.element.isMissing }
+        guard !playable.isEmpty else {
+            // Не трогаем текущее воспроизведение: показываем причину и выходим.
+            errorMessage = "Файлы не найдены"
+            return
+        }
+        queue = playable.map(\.element)
+        let chosen = playable.first { $0.offset >= index } ?? playable[0]
+        queueIndex = playable.firstIndex { $0.offset == chosen.offset } ?? 0
+        load(chosen.element, autoplay: autoplay)
+        if let requested, requested.isMissing {
+            errorMessage = "Файл не найден: \(requested.url.lastPathComponent)"
+        }
     }
 
     func load(_ track: Track, autoplay: Bool) {

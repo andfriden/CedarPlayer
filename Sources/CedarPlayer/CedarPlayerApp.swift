@@ -616,6 +616,9 @@ struct CedarPlayerApp: App {
                 track.artwork = art
                 sample.append(track)
             }
+            if ProcessInfo.processInfo.environment["CEDAR_RENDER_MISSING"] != nil, sample.count > 1 {
+                sample[1].isMissing = true
+            }
             let demoURL = URL(fileURLWithPath: "/tmp/cedar-render-demo.wav")
             if !FileManager.default.fileExists(atPath: demoURL.path),
                let format = AVAudioFormat(standardFormatWithSampleRate: 44100, channels: 2),
@@ -866,6 +869,7 @@ struct CedarPlayerApp: App {
             CommandGroup(replacing: .newItem) {
                 Button("Добавить файлы…") { library.presentImportPanel() }
                     .keyboardShortcut("o", modifiers: .command)
+                Button("Проверить файлы библиотеки") { library.refreshAvailability() }
                 Button("Окно обложки") { openWindow(id: "albumart") }
                     .keyboardShortcut("p", modifiers: [.command, .shift])
             }

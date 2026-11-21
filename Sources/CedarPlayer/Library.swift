@@ -116,7 +116,11 @@ final class Library: ObservableObject {
     private func load() {
         guard let data = try? Data(contentsOf: Self.storeURL) else { return }
         guard let store = try? JSONDecoder().decode(Store.self, from: data) else { return }
-        tracks = store.tracks.filter { FileManager.default.fileExists(atPath: $0.url.path) }
+        var loaded = store.tracks
+        for index in loaded.indices where !FileManager.default.fileExists(atPath: loaded[index].url.path) {
+            loaded[index].isMissing = true
+        }
+        tracks = loaded
         playlists = store.playlists
         stations = store.stations ?? []
         watchFolders = (store.watchFolders ?? []).map { URL(fileURLWithPath: $0) }
@@ -221,6 +225,54 @@ final class Library: ObservableObject {
             queryCache.removeValue(forKey: oldest)
         }
         return result
+    }
+
+    /// Перепроверяет наличие файлов и показывает счётчик в статусе.
+    func refreshAvailability() {
+        var updated = tracks
+        var changed = false
+        var missing = 0
+        for index in updated.indices {
+            let isMissing = !FileManager.default.fileExists(atPath: updated[index].url.path)
+            if isMissing { missing += 1 }
+            if updated[index].isMissing != isMissing {
+                updated[index].isMissing = isMissing
+                changed = true
+            }
+        }
+        if changed { tracks = updated }
+        statusMessage = missing == 0 ? "Все файлы на месте" : "Недоступно файлов: \(missing)"
+    }
+
+    /// Диалог выбора нового пути для пропавшего файла.
+    func presentReplacePanel(for track: Track) {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        panel.message = "Укажите файл для «\(track.displayTitle)»"
+        panel.prompt = "Привязать"
+        let folder = track.url.deletingLastPathComponent()
+        if FileManager.default.fileExists(atPath: folder.path) {
+            panel.directoryURL = folder
+        }
+        if panel.runModal() == .OK, let url = panel.url {
+            replaceFile(for: track.id, with: url)
+        }
+    }
+
+    /// Привязывает существующий файл к записи, сохраняя оценки и обложку.
+    func replaceFile(for id: UUID, with url: URL) {
+        guard let index = tracks.firstIndex(where: { $0.id == id }) else { return }
+        let target = url.standardizedFileURL
+        guard FileManager.default.fileExists(atPath: target.path) else { return }
+        tracks[index].url = target
+        tracks[index].isMissing = false
+        statusMessage = "Файл привязан: \(target.lastPathComponent)"
+    }
+
+    var missingCount: Int {
+        tracks.reduce(0) { $0 + ($1.isMissing ? 1 : 0) }
     }
 
     func track(with id: UUID) -> Track? {

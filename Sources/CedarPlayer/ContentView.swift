@@ -349,7 +349,12 @@ struct ContentView: View {
                                 NSItemProvider(object: track.id.uuidString as NSString)
                             }
                             .contextMenu {
+                                if track.isMissing {
+                                    Button("Найти файл…") { locate(track) }
+                                    Divider()
+                                }
                                 Button("Воспроизвести") { startPlayback(from: index) }
+                                    .disabled(track.isMissing)
                                 Divider()
                                 Menu("Добавить в плейлист") {
                                     ForEach(library.playlists) { playlist in
@@ -371,6 +376,7 @@ struct ContentView: View {
                                 Button("Показать в Finder") {
                                     NSWorkspace.shared.activateFileViewerSelecting([track.url])
                                 }
+                                .disabled(track.isMissing)
                                 Divider()
                                 Button("Удалить из библиотеки", role: .destructive) {
                                     library.remove([track.id])
@@ -462,7 +468,15 @@ struct ContentView: View {
         let tracks = detailTracks
         guard tracks.indices.contains(index) else { return }
         selection = [tracks[index].id]
+        guard !tracks[index].isMissing else {
+            locate(tracks[index])
+            return
+        }
         player?.setQueue(tracks, startAt: index)
+    }
+
+    private func locate(_ track: Track) {
+        library.presentReplacePanel(for: track)
     }
 
     private func handleTrackDrop(_ providers: [NSItemProvider], into playlistID: UUID) -> Bool {
@@ -584,7 +598,7 @@ private struct TrackRow: View {
             VStack(alignment: .leading, spacing: 1) {
                 Text(track.displayTitle)
                     .font(.system(size: 13, weight: isCurrent ? .semibold : .regular))
-                    .foregroundStyle(isCurrent ? Color.accentColor : .primary)
+                    .foregroundStyle(isCurrent ? Color.accentColor : (track.isMissing ? .secondary : .primary))
                     .lineLimit(1)
                 Text(track.displayArtist)
                     .font(.system(size: 11))
@@ -598,6 +612,13 @@ private struct TrackRow: View {
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
                 .frame(width: 180, alignment: .leading)
+
+            if track.isMissing {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.orange)
+                    .help("Файл не найден")
+            }
 
             Text(track.formatText)
                 .font(.system(size: 10, design: .monospaced))

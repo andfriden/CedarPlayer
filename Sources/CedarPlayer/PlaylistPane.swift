@@ -264,7 +264,12 @@ struct PlaylistPane: View {
 
         return HStack(spacing: Theme.Space.s) {
             ZStack {
-                if isCurrent {
+                if track.isMissing {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.system(size: 10))
+                        .foregroundStyle(.orange)
+                        .help("Файл не найден")
+                } else if isCurrent {
                     Image(systemName: engine.isPlaying ? "waveform" : "pause.fill")
                         .font(.system(size: 11, weight: .medium))
                         .foregroundStyle(Theme.accent)
@@ -289,7 +294,7 @@ struct PlaylistPane: View {
             VStack(alignment: .leading, spacing: 3) {
                 Text(track.displayTitle)
                     .font(Theme.Fonts.listTitle)
-                    .foregroundStyle(isCurrent ? Theme.accent : Theme.text)
+                    .foregroundStyle(track.isMissing ? Theme.secondaryText : (isCurrent ? Theme.accent : Theme.text))
                     .lineLimit(1)
                 Text(track.displayArtist)
                     .font(Theme.Fonts.artist)
@@ -298,6 +303,13 @@ struct PlaylistPane: View {
             }
 
             Spacer(minLength: Theme.Space.s)
+
+            if track.isMissing {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.system(size: 9))
+                    .foregroundStyle(.orange)
+                    .help("Файл не найден")
+            }
 
             if track.rating > 0, !showsArtwork {
                 Text(String(repeating: "★", count: track.rating))
@@ -339,17 +351,26 @@ struct PlaylistPane: View {
             listFocused = true
         }
         .onTapGesture(count: 2) {
+            guard !track.isMissing else {
+                library.presentReplacePanel(for: track)
+                return
+            }
             let list = tracks
             guard let start = list.firstIndex(where: { $0.id == track.id }) else { return }
             engine.setQueue(list, startAt: start)
         }
         .contextMenu {
+            if track.isMissing {
+                Button("Найти файл…") { library.presentReplacePanel(for: track) }
+                Divider()
+            }
             Button("Воспроизвести") {
                 let list = tracks
                 if let start = list.firstIndex(where: { $0.id == track.id }) {
                     engine.setQueue(list, startAt: start)
                 }
             }
+            .disabled(track.isMissing)
             Menu("Добавить в плейлист") {
                 ForEach(library.playlists) { playlist in
                     Button(playlist.name) { library.add([track.id], to: playlist.id) }
@@ -367,6 +388,7 @@ struct PlaylistPane: View {
             Button("Показать в Finder") {
                 NSWorkspace.shared.activateFileViewerSelecting([track.url])
             }
+            .disabled(track.isMissing)
             Divider()
             Button("Удалить из библиотеки", role: .destructive) {
                 library.remove([track.id])
