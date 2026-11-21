@@ -239,7 +239,14 @@ struct MiniPlayerView: View {
 
     @ViewBuilder
     private var coverCircle: some View {
-        if let data = engine.currentTrack?.artwork, let image = NSImage(data: data) {
+        if let station = engine.currentStation,
+           let data = library.stationLogo(station),
+           let image = NSImage(data: data) {
+            Image(nsImage: image)
+                .resizable()
+                .aspectRatio(contentMode: .fill)
+                .clipShape(Circle())
+        } else if let data = engine.currentTrack?.artwork, let image = NSImage(data: data) {
             Image(nsImage: image)
                 .resizable()
                 .aspectRatio(contentMode: .fill)
@@ -247,7 +254,7 @@ struct MiniPlayerView: View {
         } else {
             ZStack {
                 Circle().fill(Color(hex: 0x2B2F36))
-                Image(systemName: "music.note")
+                Image(systemName: engine.currentStation == nil ? "music.note" : "dot.radiowaves.left.and.right")
                     .font(.system(size: 13, weight: .light))
                     .foregroundStyle(Theme.secondaryText.opacity(0.8))
             }

@@ -134,6 +134,20 @@ struct CedarPlayerApp: App {
             exit(0)
         }
 
+        if let path = Self.argumentValue("--logotest") {
+            let station = RadioStation(name: "Тест", urlString: path)
+            let semaphore = DispatchSemaphore(value: 0)
+            Task {
+                let data = await RadioLogoLoader.load(station)
+                print("LOGO bytes=\(data?.count ?? 0) image=\(data != nil)")
+                semaphore.signal()
+            }
+            while semaphore.wait(timeout: .now()) == .timedOut {
+                RunLoop.main.run(until: Date().addingTimeInterval(0.1))
+            }
+            exit(0)
+        }
+
         if let path = Self.argumentValue("--radiotest") {
             let engine = PlayerEngine()
             let urlString = path.hasPrefix("http://") || path.hasPrefix("https://")

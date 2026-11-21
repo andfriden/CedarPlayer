@@ -92,13 +92,17 @@ struct PlayerPane: View {
 
     private var artwork: some View {
         Group {
-            if let data = engine.currentTrack?.artwork, let image = NSImage(data: data) {
+            if let station = engine.currentStation,
+               let data = library.stationLogo(station),
+               let image = NSImage(data: data) {
+                Image(nsImage: image).resizable().aspectRatio(contentMode: .fill)
+            } else if let data = engine.currentTrack?.artwork, let image = NSImage(data: data) {
                 Image(nsImage: image).resizable().aspectRatio(contentMode: .fill)
             } else {
                 ZStack {
                     Color(hex: 0x2B2F36)
-                    Image(systemName: "music.note")
-                        .font(.system(size: artworkSize * 0.3, weight: .light))
+                    Image(systemName: engine.currentStation == nil ? "music.note" : "dot.radiowaves.left.and.right")
+                        .font(.system(size: artworkSize * 0.28, weight: .light))
                         .foregroundStyle(Theme.secondaryText.opacity(0.7))
                 }
             }

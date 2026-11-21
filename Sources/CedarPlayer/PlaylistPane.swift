@@ -122,7 +122,10 @@ struct PlaylistPane: View {
                 if !library.stations.isEmpty {
                     Divider()
                     ForEach(library.stations) { station in
-                        Button(station.name) { engine.playRadio(station) }
+                        Button(station.name) {
+                            library.ensureStationLogo(station)
+                            engine.playRadio(station)
+                        }
                     }
                 }
                 Divider()

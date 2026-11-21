@@ -97,6 +97,7 @@ final class Library: ObservableObject {
             try? data.write(to: Self.storeURL, options: .atomic)
 
             var keys = Set(self.tracks.compactMap { $0.artworkID })
+            keys.formUnion(self.stations.compactMap { $0.logoID })
             for track in self.tracks where track.artworkID == nil {
                 if let key = ArtworkCache.shared.store(track.artwork) { keys.insert(key) }
             }
@@ -509,14 +510,37 @@ final class Library: ObservableObject {
     }
 
     @discardableResult
-    func addStation(name: String, urlString: String) -> RadioStation? {
+    func addStation(name: String, urlString: String, logoURLString: String? = nil) -> RadioStation? {
         let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
         let urlString = urlString.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !urlString.isEmpty, URL(string: urlString) != nil else { return nil }
+        let logo = logoURLString?.trimmingCharacters(in: .whitespacesAndNewlines)
         let station = RadioStation(name: name.isEmpty ? URL(string: urlString)?.host ?? "Радио" : name,
-                                   urlString: urlString)
+                                   urlString: urlString,
+                                   logoURLString: (logo?.isEmpty ?? true) ? nil : logo)
         stations.append(station)
+        fetchStationLogo(station)
         return station
+    }
+
+    func stationLogo(_ station: RadioStation) -> Data? {
+        guard let id = station.logoID else { return nil }
+        return ArtworkCache.shared.data(for: id)
+    }
+
+    /// Догружает логотип, если его ещё нет.
+    func ensureStationLogo(_ station: RadioStation) {
+        guard station.logoID == nil else { return }
+        fetchStationLogo(station)
+    }
+
+    private func fetchStationLogo(_ station: RadioStation) {
+        Task { @MainActor in
+            guard let data = await RadioLogoLoader.load(station),
+                  let key = ArtworkCache.shared.store(data),
+                  let index = stations.firstIndex(where: { $0.id == station.id }) else { return }
+            stations[index].logoID = key
+        }
     }
 
     func removeStation(_ id: UUID) {

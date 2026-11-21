@@ -5,11 +5,16 @@ struct RadioStation: Identifiable, Codable, Hashable {
     let id: UUID
     var name: String
     var urlString: String
+    var logoURLString: String?
+    var logoID: String?
 
-    init(id: UUID = UUID(), name: String, urlString: String) {
+    init(id: UUID = UUID(), name: String, urlString: String,
+         logoURLString: String? = nil, logoID: String? = nil) {
         self.id = id
         self.name = name
         self.urlString = urlString
+        self.logoURLString = logoURLString
+        self.logoID = logoID
     }
 
     var url: URL? {

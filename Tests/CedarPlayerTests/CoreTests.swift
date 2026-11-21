@@ -338,3 +338,29 @@ final class CrossfadeRampTests: XCTestCase {
         XCTAssertEqual(Crossfade.outgoing(0.25) + Crossfade.incoming(0.25), 1, accuracy: 0.0001)
     }
 }
+
+final class RadioLogoTests: XCTestCase {
+    func testCandidatesStartWithCustomLogo() {
+        let station = RadioStation(name: "S", urlString: "https://example.com/stream",
+                                   logoURLString: "https://cdn.example.com/logo.png")
+        let urls = RadioLogoLoader.candidates(for: station).map(\.absoluteString)
+        XCTAssertEqual(urls.first, "https://cdn.example.com/logo.png")
+        XCTAssertTrue(urls.contains("https://example.com/favicon.ico"))
+        XCTAssertTrue(urls.contains("https://example.com/apple-touch-icon.png"))
+    }
+
+    func testStationSurvivesCodableRoundTripWithLogo() throws {
+        let station = RadioStation(name: "S", urlString: "https://example.com/s",
+                                   logoURLString: "https://example.com/l.png", logoID: "abc")
+        let decoded = try JSONDecoder().decode(RadioStation.self, from: JSONEncoder().encode(station))
+        XCTAssertEqual(decoded.logoID, "abc")
+        XCTAssertEqual(decoded.logoURLString, "https://example.com/l.png")
+    }
+
+    func testOldStationJSONWithoutLogoDecodes() throws {
+        let json = Data(#"{"id":"\#(UUID().uuidString)","name":"Old","urlString":"https://example.com/s"}"#.utf8)
+        let station = try JSONDecoder().decode(RadioStation.self, from: json)
+        XCTAssertNil(station.logoID)
+        XCTAssertNil(station.logoURLString)
+    }
+}

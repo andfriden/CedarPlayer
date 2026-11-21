@@ -14,6 +14,7 @@ struct ContentView: View {
     @State private var isAddingStation = false
     @State private var stationName = ""
     @State private var stationURL = ""
+    @State private var stationLogoURL = ""
     @State private var dropTargetPlaylist: UUID?
     @State private var openAlbum: AlbumGroup?
     @AppStorage("libraryLayout") private var layout = "list"
@@ -22,6 +23,17 @@ struct ContentView: View {
         case allTracks
         case smart(SmartRule)
         case playlist(UUID)
+    }
+
+    @ViewBuilder
+    private func stationIcon(_ station: RadioStation) -> some View {
+        if let data = library.stationLogo(station), let image = NSImage(data: data) {
+            Image(nsImage: image).resizable().aspectRatio(contentMode: .fill)
+        } else {
+            Image(systemName: "dot.radiowaves.left.and.right")
+                .font(.system(size: 12))
+                .foregroundStyle(Theme.secondaryText)
+        }
     }
 
     private var displayedTracks: [Track] {
@@ -132,8 +144,11 @@ struct ContentView: View {
         .alert("Новая станция", isPresented: $isAddingStation) {
             TextField("Название", text: $stationName)
             TextField("https://адрес/потока", text: $stationURL)
+            TextField("Логотип (URL, необязательно)", text: $stationLogoURL)
             Button("Добавить") {
-                _ = library.addStation(name: stationName, urlString: stationURL)
+                _ = library.addStation(name: stationName,
+                                       urlString: stationURL,
+                                       logoURLString: stationLogoURL)
             }
             Button("Отмена", role: .cancel) {}
         }
@@ -180,9 +195,15 @@ struct ContentView: View {
             Section {
                 ForEach(library.stations) { station in
                     Button {
+                        library.ensureStationLogo(station)
                         engine.playRadio(station)
                     } label: {
-                        Label(station.name, systemImage: "dot.radiowaves.left.and.right")
+                        HStack(spacing: Theme.Space.s) {
+                            stationIcon(station)
+                                .frame(width: 20, height: 20)
+                                .clipShape(RoundedRectangle(cornerRadius: 4))
+                            Text(station.name)
+                        }
                     }
                     .buttonStyle(.plain)
                     .contextMenu {
@@ -194,6 +215,7 @@ struct ContentView: View {
                 Button {
                     stationName = ""
                     stationURL = ""
+                    stationLogoURL = ""
                     isAddingStation = true
                 } label: {
                     Label("Добавить станцию…", systemImage: "plus.circle")

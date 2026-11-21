@@ -73,6 +73,9 @@
 - Онлайн-радио: станции (имя + URL) хранятся в библиотеке, запускаются через
   `AVPlayer`; play/pause работают с пульта и медиа-клавиш, Now Playing показывает
   название станции, перемотки для потока нет (вместо неё «Прямой эфир»).
+- Логотипы станций: при добавлении можно указать URL картинки, иначе ищутся
+  `apple-touch-icon.png`, `favicon.ico` и `logo.png` на хосте. Логотип кэшируется
+  по SHA-256 и показывается в сайдбаре, основном и мини-плеере.
 - ICY-метаданные: отдельное соединение с `Icy-MetaData: 1` вытаскивает
   `StreamTitle`; строку «исполнитель - трек» плеер делит на две (разделитель —
   только дефис с пробелами, поэтому `Jay-Z` остаётся именем), показывает в двух
@@ -155,6 +158,7 @@ $APP --writetags /путь/трек.flac title="Имя" artist="Кто" track=3
 $APP --cover "M83" "Hurry Up, We're Dreaming"
 $APP --embedcover /путь/трек.flac /путь/обложка.png
 $APP --doctor                          # библиотека, кэш, права, настройки
+$APP --logotest https://хост           # поиск логотипа станции
 $APP --watchtest /папка /путь/трек.flac  # автодобавление нового файла в папке
 $APP --crossfadetest /путь/a.flac /путь/b.flac   # наложение и смена трека
 $APP --radiotest /путь/файл.mp3        # радио-ветка AVPlayer
@@ -202,6 +206,7 @@ CedarPlayer/
     ├── PlaylistFile.swift        импорт/экспорт M3U и PLS
     ├── FolderWatcher.swift       наблюдение за папками
     ├── RadioStation.swift        модель онлайн-станции
+    ├── RadioLogoLoader.swift     поиск и загрузка логотипа станции
     ├── IcyMetadataReader.swift   StreamTitle из ICY-потока
     ├── CueSheet.swift            парсер CUE и сегменты
     ├── PlayerEngine.swift        AVAudioEngine, очередь, сегменты, EQ, состояние
