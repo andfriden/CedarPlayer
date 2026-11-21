@@ -331,7 +331,7 @@ final class PlayerEngine: ObservableObject {
 
     /// Запускает интернет-станцию через AVPlayer; локальная очередь останавливается.
     func playRadio(_ station: RadioStation) {
-        guard let url = station.url else {
+        guard let url = station.url, url.scheme != nil else {
             errorMessage = "Некорректный адрес станции"
             return
         }

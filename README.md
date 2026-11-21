@@ -137,11 +137,16 @@ iconutil -c icns Resources/AppIcon.iconset -o Resources/AppIcon.icns
 
 ```bash
 swift test        # XCTest: альбомы, CUE, ReplayGain, кэш обложек, импорт в плейлист,
-                  # теги FLAC/MP3, ID3v1, APE, RIFF INFO
+                  # теги FLAC/MP3, ID3v1, APE, RIFF INFO, радио-ветка и снимки UI
 ```
 
 CI (`.github/workflows/ci.yml`) на `macos-latest`: release-сборка, тесты,
 упаковка `.app` и проверка CLI.
+
+UI-тесты рисуют `PlayerPane`, `PlaylistPane` и `MiniPlayerView` через
+`ImageRenderer` в двойном разрешении и проверяют размеры и непустоту кадра —
+это дымовой тест вёрстки, а не сравнение с эталоном: шрифты и системные
+контролы отличаются между версиями macOS.
 
 ## Проверка без интерфейса
 

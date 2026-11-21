@@ -58,6 +58,14 @@ final class Library: ObservableObject {
         var watchFolders: [String]?
     }
 
+    private var isTestInstance = false
+
+    /// Экземпляр для тестов: без чтения и записи рабочей библиотеки.
+    init(testTracks: [Track] = []) {
+        isTestInstance = true
+        tracks = testTracks
+    }
+
     init() {
         if let raw = UserDefaults.standard.string(forKey: "sortKey"), let key = SortKey(rawValue: raw) {
             sortKey = key
@@ -86,6 +94,7 @@ final class Library: ObservableObject {
     }
 
     private func scheduleSave() {
+        guard !isTestInstance else { return }
         saveWorkItem?.cancel()
         let work = DispatchWorkItem { [weak self] in
             guard let self else { return }
