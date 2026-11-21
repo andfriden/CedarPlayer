@@ -19,6 +19,7 @@ struct Track: Identifiable, Hashable, Codable {
     var composer: String
     var trackNumber: Int
     var discNumber: Int
+    var rating: Int
     var addedAt: Date
     var artwork: Data?
     var artworkID: String?
@@ -44,6 +45,7 @@ struct Track: Identifiable, Hashable, Codable {
         self.composer = ""
         self.trackNumber = 0
         self.discNumber = 0
+        self.rating = 0
         self.addedAt = Date()
         self.artwork = nil
         self.artworkID = nil
@@ -242,7 +244,7 @@ enum MetadataReader {
 extension Track {
     enum CodingKeys: String, CodingKey {
         case id, url, title, artist, album, albumArtist, trackNumber
-        case genre, year, composer, discNumber
+        case genre, year, composer, discNumber, rating
         case duration, sampleRate, bitDepth, channels, bitrate
         case addedAt, artwork, artworkID, replayGainDB, replayGainPeak, cueStart, cueEnd
     }
@@ -260,6 +262,7 @@ extension Track {
         year = try container.decodeIfPresent(String.self, forKey: .year) ?? ""
         composer = try container.decodeIfPresent(String.self, forKey: .composer) ?? ""
         discNumber = try container.decodeIfPresent(Int.self, forKey: .discNumber) ?? 0
+        rating = try container.decodeIfPresent(Int.self, forKey: .rating) ?? 0
         duration = try container.decodeIfPresent(TimeInterval.self, forKey: .duration) ?? 0
         sampleRate = try container.decodeIfPresent(Double.self, forKey: .sampleRate) ?? 0
         bitDepth = try container.decodeIfPresent(Int.self, forKey: .bitDepth) ?? 0
@@ -297,6 +300,7 @@ extension Track {
         try container.encode(year, forKey: .year)
         try container.encode(composer, forKey: .composer)
         try container.encode(discNumber, forKey: .discNumber)
+        try container.encode(rating, forKey: .rating)
         try container.encode(duration, forKey: .duration)
         try container.encode(sampleRate, forKey: .sampleRate)
         try container.encode(bitDepth, forKey: .bitDepth)

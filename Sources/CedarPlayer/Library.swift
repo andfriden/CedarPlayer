@@ -393,6 +393,14 @@ final class Library: ObservableObject {
         return tracks[index]
     }
 
+    /// Оценка трека 0…5.
+    func setRating(_ rating: Int, for ids: Set<UUID>) {
+        let clamped = min(max(rating, 0), 5)
+        for index in tracks.indices where ids.contains(tracks[index].id) {
+            tracks[index].rating = clamped
+        }
+    }
+
     func remove(_ ids: Set<UUID>) {
         tracks.removeAll { ids.contains($0.id) }
         for index in playlists.indices {

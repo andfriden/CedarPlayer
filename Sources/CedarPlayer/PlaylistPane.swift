@@ -25,12 +25,20 @@ struct PlaylistPane: View {
         filterID == "all" ? nil : library.playlists.first { $0.id.uuidString == filterID }
     }
 
+    private var selectedSmart: SmartRule? {
+        guard filterID.hasPrefix("smart:") else { return nil }
+        return SmartRule(rawValue: String(filterID.dropFirst(6)))
+    }
+
     private var tracks: [Track] {
         var list: [Track]
         if let playlist = selectedPlaylist {
             list = library.tracks(in: playlist)
         } else {
             list = library.tracks
+        }
+        if let selectedSmart {
+            list = selectedSmart.filter(list)
         }
         let sortKey = SortKey(rawValue: sortKeyRaw) ?? .added
         switch sortKey {
@@ -106,6 +114,10 @@ struct PlaylistPane: View {
             Menu {
                 Button("Все треки") { filterID = "all" }
                 Divider()
+                ForEach(SmartRule.allCases) { rule in
+                    Button(rule.title) { filterID = "smart:\(rule.rawValue)" }
+                }
+                Divider()
                 ForEach(library.playlists) { playlist in
                     Button(playlist.name) { filterID = playlist.id.uuidString }
                 }
@@ -118,7 +130,7 @@ struct PlaylistPane: View {
                 }
             } label: {
                 HStack(spacing: 4) {
-                    Text(selectedPlaylist?.name ?? "Все треки")
+                    Text(selectedPlaylist?.name ?? selectedSmart?.title ?? "Все треки")
                         .font(.system(size: 12, weight: .medium))
                         .foregroundStyle(Theme.text)
                         .lineLimit(1)
@@ -242,6 +254,12 @@ struct PlaylistPane: View {
 
             Spacer(minLength: Theme.Space.s)
 
+            if track.rating > 0, !showsArtwork {
+                Text(String(repeating: "★", count: track.rating))
+                    .font(.system(size: 9))
+                    .foregroundStyle(Theme.accent.opacity(0.9))
+            }
+
             Text(track.timeText)
                 .font(Theme.Fonts.timeMono)
                 .foregroundStyle(Theme.secondaryText)
@@ -286,6 +304,13 @@ struct PlaylistPane: View {
                     Button(playlist.name) { library.add([track.id], to: playlist.id) }
                 }
                 if library.playlists.isEmpty { Text("Нет плейлистов") }
+            }
+            Menu("Оценка") {
+                ForEach(0...5, id: \.self) { value in
+                    Button(value == 0 ? "Без оценки" : String(repeating: "★", count: value)) {
+                        library.setRating(value, for: [track.id])
+                    }
+                }
             }
             Button("Найти обложку в базе…") { coverTrack = track }
             Button("Показать в Finder") {

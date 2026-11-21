@@ -225,3 +225,34 @@ final class TransitionFadeTests: XCTestCase {
         XCTAssertLessThanOrEqual(value, 1)
     }
 }
+
+final class SmartRuleTests: XCTestCase {
+    private func track(rating: Int = 0, daysAgo: Double = 0, duration: TimeInterval = 180, art: Bool = true) -> Track {
+        var track = Track(url: URL(fileURLWithPath: "/tmp/\(UUID().uuidString).flac"))
+        track.rating = rating
+        track.addedAt = Date().addingTimeInterval(-daysAgo * 86400)
+        track.duration = duration
+        if art { track.artwork = Data([1]) }
+        return track
+    }
+
+    func testRulesFilterTracks() {
+        let fresh = track(rating: 5)
+        let old = track(rating: 2, daysAgo: 10)
+        let noArt = track(art: false)
+        let long = track(duration: 601)
+
+        XCTAssertEqual(SmartRule.favorites.filter([fresh, old]).map(\.id), [fresh.id])
+        XCTAssertEqual(SmartRule.recent.filter([fresh, old]).map(\.id), [fresh.id])
+        XCTAssertTrue(SmartRule.noArtwork.filter([fresh, noArt]).contains { $0.id == noArt.id })
+        XCTAssertEqual(SmartRule.longTracks.filter([fresh, long]).map(\.id), [long.id])
+    }
+
+    func testRatingSurvivesCodableRoundTrip() throws {
+        var original = Track(url: URL(fileURLWithPath: "/tmp/roundtrip.flac"))
+        original.rating = 4
+        let data = try JSONEncoder().encode(original)
+        let decoded = try JSONDecoder().decode(Track.self, from: data)
+        XCTAssertEqual(decoded.rating, 4)
+    }
+}

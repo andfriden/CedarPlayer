@@ -16,11 +16,14 @@ struct ContentView: View {
 
     enum SidebarItem: Hashable {
         case allTracks
+        case smart(SmartRule)
         case playlist(UUID)
     }
 
     private var displayedTracks: [Track] {
         switch sidebarSelection {
+        case .smart(let rule):
+            return rule.filter(library.visibleTracks)
         case .playlist(let id):
             guard let playlist = library.playlist(with: id) else { return [] }
             let all = library.tracks(in: playlist)
@@ -48,6 +51,7 @@ struct ContentView: View {
     private var currentTitle: String {
         switch sidebarSelection {
         case .playlist(let id): return library.playlist(with: id)?.name ?? "Плейлист"
+        case .smart(let rule): return rule.title
         default: return "Все треки"
         }
     }
@@ -143,6 +147,13 @@ struct ContentView: View {
                     Image(systemName: "music.note.list")
                 }
                 .tag(SidebarItem.allTracks)
+            }
+
+            Section("Умные подборки") {
+                ForEach(SmartRule.allCases) { rule in
+                    Label(rule.title, systemImage: rule.symbol)
+                        .tag(SidebarItem.smart(rule))
+                }
             }
 
             Section {
@@ -260,6 +271,13 @@ struct ContentView: View {
                                     }
                                     if library.playlists.isEmpty {
                                         Text("Нет плейлистов")
+                                    }
+                                }
+                                Menu("Оценка") {
+                                    ForEach(0...5, id: \.self) { value in
+                                        Button(value == 0 ? "Без оценки" : String(repeating: "★", count: value)) {
+                                            library.setRating(value, for: [track.id])
+                                        }
                                     }
                                 }
                                 Button("Показать в Finder") {
