@@ -112,6 +112,22 @@
 
 ## Установка
 
+### Готовый архив
+
+Собранные версии — в [Releases](https://github.com/andfriden/CedarPlayer/releases).
+Скачайте `CedarPlayer-<версия>.zip`, распакуйте и перенесите `Cedar Player.app`
+в «Программы». Если релиз собран без сертификата Developer ID, macOS покажет
+предупреждение: откройте приложение через правый клик → «Открыть» либо снимите
+карантин командой `xattr -dr com.apple.quarantine "Cedar Player.app"`.
+
+Рядом с архивом лежит `.sha256`; проверка:
+
+```bash
+shasum -a 256 -c CedarPlayer-1.0.0.zip.sha256
+```
+
+### Из исходников
+
 Требования: macOS 13+, Xcode 15+ (проверено на Swift 6.3.2).
 
 ```bash
@@ -123,6 +139,8 @@ open "build/Cedar Player.app"
 
 Сборка — SwiftPM-пакет без внешних зависимостей; `build.sh` собирает `.app`,
 кладёт `Info.plist`, иконку `Resources/AppIcon.icns` и подписывает ad-hoc.
+Версия задаётся `CEDAR_VERSION`, номер сборки — `CEDAR_BUILD`, иначе берётся
+количество коммитов.
 
 Иконка рисуется кодом (тёмный скруглённый квадрат, голубая крона и значок play):
 
@@ -130,6 +148,19 @@ open "build/Cedar Player.app"
 swift Scripts/make-icon.swift Resources/AppIcon   # PNG + .iconset
 iconutil -c icns Resources/AppIcon.iconset -o Resources/AppIcon.icns
 ```
+
+## Релиз
+
+```bash
+Scripts/package-release.sh 1.0.0   # сборка, dist/CedarPlayer-1.0.0.zip и .sha256
+```
+
+Тег `v1.0.0` запускает `.github/workflows/release.yml`: сборка, упаковка и
+публикация GitHub Release. Если в секретах репозитория заданы
+`MACOS_CERTIFICATE`, `MACOS_CERTIFICATE_PASSWORD`, `KEYCHAIN_PASSWORD`,
+`CEDAR_SIGN_IDENTITY`, `APPLE_ID`, `APPLE_TEAM_ID` и `APPLE_APP_PASSWORD`,
+приложение подписывается Developer ID и нотаризуется (`Scripts/sign-and-notarize.sh`).
+Без секретов шаг подписи пропускается, архив остаётся ad-hoc.
 
 ## Горячие клавиши
 

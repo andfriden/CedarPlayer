@@ -1,0 +1,48 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Версия Swift
+        run: swift --version
+
+      - name: Сборка приложения
+        env:
+          CEDAR_VERSION: ${{ github.ref_name }}
+          CEDAR_UNIVERSAL: "1"
+        run: |
+          export CEDAR_VERSION="${CEDAR_VERSION#v}"
+          ./build.sh release
+
+      - name: Подпись и нотаризация (если заданы секреты)
+        env:
+          MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+          CEDAR_SIGN_IDENTITY: ${{ secrets.CEDAR_SIGN_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        run: Scripts/sign-and-notarize.sh "build/Cedar Player.app"
+
+      - name: Упаковка
+        env:
+          SKIP_BUILD: "1"
+        run: Scripts/package-release.sh "${GITHUB_REF_NAME#v}"
+
+      - name: Публикация
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true

@@ -8,3 +8,5 @@ build/
 # Сгенерированные иконки
 Resources/AppIcon.iconset/
 Resources/AppIcon-1024.png
+
+dist/
