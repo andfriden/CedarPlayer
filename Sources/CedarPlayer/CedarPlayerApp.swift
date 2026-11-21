@@ -394,6 +394,22 @@ struct CedarPlayerApp: App {
                 UserDefaults.standard.set(style, forKey: "meterStyle")
             }
 
+            if ProcessInfo.processInfo.environment["CEDAR_RENDER_VU"] != nil {
+                let vuEngine = PlayerEngine()
+                let vuView = AnalogVUMeterView()
+                    .environmentObject(vuEngine)
+                    .frame(width: 520, height: 300)
+                let renderer = ImageRenderer(content: vuView)
+                renderer.scale = 2
+                if let cg = renderer.cgImage,
+                   let png = NSBitmapImageRep(cgImage: cg).representation(using: .png, properties: [:]) {
+                    try? png.write(to: URL(fileURLWithPath: path))
+                    print("render-ui vu: \(path)")
+                }
+                semaphore.signal()
+                return
+            }
+
             if ProcessInfo.processInfo.environment["CEDAR_RENDER_EQ"] != nil {
                 let eqEngine = PlayerEngine()
                 eqEngine.apply(preset: PlayerEngine.presets[1])
@@ -664,7 +680,7 @@ struct CedarPlayerApp: App {
                 .preferredColorScheme(.dark)
                 .environmentObject(engine)
         }
-        .defaultSize(width: 472, height: 276)
+        .defaultSize(width: 520, height: 300)
 
         Window("Обложка", id: "albumart") {
             ArtworkWindowView()

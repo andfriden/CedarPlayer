@@ -230,84 +230,127 @@ struct LevelMeterStrip: View {
     }
 }
 
-/// Окно аналогового VU-метра: стрелки L/R, шкала −20…+3 дБ, индикация перегруза.
+/// Окно аналогового VU-метра: два стрелочных прибора L/R, шкала −20…+3 дБ,
+/// индикатор перегруза. Регулятора громкости здесь нет — только индикация.
 struct AnalogVUMeterView: View {
     @EnvironmentObject private var engine: PlayerEngine
 
-    var body: some View {
-        VStack(spacing: 10) {
-            Canvas { context, size in
-                drawFace(context: context, size: size, level: engine.levelL, mirrored: false)
-                drawFace(context: context, size: size, level: engine.levelR, mirrored: true)
-            }
-            .frame(width: 440, height: 210)
+    private let marks: [(db: Double, label: String)] = [
+        (-20, "-20"), (-10, "-10"), (-7, "-7"), (-5, "-5"),
+        (-3, "-3"), (-1, "-1"), (0, "0"), (3, "+3")
+    ]
 
-            HStack(spacing: 18) {
-                Text("L").font(.system(size: 10, design: .monospaced)).foregroundStyle(.secondary)
-                Slider(value: $engine.volume, in: 0...1).frame(width: 160).controlSize(.mini)
-                Text("R").font(.system(size: 10, design: .monospaced)).foregroundStyle(.secondary)
-            }
+    var body: some View {
+        HStack(spacing: Theme.Space.s) {
+            dial(level: engine.levelL, peak: engine.peakL, title: "L")
+            dial(level: engine.levelR, peak: engine.peakR, title: "R")
         }
-        .padding(16)
-        .frame(width: 472, height: 276)
+        .padding(Theme.Space.s)
+        .frame(width: 520, height: 300)
+        .background(Theme.panel)
+        .overlay {
+            RoundedRectangle(cornerRadius: Theme.Radius.medium)
+                .strokeBorder(Theme.separator, lineWidth: 1)
+                .padding(1)
+        }
         .tint(Theme.accent)
-        .background(
-            LinearGradient(colors: [Theme.background, Theme.background],
-                           startPoint: .top, endPoint: .bottom)
-        )
     }
 
-    private func drawFace(context: GraphicsContext, size: CGSize, level: Float, mirrored: Bool) {
-        let width = size.width / 2
-        let originX = mirrored ? width * 1.5 : width * 0.5
-        let pivot = CGPoint(x: originX, y: size.height - 18)
-        let radius = min(width * 0.42, 78)
+    private func dial(level: Float, peak: Float, title: String) -> some View {
+        Canvas { context, size in
+            drawDial(context: context, size: size, level: level, peak: peak, title: title)
+        }
+        .frame(width: 244, height: 276)
+        .accessibilityHidden(true)
+    }
 
-        // Шкала: дуга от -45° до +45°
+    private func drawDial(context: GraphicsContext, size: CGSize, level: Float, peak: Float, title: String) {
+        let pivot = CGPoint(x: size.width / 2, y: size.height - 44)
+        let radius = min(size.width * 0.5, size.height * 0.62)
+
+        // Дуга шкалы и красная зона перегруза.
         var arc = Path()
         arc.addArc(center: pivot, radius: radius,
                    startAngle: .degrees(225), endAngle: .degrees(315), clockwise: false)
-        context.stroke(arc, with: .color(.white.opacity(0.25)), lineWidth: 1)
+        context.stroke(arc, with: .color(Theme.separator),
+                       style: StrokeStyle(lineWidth: 2, lineCap: .round))
 
-        // Риски −20…+3 дБ
-        let marks: [Double] = [-20, -10, -7, -5, -3, -1, 0, 3]
-        for (index, db) in marks.enumerated() {
+        var redZone = Path()
+        redZone.addArc(center: pivot, radius: radius,
+                       startAngle: .degrees(300), endAngle: .degrees(315), clockwise: false)
+        context.stroke(redZone, with: .color(Color(hex: 0xE06C75)),
+                       style: StrokeStyle(lineWidth: 2, lineCap: .round))
+
+        // Риски и подписи.
+        for (index, mark) in marks.enumerated() {
             let t = Double(index) / Double(marks.count - 1)
-            let angle = Angle.degrees(225 + 90 * t)
-            let inner = point(from: pivot, radius: radius - 6, angle: angle)
-            let outer = point(from: pivot, radius: radius + (db >= 0 ? 5 : 0), angle: angle)
+            let angle = 225 + 90 * t
+            let isZero = mark.db == 0
+            let isHot = mark.db > 0
+            let inner = point(pivot, radius - (isZero ? 10 : 7), angle)
+            let outer = point(pivot, radius + (isHot ? 4 : 0), angle)
+
             var tick = Path()
             tick.move(to: inner)
             tick.addLine(to: outer)
-            context.stroke(tick, with: .color(db >= 0 ? Color.red.opacity(0.8) : .white.opacity(0.45)),
-                           lineWidth: db >= 0 ? 1.2 : 0.7)
+            context.stroke(tick,
+                           with: .color(isZero ? Theme.text : (isHot ? Color(hex: 0xE06C75) : Theme.secondaryText)),
+                           lineWidth: isZero ? 1.4 : 0.8)
 
-            let label = Text(String(format: "%+.0f", db))
-                .font(.system(size: 7, design: .monospaced))
-                .foregroundColor(.white.opacity(0.4))
-            let labelPoint = point(from: pivot, radius: radius + 13, angle: angle)
+            let labelPoint = point(pivot, radius + 18, angle)
+            let label = Text(mark.label)
+                .font(.system(size: 9, design: .monospaced))
+                .foregroundColor(isZero ? Theme.text : (isHot ? Color(hex: 0xE06C75) : Theme.secondaryText))
             context.draw(context.resolve(label), at: labelPoint, anchor: .center)
         }
 
-        // Стрелка
-        let levelValue = Double(min(1, max(0, level)))
-        let needleAngle = Angle.degrees(225 + 90 * levelValue)
+        // Стрелка.
+        let value = Double(min(1, max(0, level)))
+        let needleAngle = 225 + 90 * value
+        let tip = point(pivot, radius - 6, needleAngle)
         var needle = Path()
         needle.move(to: pivot)
-        needle.addLine(to: point(from: pivot, radius: radius - 4, angle: needleAngle))
-        context.stroke(needle, with: .color(.white.opacity(0.92)), lineWidth: 1.6)
-        context.fill(Path(ellipseIn: CGRect(x: pivot.x - 3, y: pivot.y - 3, width: 6, height: 6)),
-                     with: .color(.white.opacity(0.85)))
+        needle.addLine(to: tip)
+        context.stroke(needle, with: .color(Theme.accent),
+                       style: StrokeStyle(lineWidth: 2, lineCap: .round))
 
-        if level > 0.94 {
-            var lamp = Path()
-            lamp.addEllipse(in: CGRect(x: originX - 5, y: 6, width: 10, height: 10))
-            context.fill(lamp, with: .color(.red.opacity(0.9)))
+        var pivotDot = Path()
+        pivotDot.addEllipse(in: CGRect(x: pivot.x - 3.5, y: pivot.y - 3.5, width: 7, height: 7))
+        context.fill(pivotDot, with: .color(Theme.text))
+
+        // Надпись VU в верхней части прибора.
+        let vu = Text("VU")
+            .font(.system(size: 12, weight: .semibold, design: .rounded))
+            .foregroundColor(Theme.secondaryText.opacity(0.6))
+        context.draw(context.resolve(vu), at: CGPoint(x: size.width / 2, y: 34), anchor: .center)
+
+        // Индикатор перегруза.
+        let peakLit = peak > 0.95
+        let ledRect = CGRect(x: size.width - 22, y: 20, width: 8, height: 8)
+        context.fill(Path(ellipseIn: ledRect),
+                     with: .color(peakLit ? Color(hex: 0xE06C75) : Theme.separator))
+        if peakLit {
+            context.fill(Path(ellipseIn: ledRect.insetBy(dx: -3, dy: -3)),
+                         with: .color(Color(hex: 0xE06C75).opacity(0.25)))
         }
+
+        // Канал и числовое значение.
+        let channel = Text(title)
+            .font(.system(size: 13, weight: .semibold))
+            .foregroundColor(Theme.text)
+        context.draw(context.resolve(channel), at: CGPoint(x: 18, y: size.height - 20), anchor: .leading)
+
+        // Шкала этого прибора: −20…+3 дБ, поэтому и подпись в тех же единицах.
+        let db = -20 + value * 23
+        let reading = Text(String(format: "%+.1f дБ", db))
+            .font(.system(size: 9, design: .monospaced))
+            .foregroundColor(Theme.secondaryText)
+        context.draw(context.resolve(reading), at: CGPoint(x: size.width - 18, y: size.height - 20), anchor: .trailing)
     }
 
-    private func point(from center: CGPoint, radius: CGFloat, angle: Angle) -> CGPoint {
-        CGPoint(x: center.x + radius * cos(angle.radians),
-                y: center.y + radius * sin(angle.radians))
+    private func point(_ pivot: CGPoint, _ radius: CGFloat, _ degrees: Double) -> CGPoint {
+        let radians = degrees * .pi / 180
+        return CGPoint(x: pivot.x + CGFloat(cos(radians)) * radius,
+                       y: pivot.y + CGFloat(sin(radians)) * radius)
     }
 }

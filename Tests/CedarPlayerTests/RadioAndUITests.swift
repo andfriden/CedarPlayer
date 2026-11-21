@@ -139,6 +139,12 @@ final class UISnapshotTests: XCTestCase {
         _ = try image(eq, width: 760, height: 540, name: "equalizer")
     }
 
+    func testVUMeterSnapshot() throws {
+        let engine = PlayerEngine()
+        let vu = AnalogVUMeterView().environmentObject(engine)
+        _ = try image(vu, width: 520, height: 300, name: "vu-meter")
+    }
+
     func testMiniPlayerSnapshot() throws {
         let engine = PlayerEngine()
         let library = Library(testTracks: [makeTrack(1)])
