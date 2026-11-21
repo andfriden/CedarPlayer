@@ -132,6 +132,13 @@ final class UISnapshotTests: XCTestCase {
         _ = try image(playlist, width: 425, height: 300, name: "playlist-pane")
     }
 
+    func testEqualizerSnapshot() throws {
+        let engine = PlayerEngine()
+        engine.apply(preset: PlayerEngine.presets[1])
+        let eq = EqualizerView().environmentObject(engine)
+        _ = try image(eq, width: 760, height: 540, name: "equalizer")
+    }
+
     func testMiniPlayerSnapshot() throws {
         let engine = PlayerEngine()
         let library = Library(testTracks: [makeTrack(1)])

@@ -394,6 +394,23 @@ struct CedarPlayerApp: App {
                 UserDefaults.standard.set(style, forKey: "meterStyle")
             }
 
+            if ProcessInfo.processInfo.environment["CEDAR_RENDER_EQ"] != nil {
+                let eqEngine = PlayerEngine()
+                eqEngine.apply(preset: PlayerEngine.presets[1])
+                let eqView = EqualizerView()
+                    .environmentObject(eqEngine)
+                    .frame(width: 760, height: 540)
+                let renderer = ImageRenderer(content: eqView)
+                renderer.scale = 2
+                if let cg = renderer.cgImage,
+                   let png = NSBitmapImageRep(cgImage: cg).representation(using: .png, properties: [:]) {
+                    try? png.write(to: URL(fileURLWithPath: path))
+                    print("render-ui eq: \(path)")
+                }
+                semaphore.signal()
+                return
+            }
+
             if ProcessInfo.processInfo.environment["CEDAR_RENDER_MINI"] != nil {
                 let mini = MiniPlayerView()
                     .environmentObject(library)
@@ -663,7 +680,7 @@ struct CedarPlayerApp: App {
                 .preferredColorScheme(.dark)
                 .environmentObject(engine)
         }
-        .defaultSize(width: 700, height: 480)
+        .defaultSize(width: 760, height: 540)
         .windowResizability(.contentSize)
 
         Window("Текст песни", id: "lyrics") {
