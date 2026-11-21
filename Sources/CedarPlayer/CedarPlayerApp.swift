@@ -17,7 +17,7 @@ struct CedarPlayerApp: App {
         }
         if CommandLine.arguments.contains("--eqdump") {
             let engine = PlayerEngine()
-            print("EQ enabled=\(engine.isEQEnabled) preamp=\(engine.preamp)")
+            print("EQ enabled=\(engine.isEQEnabled) preamp=\(engine.preamp) replayGain=\(engine.isReplayGainEnabled)")
             print("EQ bands=\(engine.bands.map { String(format: "%.1f", $0) }.joined(separator: ","))")
             exit(0)
         }
@@ -118,7 +118,7 @@ struct CedarPlayerApp: App {
         if let path = Self.argumentValue("--tags") {
             let tags = TagReader.read(url: URL(fileURLWithPath: path))
             print("TAGS title=\(tags.title ?? "-") artist=\(tags.artist ?? "-") album=\(tags.album ?? "-") albumArtist=\(tags.albumArtist ?? "-") track=\(tags.trackNumber.map(String.init) ?? "-")")
-            print("TAGS artworkBytes=\(tags.artwork?.count ?? 0) sampleRate=\(tags.sampleRate ?? 0) bitDepth=\(tags.bitDepth ?? 0) channels=\(tags.channels ?? 0) duration=\(String(format: "%.2f", tags.duration ?? 0))")
+            print("TAGS artworkBytes=\(tags.artwork?.count ?? 0) sampleRate=\(tags.sampleRate ?? 0) bitDepth=\(tags.bitDepth ?? 0) channels=\(tags.channels ?? 0) duration=\(String(format: "%.2f", tags.duration ?? 0)) replayGain=\(tags.replayGainDB.map { String(format: "%.2f", $0) } ?? "-") peak=\(tags.replayGainPeak.map { String(format: "%.3f", $0) } ?? "-")")
             exit(0)
         }
     }
@@ -393,7 +393,11 @@ struct CedarPlayerApp: App {
             print("SELFTEST error: файл не найден")
             exit(2)
         }
-        let track = Track(url: url)
+        var track = Track(url: url)
+        let tags = TagReader.read(url: url)
+        track.title = tags.title ?? track.title
+        track.replayGainDB = tags.replayGainDB
+        track.replayGainPeak = tags.replayGainPeak
         engine.setQueue([track], startAt: 0)
         report.append("loaded=\(engine.currentTrack != nil)")
         report.append("duration=\(String(format: "%.2f", engine.duration))")

@@ -16,6 +16,17 @@ final class PlayerEngine: ObservableObject {
     func syncCurrentTrack(with track: Track) {
         guard let current = currentTrack, current.id == track.id else { return }
         currentTrack = track
+        applyReplayGain()
+    }
+
+    /// Выравнивание громкости по ReplayGain: отдельный EQ-узел в 0 полос.
+    private func applyReplayGain() {
+        guard isReplayGainEnabled, let track = currentTrack else {
+            replayGainNode.globalGain = 0
+            return
+        }
+        replayGainNode.globalGain = Float(ReplayGain.effectiveDB(trackGainDB: track.replayGainDB,
+                                                                peak: track.replayGainPeak))
     }
 
     @Published private(set) var position: TimeInterval = 0
@@ -39,6 +50,12 @@ final class PlayerEngine: ObservableObject {
     }
     @Published var bands: [Double] = Array(repeating: 0, count: 10) {
         didSet { applyBands(); persistEQ() }
+    }
+    @Published var isReplayGainEnabled = false {
+        didSet {
+            UserDefaults.standard.set(isReplayGainEnabled, forKey: "replayGainEnabled")
+            applyReplayGain()
+        }
     }
     @Published var errorMessage: String?
     @Published private(set) var usesDSPEqualizer = false
@@ -65,6 +82,17 @@ final class PlayerEngine: ObservableObject {
     private let player = AVAudioPlayerNode()
     private var equalizer: AVAudioUnit!
     private var biquad: BiquadEQAudioUnit?
+    private let replayGainNode: AVAudioUnitEQ = {
+        // Ноль полос у AVAudioUnitEQ не обрабатывает globalGain, поэтому одна
+        // выключенная полоса — узел остаётся активным и усиливает сигнал.
+        let node = AVAudioUnitEQ(numberOfBands: 1)
+        node.bands[0].filterType = .parametric
+        node.bands[0].frequency = 1000
+        node.bands[0].bandwidth = 2
+        node.bands[0].gain = 0
+        node.bands[0].bypass = false
+        return node
+    }()
     private let timePitch = AVAudioUnitTimePitch()
 
     private var file: AVAudioFile?
@@ -77,6 +105,7 @@ final class PlayerEngine: ObservableObject {
     private var timer: Timer?
 
     init() {
+        isReplayGainEnabled = UserDefaults.standard.bool(forKey: "replayGainEnabled")
         loadEQSettings()
         configureGraph()
         startTimer()
@@ -122,13 +151,15 @@ final class PlayerEngine: ObservableObject {
         engine.attach(player)
         engine.attach(timePitch)
         engine.attach(equalizer)
+        engine.attach(replayGainNode)
         applyEQState()
         applyBands()
 
         let format = AVAudioFormat(standardFormatWithSampleRate: 44100, channels: 2)
         engine.connect(player, to: timePitch, format: format)
         engine.connect(timePitch, to: equalizer, format: format)
-        engine.connect(equalizer, to: engine.mainMixerNode, format: format)
+        engine.connect(equalizer, to: replayGainNode, format: format)
+        engine.connect(replayGainNode, to: engine.mainMixerNode, format: format)
         engine.mainMixerNode.outputVolume = Float(volume)
 
         do {
@@ -221,10 +252,12 @@ final class PlayerEngine: ObservableObject {
             engine.disconnectNodeOutput(player)
             engine.disconnectNodeOutput(timePitch)
             engine.disconnectNodeOutput(equalizer)
+            engine.disconnectNodeOutput(replayGainNode)
 
             engine.connect(player, to: timePitch, format: format)
             engine.connect(timePitch, to: equalizer, format: format)
-            engine.connect(equalizer, to: engine.mainMixerNode, format: format)
+            engine.connect(equalizer, to: replayGainNode, format: format)
+            engine.connect(replayGainNode, to: engine.mainMixerNode, format: format)
 
             try engine.start()
 
@@ -244,6 +277,7 @@ final class PlayerEngine: ObservableObject {
             levelMeter.reset()
             position = 0
             currentTrack = track
+            applyReplayGain()
             errorMessage = nil
 
             if autoplay { play() }

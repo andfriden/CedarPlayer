@@ -10,16 +10,23 @@ final class ArtworkCache {
     private let queue = DispatchQueue(label: "cedar.artwork.cache")
 
     private init() {
-        let root: URL
-        if let custom = ProcessInfo.processInfo.environment["CEDAR_LIBRARY_DIR"], !custom.isEmpty {
-            root = URL(fileURLWithPath: custom, isDirectory: true)
-        } else {
-            root = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-                .appendingPathComponent("CedarPlayer", isDirectory: true)
-        }
-        let base = root.appendingPathComponent("Artwork", isDirectory: true)
+        let base = Self.defaultRoot.appendingPathComponent("Artwork", isDirectory: true)
         try? FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
         directory = base
+    }
+
+    /// Отдельный кэш в заданном каталоге — для тестов.
+    init(directory: URL) {
+        self.directory = directory
+        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    }
+
+    private static var defaultRoot: URL {
+        if let custom = ProcessInfo.processInfo.environment["CEDAR_LIBRARY_DIR"], !custom.isEmpty {
+            return URL(fileURLWithPath: custom, isDirectory: true)
+        }
+        return FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("CedarPlayer", isDirectory: true)
     }
 
     /// Сохраняет изображение и возвращает ключ (nil, если данных нет).

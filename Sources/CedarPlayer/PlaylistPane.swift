@@ -267,7 +267,7 @@ struct PlaylistPane: View {
                 hoveredTrackID = nil
             }
         }
-        .help(track.qualityText)
+        .help([track.qualityText, track.replayGainText].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · "))
         .onTapGesture { selection = [track.id] }
         .onTapGesture(count: 2) {
             let list = tracks

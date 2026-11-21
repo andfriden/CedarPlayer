@@ -13,6 +13,9 @@
 - MP3, AAC/M4A, ALAC, WAV, AIFF, FLAC, CAF — всё, что декодирует Core Audio.
 - Скорость 0.5×–2×, перемешивание, повтор (выкл. / список / один трек), mute.
 - Запоминание последнего трека и позиции при запуске.
+- Выравнивание громкости по ReplayGain: `REPLAYGAIN_TRACK_GAIN`/`PEAK` во FLAC и
+  `TXXX` в ID3, отдельный узел усиления перед микшером. Буст ограничен +6 дБ и
+  пиком трека; включается в настройках или «Ещё → Выравнивать громкость».
 
 **Теги, обложки, правка**
 - Свои парсеры: FLAC (STREAMINFO, Vorbis comments, PICTURE), ID3v2.2/2.3/2.4,
@@ -102,7 +105,8 @@ iconutil -c icns Resources/AppIcon.iconset -o Resources/AppIcon.icns
 ## Тесты и CI
 
 ```bash
-swift test        # XCTest: альбомы, теги FLAC/MP3, CUE, ключи библиотеки
+swift test        # XCTest: альбомы, теги FLAC/MP3, CUE, ReplayGain, кэш обложек,
+                  # импорт в плейлист и добавление при активном поиске
 ```
 
 CI (`.github/workflows/ci.yml`) на `macos-latest`: release-сборка, тесты,
@@ -113,7 +117,7 @@ CI (`.github/workflows/ci.yml`) на `macos-latest`: release-сборка, те�
 ```bash
 APP="./build/Cedar Player.app/Contents/MacOS/CedarPlayer"
 $APP --selftest /путь/трек.flac        # движок: длительность, seek, EQ, спектр
-$APP --tags /путь/трек.flac            # теги и обложка
+$APP --tags /путь/трек.flac            # теги, обложка и ReplayGain
 $APP --cuesheet /путь/album.cue        # треки CUE
 $APP --segment /путь/album.cue 1       # воспроизведение сегмента
 $APP --import /путь/папка              # импорт с отчётом
@@ -158,6 +162,7 @@ CedarPlayer/
     ├── Track.swift               модель трека, метаданные, качество
     ├── Tags.swift                FLAC/ID3v2, обложки из папки
     ├── TagWriter.swift           запись тегов FLAC и MP3
+    ├── ReplayGain.swift          разбор значений и безопасное усиление
     ├── ArtworkCache.swift        дисковый кэш обложек по SHA-256
     ├── AlbumGroup.swift          группировка по альбомам
     ├── CueSheet.swift            парсер CUE и сегменты

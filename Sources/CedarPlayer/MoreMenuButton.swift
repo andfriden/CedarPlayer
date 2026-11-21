@@ -51,6 +51,9 @@ struct MoreMenuButton: View {
 
         menu.addItem(.separator())
 
+        menu.addItem(item("Выравнивать громкость (ReplayGain)", checked: engine.isReplayGainEnabled) {
+            engine.isReplayGainEnabled.toggle()
+        })
         menu.addItem(item("Эквалайзер включён", checked: engine.isEQEnabled) {
             engine.isEQEnabled.toggle()
         })

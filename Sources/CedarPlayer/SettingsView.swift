@@ -18,6 +18,10 @@ struct SettingsView: View {
                     Text("Один трек").tag(RepeatMode.one)
                 }
                 Toggle("Перемешивание", isOn: $engine.isShuffle)
+                Toggle("Выравнивать громкость (ReplayGain)", isOn: $engine.isReplayGainEnabled)
+                Text("Громкость подстраивается по тегам REPLAYGAIN_TRACK_GAIN и пику трека; буст ограничен +6 дБ.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
 
             Section("Индикатор") {

@@ -8,6 +8,8 @@ struct AudioTags {
     var albumArtist: String?
     var trackNumber: Int?
     var artwork: Data?
+    var replayGainDB: Double?
+    var replayGainPeak: Double?
     var sampleRate: Double?
     var bitDepth: Int?
     var channels: Int?
@@ -103,6 +105,10 @@ enum TagReader {
             case "ALBUM": tags.album = value
             case "ALBUMARTIST", "ALBUM ARTIST": tags.albumArtist = value
             case "TRACKNUMBER": tags.trackNumber = Int(value)
+            case "REPLAYGAIN_TRACK_GAIN": tags.replayGainDB = ReplayGain.parseGain(value)
+            case "REPLAYGAIN_ALBUM_GAIN":
+                if tags.replayGainDB == nil { tags.replayGainDB = ReplayGain.parseGain(value) }
+            case "REPLAYGAIN_TRACK_PEAK": tags.replayGainPeak = ReplayGain.parsePeak(value)
             default: break
             }
         }
@@ -157,6 +163,17 @@ enum TagReader {
             case "TPE2": tags.albumArtist = decodeTextFrame(frame)
             case "TRCK": tags.trackNumber = Int(decodeTextFrame(frame)?.components(separatedBy: "/").first ?? "")
             case "APIC": tags.artwork = decodeAPIC(frame)
+            case "TXXX":
+                if let (description, value) = decodeUserTextFrame(frame) {
+                    let key = description.uppercased()
+                    if key.contains("REPLAYGAIN_TRACK_GAIN") {
+                        tags.replayGainDB = ReplayGain.parseGain(value)
+                    } else if key.contains("REPLAYGAIN_ALBUM_GAIN"), tags.replayGainDB == nil {
+                        tags.replayGainDB = ReplayGain.parseGain(value)
+                    } else if key.contains("REPLAYGAIN_TRACK_PEAK") {
+                        tags.replayGainPeak = ReplayGain.parsePeak(value)
+                    }
+                }
             default: break
             }
             offset += headerLength + size
@@ -218,6 +235,35 @@ enum TagReader {
                 .trimmingCharacters(in: CharacterSet(charactersIn: "\0"))
         }
         return String(data: Data(body), encoding: .isoLatin1)?
+            .trimmingCharacters(in: CharacterSet(charactersIn: "\0"))
+    }
+
+    /// TXXX: описание и значение, разделённые нулём по правилам кодировки.
+    private static func decodeUserTextFrame(_ frame: Data) -> (String, String)? {
+        guard let encoding = frame.first else { return nil }
+        let body = Data(frame.dropFirst())
+        let separator: [UInt8] = (encoding == 1 || encoding == 2) ? [0, 0] : [0]
+        guard let range = body.range(of: Data(separator)) else { return nil }
+        let description = decodeString(Data(body[body.startIndex..<range.lowerBound]), encoding: encoding) ?? ""
+        let value = decodeString(Data(body[range.upperBound...]), encoding: encoding) ?? ""
+        return (description, value)
+    }
+
+    private static func decodeString(_ data: Data, encoding: UInt8) -> String? {
+        var body = data
+        if encoding == 1 || encoding == 2 {
+            if body.starts(with: [0xFF, 0xFE]) || body.starts(with: [0xFE, 0xFF]) {
+                body = body.dropFirst(2)
+            }
+            let stringEncoding: String.Encoding = encoding == 1 ? .utf16LittleEndian : .utf16BigEndian
+            return String(data: body, encoding: stringEncoding)?
+                .trimmingCharacters(in: CharacterSet(charactersIn: "\0"))
+        }
+        if encoding == 3 {
+            return String(data: body, encoding: .utf8)?
+                .trimmingCharacters(in: CharacterSet(charactersIn: "\0"))
+        }
+        return String(data: body, encoding: .isoLatin1)?
             .trimmingCharacters(in: CharacterSet(charactersIn: "\0"))
     }
 

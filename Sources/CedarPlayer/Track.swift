@@ -18,6 +18,8 @@ struct Track: Identifiable, Hashable, Codable {
     var addedAt: Date
     var artwork: Data?
     var artworkID: String?
+    var replayGainDB: Double?
+    var replayGainPeak: Double?
     var cueStart: TimeInterval?
     var cueEnd: TimeInterval?
 
@@ -37,6 +39,8 @@ struct Track: Identifiable, Hashable, Codable {
         self.addedAt = Date()
         self.artwork = nil
         self.artworkID = nil
+        self.replayGainDB = nil
+        self.replayGainPeak = nil
         self.cueStart = nil
         self.cueEnd = nil
     }
@@ -52,6 +56,11 @@ struct Track: Identifiable, Hashable, Codable {
     }
 
     var isCueTrack: Bool { cueStart != nil }
+
+    var replayGainText: String? {
+        guard let gain = replayGainDB else { return nil }
+        return "ReplayGain \(ReplayGain.text(gain))"
+    }
 
     var formatText: String {
         let ext = url.pathExtension.uppercased()
@@ -158,6 +167,8 @@ enum MetadataReader {
         if let depth = tags.bitDepth { track.bitDepth = depth }
         if let channels = tags.channels { track.channels = channels }
         if let duration = tags.duration { track.duration = duration }
+        track.replayGainDB = tags.replayGainDB
+        track.replayGainPeak = tags.replayGainPeak
 
         // 2. AVFoundation — то, что не удалось прочитать самим (m4a/aac и прочее).
         let asset = AVURLAsset(url: url)
@@ -210,7 +221,7 @@ extension Track {
     enum CodingKeys: String, CodingKey {
         case id, url, title, artist, album, albumArtist, trackNumber
         case duration, sampleRate, bitDepth, channels, bitrate
-        case addedAt, artwork, artworkID, cueStart, cueEnd
+        case addedAt, artwork, artworkID, replayGainDB, replayGainPeak, cueStart, cueEnd
     }
 
     init(from decoder: Decoder) throws {
@@ -228,6 +239,8 @@ extension Track {
         channels = try container.decodeIfPresent(Int.self, forKey: .channels) ?? 0
         bitrate = try container.decodeIfPresent(Int.self, forKey: .bitrate) ?? 0
         addedAt = try container.decodeIfPresent(Date.self, forKey: .addedAt) ?? Date()
+        replayGainDB = try container.decodeIfPresent(Double.self, forKey: .replayGainDB)
+        replayGainPeak = try container.decodeIfPresent(Double.self, forKey: .replayGainPeak)
         cueStart = try container.decodeIfPresent(TimeInterval.self, forKey: .cueStart)
         cueEnd = try container.decodeIfPresent(TimeInterval.self, forKey: .cueEnd)
         artworkID = try container.decodeIfPresent(String.self, forKey: .artworkID)
@@ -259,6 +272,8 @@ extension Track {
         try container.encode(channels, forKey: .channels)
         try container.encode(bitrate, forKey: .bitrate)
         try container.encode(addedAt, forKey: .addedAt)
+        try container.encodeIfPresent(replayGainDB, forKey: .replayGainDB)
+        try container.encodeIfPresent(replayGainPeak, forKey: .replayGainPeak)
         try container.encodeIfPresent(cueStart, forKey: .cueStart)
         try container.encodeIfPresent(cueEnd, forKey: .cueEnd)
 
