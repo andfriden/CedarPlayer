@@ -532,8 +532,8 @@ struct CedarPlayerApp: App {
                 .environmentObject(library)
                 .environmentObject(engine)
         }
-        .windowResizability(.contentSize)
-        .defaultSize(width: 372, height: 96)
+        .windowResizability(.contentMinSize)
+        .defaultSize(width: 320, height: 96)
 
         Settings {
             SettingsView()

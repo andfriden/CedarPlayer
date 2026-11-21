@@ -75,15 +75,19 @@ struct LyricsView: View {
     }
 }
 
-/// Компактный плеер в духе мини-плеера Яндекс.Музыки:
-/// обложка, две строки текста, тонкий прогресс и три кнопки.
+/// Компактный мини-плеер: вращающаяся «пластинка» с обложкой, две строки
+/// текста, тонкий прогресс и кнопки. Окно тянется за угол.
 struct MiniPlayerView: View {
     @EnvironmentObject private var engine: PlayerEngine
     @EnvironmentObject private var library: Library
 
+    @State private var angle: Double = 0
+    private let tick = Timer.publish(every: 1.0 / 30.0, on: .main, in: .common).autoconnect()
+
     var body: some View {
         HStack(spacing: Theme.Space.m) {
-            artwork
+            vinyl
+                .frame(width: 62, height: 62)
 
             VStack(alignment: .leading, spacing: Theme.Space.xs) {
                 Text(engine.currentTrack?.displayTitle ?? "Ничего не играет")
@@ -98,31 +102,30 @@ struct MiniPlayerView: View {
 
                 progress
             }
-
-            Spacer(minLength: Theme.Space.s)
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             HStack(spacing: Theme.Space.xs) {
                 Button { engine.previous() } label: {
                     Image(systemName: "backward.fill")
-                        .font(.system(size: 13))
-                        .frame(width: 30, height: 30)
+                        .font(.system(size: 12))
+                        .frame(width: 28, height: 28)
                         .contentShape(Rectangle())
                 }
                 Button { engine.toggle() } label: {
                     ZStack {
                         Circle().fill(Theme.accent)
                         Image(systemName: engine.isPlaying ? "pause.fill" : "play.fill")
-                            .font(.system(size: 13, weight: .semibold))
+                            .font(.system(size: 12, weight: .semibold))
                             .foregroundStyle(Theme.background)
                             .offset(x: engine.isPlaying ? 0 : 1)
                     }
-                    .frame(width: 34, height: 34)
+                    .frame(width: 32, height: 32)
                     .contentShape(Rectangle())
                 }
                 Button { engine.next(manual: true) } label: {
                     Image(systemName: "forward.fill")
-                        .font(.system(size: 13))
-                        .frame(width: 30, height: 30)
+                        .font(.system(size: 12))
+                        .frame(width: 28, height: 28)
                         .contentShape(Rectangle())
                 }
             }
@@ -130,43 +133,69 @@ struct MiniPlayerView: View {
             .foregroundStyle(Theme.text.opacity(0.9))
         }
         .padding(Theme.Space.m)
-        .frame(width: 372, height: 96)
+        .frame(minWidth: 286, minHeight: 92)
         .background(Theme.panel)
-        .overlay {
-            RoundedRectangle(cornerRadius: Theme.Radius.medium)
-                .strokeBorder(Theme.separator, lineWidth: 1)
-                .padding(1)
-        }
         .tint(Theme.accent)
+        .onReceive(tick) { _ in
+            guard engine.isPlaying else { return }
+            angle = (angle + 1.2).truncatingRemainder(dividingBy: 360)
+        }
     }
 
-    private var artwork: some View {
-        Group {
-            if let data = engine.currentTrack?.artwork, let image = NSImage(data: data) {
-                Image(nsImage: image).resizable().aspectRatio(contentMode: .fill)
-            } else {
-                ZStack {
-                    Color(hex: 0x2B2F36)
-                    Image(systemName: "music.note")
-                        .font(.system(size: 20, weight: .light))
-                        .foregroundStyle(Theme.secondaryText.opacity(0.8))
+    // MARK: Пластинка
+
+    private var vinyl: some View {
+        ZStack {
+            Circle()
+                .fill(Color(hex: 0x0D0F13))
+            Canvas { context, size in
+                let center = CGPoint(x: size.width / 2, y: size.height / 2)
+                for step in stride(from: 0.22, through: 0.5, by: 0.035) {
+                    let radius = size.width * step
+                    let rect = CGRect(x: center.x - radius, y: center.y - radius,
+                                      width: radius * 2, height: radius * 2)
+                    context.stroke(Path(ellipseIn: rect),
+                                   with: .color(.white.opacity(0.05)),
+                                   lineWidth: 0.8)
                 }
             }
+            coverCircle
+                .frame(width: 40, height: 40)
+            Circle()
+                .fill(Theme.panel)
+                .frame(width: 6, height: 6)
         }
-        .frame(width: 64, height: 64)
-        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.medium, style: .continuous))
+        .rotationEffect(.degrees(angle))
         .overlay {
-            RoundedRectangle(cornerRadius: Theme.Radius.medium, style: .continuous)
-                .strokeBorder(Theme.separator, lineWidth: 1)
+            Circle().strokeBorder(.white.opacity(0.06), lineWidth: 1)
+        }
+        .shadow(color: .black.opacity(0.25), radius: 3, y: 1)
+    }
+
+    @ViewBuilder
+    private var coverCircle: some View {
+        if let data = engine.currentTrack?.artwork, let image = NSImage(data: data) {
+            Image(nsImage: image)
+                .resizable()
+                .aspectRatio(contentMode: .fill)
+                .clipShape(Circle())
+        } else {
+            ZStack {
+                Circle().fill(Color(hex: 0x2B2F36))
+                Image(systemName: "music.note")
+                    .font(.system(size: 13, weight: .light))
+                    .foregroundStyle(Theme.secondaryText.opacity(0.8))
+            }
         }
     }
+
+    // MARK: Прогресс
 
     private var progress: some View {
         VStack(alignment: .leading, spacing: 3) {
             GeometryReader { geometry in
                 ZStack(alignment: .leading) {
-                    Capsule()
-                        .fill(Theme.separator)
+                    Capsule().fill(Theme.separator)
                     Capsule()
                         .fill(Theme.accent)
                         .frame(width: max(0, geometry.size.width * fraction))
@@ -176,8 +205,7 @@ struct MiniPlayerView: View {
 
             HStack(spacing: 4) {
                 Text(timeText(engine.position))
-                Text("/")
-                    .foregroundStyle(Theme.secondaryText.opacity(0.6))
+                Text("/").foregroundStyle(Theme.secondaryText.opacity(0.6))
                 Text(timeText(engine.duration))
                 Spacer(minLength: 0)
             }
