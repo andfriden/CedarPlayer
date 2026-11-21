@@ -113,13 +113,13 @@ struct MiniPlayerView: View {
                 }
                 Button { engine.toggle() } label: {
                     ZStack {
-                        Circle().fill(Theme.accent)
+                        Circle().fill(Theme.text.opacity(0.10))
                         Image(systemName: engine.isPlaying ? "pause.fill" : "play.fill")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(Theme.background)
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(Theme.text)
                             .offset(x: engine.isPlaying ? 0 : 1)
                     }
-                    .frame(width: 32, height: 32)
+                    .frame(width: 34, height: 34)
                     .contentShape(Rectangle())
                 }
                 Button { engine.next(manual: true) } label: {
@@ -134,11 +134,26 @@ struct MiniPlayerView: View {
         }
         .padding(Theme.Space.m)
         .frame(minWidth: 286, minHeight: 92)
-        .background(Theme.panel)
+        .background(Theme.background)
         .tint(Theme.accent)
+        .onAppear { setMainWindowHidden(true) }
+        .onDisappear { setMainWindowHidden(false) }
         .onReceive(tick) { _ in
             guard engine.isPlaying else { return }
             angle = (angle + 1.2).truncatingRemainder(dividingBy: 360)
+        }
+    }
+
+    /// Пока открыт мини-плеер, основное окно убрано; после закрытия возвращается.
+    private func setMainWindowHidden(_ hidden: Bool) {
+        // В CLI-рендере приложения ещё нет: NSApp == nil.
+        guard NSApp != nil else { return }
+        for window in NSApp.windows where window.identifier?.rawValue.contains("main-AppWindow") == true {
+            if hidden {
+                window.orderOut(nil)
+            } else if !window.isVisible {
+                window.makeKeyAndOrderFront(nil)
+            }
         }
     }
 
