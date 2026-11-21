@@ -133,6 +133,22 @@ struct CedarPlayerApp: App {
             exit(0)
         }
 
+        if let index = CommandLine.arguments.firstIndex(of: "--gapless") {
+            let rest = Array(CommandLine.arguments.dropFirst(index + 1))
+            guard rest.count >= 2 else { print("нужны два файла"); exit(1) }
+            let engine = PlayerEngine()
+            var first = Track(url: URL(fileURLWithPath: rest[0])); first.title = "A"
+            var second = Track(url: URL(fileURLWithPath: rest[1])); second.title = "B"
+            engine.setQueue([first, second], startAt: 0, autoplay: false)
+            engine.crossfadeSeconds = 0
+            engine.transitionFadeSeconds = 1.0
+            engine.play()
+            RunLoop.main.run(until: Date().addingTimeInterval(4.5))
+            let gap = engine.lastTransitionGap.map { String(format: "%.1f", $0 * 1000) } ?? "-"
+            print("GAPLESS current=\(engine.currentTrack?.title ?? "-") playing=\(engine.isPlaying) gapMs=\(gap)")
+            exit(0)
+        }
+
         if let index = CommandLine.arguments.firstIndex(of: "--crossfadetest") {
             let rest = Array(CommandLine.arguments.dropFirst(index + 1))
             guard rest.count >= 2 else { print("нужны два файла"); exit(1) }

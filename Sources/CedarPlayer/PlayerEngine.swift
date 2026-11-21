@@ -28,6 +28,11 @@ final class PlayerEngine: ObservableObject {
     @Published private(set) var selectedOutputUID: String?
     @Published private(set) var outputFormatDescription = "—"
 
+    /// Разрыв между сменой трека и стартом следующего (для проверки gapless).
+    @Published private(set) var lastTransitionGap: TimeInterval?
+    private var transitionStartedAt: Date?
+    private var autoTransition = false
+
     /// Истинный кроссфейд: наложение следующего трека на последние секунды текущего.
     @Published var crossfadeSeconds: Double = 0 {
         didSet { UserDefaults.standard.set(crossfadeSeconds, forKey: "crossfadeSeconds") }
@@ -330,6 +335,10 @@ final class PlayerEngine: ObservableObject {
             errorMessage = nil
 
             if autoplay { play() }
+            if let started = transitionStartedAt {
+                lastTransitionGap = Date().timeIntervalSince(started)
+                transitionStartedAt = nil
+            }
         } catch {
             activeNode.stop()
             isPlaying = false
@@ -548,6 +557,8 @@ final class PlayerEngine: ObservableObject {
     }
 
     func pause() {
+        autoTransition = false
+        transitionStartedAt = nil
         if let radioPlayer {
             radioPlayer.pause()
             isPlaying = false
@@ -579,6 +590,8 @@ final class PlayerEngine: ObservableObject {
     }
 
     func seek(to seconds: TimeInterval) {
+        autoTransition = false
+        transitionStartedAt = nil
         guard currentStation == nil, file != nil, sampleRate > 0 else { return }
         let clamped = max(0, min(seconds, duration))
         let frame = min(endFrame, startFrame + AVAudioFramePosition((clamped * sampleRate).rounded()))
@@ -596,6 +609,7 @@ final class PlayerEngine: ObservableObject {
     }
 
     func next(manual: Bool = false) {
+        if manual { autoTransition = false }
         cancelCrossfade()
         if currentStation != nil {
             stop()
@@ -826,6 +840,8 @@ final class PlayerEngine: ObservableObject {
     private func handleTrackEnd() {
         guard crossfadeState == nil else { return }
         guard isPlaying || position >= duration - 0.5 else { return }
+        autoTransition = true
+        transitionStartedAt = Date()
         if repeatMode == .one {
             seekFrame = startFrame
             position = 0
@@ -871,6 +887,7 @@ final class PlayerEngine: ObservableObject {
                 guard let self, self.isPlaying, self.currentStation == nil, self.sampleRate > 0 else { return }
                 let played = Double(self.currentFrame() - self.startFrame) / self.sampleRate
                 self.position = min(self.duration, max(0, played))
+                if self.position > 1.0 { self.autoTransition = false }
                 self.applyFade()
                 self.startCrossfadeIfNeeded()
                 self.tick += 1
