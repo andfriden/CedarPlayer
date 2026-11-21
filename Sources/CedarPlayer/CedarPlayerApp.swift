@@ -113,6 +113,16 @@ struct CedarPlayerApp: App {
             exit(0)
         }
 
+        if let path = Self.argumentValue("--snapshots") {
+            Self.runSnapshots(path: path)
+        }
+
+        if let index = CommandLine.arguments.firstIndex(of: "--snapshot-compare") {
+            let rest = Array(CommandLine.arguments.dropFirst(index + 1))
+            guard rest.count >= 2 else { print("нужны каталог снимков и эталонов"); exit(1) }
+            Self.runSnapshotCompare(output: rest[0], baseline: rest[1])
+        }
+
         if CommandLine.arguments.contains("--doctor") {
             Self.runDoctor()
         }
@@ -262,6 +272,140 @@ struct CedarPlayerApp: App {
         let wait: TimeInterval = ProcessInfo.processInfo.environment["CEDAR_WAIT_IMPORT"] != nil ? 8 : 1.0
         RunLoop.main.run(until: Date().addingTimeInterval(wait))
         exit(0)
+    }
+
+    // MARK: Снимки интерфейса
+
+    private static func snapshotView(_ name: String, scheme: ColorScheme) -> AnyView {
+        let engine = PlayerEngine()
+        engine.isEQEnabled = true
+        engine.apply(preset: PlayerEngine.presets[0])
+        var tracks: [Track] = []
+        for index in 0..<6 {
+            var track = Track(url: URL(fileURLWithPath: "/tmp/snapshot-track-\(index).flac"))
+            track.title = "Трек \(index + 1)"
+            track.artist = "Исполнитель"
+            track.album = "Альбом"
+            track.duration = 180 + Double(index) * 12
+            track.rating = index % 6
+            tracks.append(track)
+        }
+        let library = Library(testTracks: tracks)
+
+        let base: AnyView
+        switch name {
+        case "player":
+            base = AnyView(PlayerPane().environmentObject(engine).environmentObject(library))
+        case "playlist":
+            base = AnyView(PlaylistPane(scrolling: false).environmentObject(engine).environmentObject(library))
+        case "equalizer":
+            base = AnyView(EqualizerView().environmentObject(engine))
+        case "vu":
+            base = AnyView(AnalogVUMeterView(preview: VULevels(left: 0.70, right: 0.52,
+                                                              peakLeft: 0.98, peakRight: 0.60))
+                .environmentObject(engine))
+        case "mini":
+            base = AnyView(MiniPlayerView().environmentObject(engine).environmentObject(library))
+        case "menubar":
+            base = AnyView(MenuBarPlayerView().environmentObject(engine).environmentObject(library))
+        default:
+            base = AnyView(EmptyView())
+        }
+        return AnyView(base.preferredColorScheme(scheme))
+    }
+
+    private static let snapshotSizes: [(String, CGFloat, CGFloat)] = [
+        ("player", 425, 300),
+        ("playlist", 425, 300),
+        ("equalizer", 760, 540),
+        ("vu", 520, 300),
+        ("mini", 320, 96),
+        ("menubar", 300, 170)
+    ]
+
+    private static func runSnapshots(path: String) -> Never {
+        let directory = URL(fileURLWithPath: path)
+        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let defaults = UserDefaults.standard
+        defaults.set("segments", forKey: "meterStyle")
+        defaults.set("all", forKey: "playlistFilter")
+        defaults.set(SortKey.added.rawValue, forKey: "sortKey")
+        defaults.set(true, forKey: "playlistSortAscending")
+
+        var written = 0
+        for (name, width, height) in snapshotSizes {
+            for scheme in [ColorScheme.dark, .light] {
+                NSAppearance.current = NSAppearance(named: scheme == .dark ? .darkAqua : .aqua)
+                    ?? NSAppearance.current
+                let view = snapshotView(name, scheme: scheme)
+                let renderer = ImageRenderer(content: view.frame(width: width, height: height))
+                renderer.scale = 2
+                guard let cgImage = renderer.cgImage,
+                      let png = NSBitmapImageRep(cgImage: cgImage).representation(using: .png, properties: [:]) else {
+                    print("SNAPSHOTS failed=\(name)-\(scheme)")
+                    continue
+                }
+                let file = directory.appendingPathComponent("\(name)-\(scheme == .dark ? "dark" : "light").png")
+                try? png.write(to: file)
+                written += 1
+            }
+        }
+        print("SNAPSHOTS dir=\(directory.path) files=\(written)")
+        exit(0)
+    }
+
+    private static func runSnapshotCompare(output: String, baseline: String) -> Never {
+        let fm = FileManager.default
+        let outputDir = URL(fileURLWithPath: output)
+        let baselineDir = URL(fileURLWithPath: baseline)
+        guard let files = try? fm.contentsOfDirectory(at: baselineDir, includingPropertiesForKeys: nil) else {
+            print("SNAPSHOT COMPARE: эталоны не найдены")
+            exit(1)
+        }
+        var failures = 0
+        var compared = 0
+        for expected in files.filter({ $0.pathExtension == "png" }).sorted(by: { $0.lastPathComponent < $1.lastPathComponent }) {
+            let actual = outputDir.appendingPathComponent(expected.lastPathComponent)
+            guard fm.fileExists(atPath: actual.path) else {
+                print("SNAPSHOT missing=\(expected.lastPathComponent)")
+                failures += 1
+                continue
+            }
+            let diff = imageDifference(expected, actual)
+            compared += 1
+            let percent = (diff ?? 1) * 100
+            print(String(format: "SNAPSHOT %@ diff=%.2f%%", expected.lastPathComponent, percent))
+            if percent > 10 { failures += 1 }
+        }
+        print("SNAPSHOT COMPARE files=\(compared) failures=\(failures)")
+        exit(failures == 0 ? 0 : 1)
+    }
+
+    /// Средняя разница яркости после приведения к 64×64; допускает сглаживание шрифтов.
+    private static func imageDifference(_ lhs: URL, _ rhs: URL) -> Double? {
+        guard let left = graySamples(lhs), let right = graySamples(rhs) else { return nil }
+        var sum = 0
+        for index in 0..<min(left.count, right.count) {
+            sum += abs(Int(left[index]) - Int(right[index]))
+        }
+        return Double(sum) / Double(min(left.count, right.count)) / 255
+    }
+
+    private static func graySamples(_ url: URL) -> [UInt8]? {
+        guard let image = NSImage(contentsOf: url),
+              let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return nil }
+        let side = 64
+        var data = [UInt8](repeating: 0, count: side * side)
+        guard let context = CGContext(data: &data,
+                                      width: side,
+                                      height: side,
+                                      bitsPerComponent: 8,
+                                      bytesPerRow: side,
+                                      space: CGColorSpaceCreateDeviceGray(),
+                                      bitmapInfo: CGImageAlphaInfo.none.rawValue) else { return nil }
+        context.interpolationQuality = .high
+        context.draw(cgImage, in: CGRect(x: 0, y: 0, width: side, height: side))
+        return data
     }
 
     /// Диагностика: библиотека, файлы, кэш обложек, настройки.

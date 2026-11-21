@@ -161,10 +161,18 @@ swift test        # XCTest: альбомы, CUE, ReplayGain, кэш обложе
 CI (`.github/workflows/ci.yml`) на `macos-latest`: release-сборка, тесты,
 упаковка `.app` и проверка CLI.
 
-UI-тесты рисуют `PlayerPane`, `PlaylistPane` и `MiniPlayerView` через
-`ImageRenderer` в двойном разрешении и проверяют размеры и непустоту кадра —
-это дымовой тест вёрстки, а не сравнение с эталоном: шрифты и системные
-контролы отличаются между версиями macOS.
+UI-тесты рисуют `PlayerPane`, `PlaylistPane`, `MiniPlayerView`, эквалайзер,
+VU-метр и меню-бар через `ImageRenderer` в двойном разрешении и проверяют
+размеры и непустоту кадра.
+
+CI дополнительно генерирует набор снимков (`--snapshots`) в светлой и тёмной
+темах, сравнивает их с эталонами `Tests/Snapshots` (`--snapshot-compare`,
+допуск 10 % средней разницы яркости после приведения к 64×64) и выкладывает
+PNG артефактом. Эталоны обновляются командой:
+
+```bash
+.build/debug/CedarPlayer --snapshots Tests/Snapshots
+```
 
 ## Проверка без интерфейса
 
