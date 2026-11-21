@@ -14,6 +14,7 @@ struct ContentView: View {
     @State private var isAddingStation = false
     @State private var stationName = ""
     @State private var stationURL = ""
+    @State private var dropTargetPlaylist: UUID?
     @State private var openAlbum: AlbumGroup?
     @AppStorage("libraryLayout") private var layout = "list"
 
@@ -207,6 +208,23 @@ struct ContentView: View {
                 ForEach(library.playlists) { playlist in
                     Label(playlist.name, systemImage: "music.note")
                         .tag(SidebarItem.playlist(playlist.id))
+                        .listRowBackground(
+                            dropTargetPlaylist == playlist.id
+                                ? Color.accentColor.opacity(0.18)
+                                : Color.clear
+                        )
+                        .onDrop(of: [UTType.text],
+                                isTargeted: Binding(
+                                    get: { dropTargetPlaylist == playlist.id },
+                                    set: { targeted in
+                                        if targeted {
+                                            dropTargetPlaylist = playlist.id
+                                        } else if dropTargetPlaylist == playlist.id {
+                                            dropTargetPlaylist = nil
+                                        }
+                                    })) { providers in
+                            handleTrackDrop(providers, into: playlist.id)
+                        }
                         .contextMenu {
                         Button("Удалить плейлист", role: .destructive) {
                             library.delete(playlist)
@@ -306,6 +324,9 @@ struct ContentView: View {
                             }
                             .onTapGesture(count: 2) {
                                 startPlayback(from: index)
+                            }
+                            .onDrag {
+                                NSItemProvider(object: track.id.uuidString as NSString)
                             }
                             .contextMenu {
                                 Button("Воспроизвести") { startPlayback(from: index) }
@@ -425,6 +446,33 @@ struct ContentView: View {
         guard tracks.indices.contains(index) else { return }
         selection = [tracks[index].id]
         engine.setQueue(tracks, startAt: index)
+    }
+
+    private func handleTrackDrop(_ providers: [NSItemProvider], into playlistID: UUID) -> Bool {
+        dropTargetPlaylist = nil
+        let group = DispatchGroup()
+        var ids: Set<UUID> = []
+        let lock = NSLock()
+
+        for provider in providers {
+            group.enter()
+            _ = provider.loadObject(ofClass: NSString.self) { value, _ in
+                defer { group.leave() }
+                guard let string = value as? String, let id = UUID(uuidString: string) else { return }
+                lock.lock()
+                ids.insert(id)
+                lock.unlock()
+            }
+        }
+
+        group.notify(queue: .main) {
+            guard !ids.isEmpty else { return }
+            library.add(ids, to: playlistID)
+            if let playlist = library.playlist(with: playlistID) {
+                library.statusMessage = "Добавлено в «\(playlist.name)»: \(ids.count)"
+            }
+        }
+        return true
     }
 
     private func exportTracks(_ format: PlaylistFile.Format) {
