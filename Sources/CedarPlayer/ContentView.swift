@@ -105,6 +105,15 @@ struct ContentView: View {
                 }
 
                 Menu {
+                    Button("M3U…") { exportTracks(.m3u) }
+                    Button("PLS…") { exportTracks(.pls) }
+                } label: {
+                    Label("Экспорт", systemImage: "square.and.arrow.up")
+                }
+                .help("Экспорт видимого списка в плейлист-файл")
+                .disabled(detailTracks.isEmpty)
+
+                Menu {
                     Picker("Сортировка", selection: $library.sortKey) {
                         ForEach(SortKey.allCases) { key in
                             Text(key.title).tag(key)
@@ -378,6 +387,24 @@ struct ContentView: View {
         guard tracks.indices.contains(index) else { return }
         selection = [tracks[index].id]
         engine.setQueue(tracks, startAt: index)
+    }
+
+    private func exportTracks(_ format: PlaylistFile.Format) {
+        let tracks = detailTracks
+        guard !tracks.isEmpty else { return }
+        let panel = NSSavePanel()
+        if let type = UTType(filenameExtension: format.fileExtension) {
+            panel.allowedContentTypes = [type]
+        }
+        panel.nameFieldStringValue = "playlist.\(format.fileExtension)"
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        let text = format == .m3u ? PlaylistFile.m3u(tracks: tracks) : PlaylistFile.pls(tracks: tracks)
+        do {
+            try text.write(to: url, atomically: true, encoding: .utf8)
+            library.statusMessage = "Экспортировано: \(url.lastPathComponent)"
+        } catch {
+            library.statusMessage = "Ошибка экспорта: \(error.localizedDescription)"
+        }
     }
 
     private func handleDrop(_ providers: [NSItemProvider]) -> Bool {

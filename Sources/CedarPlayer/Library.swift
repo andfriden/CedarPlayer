@@ -120,7 +120,11 @@ final class Library: ObservableObject {
         panel.allowsMultipleSelection = true
         panel.canChooseDirectories = true
         panel.canChooseFiles = true
-        panel.allowedContentTypes = [.audio, .mp3, .mpeg4Audio, .wav, .aiff]
+        var types: [UTType] = [.audio, .mp3, .mpeg4Audio, .wav, .aiff]
+        for ext in PlaylistFile.extensions {
+            if let type = UTType(filenameExtension: ext) { types.append(type) }
+        }
+        panel.allowedContentTypes = types
         panel.message = "Выберите аудиофайлы или папку с музыкой"
         panel.prompt = "Добавить"
 
@@ -145,6 +149,7 @@ final class Library: ObservableObject {
         let fm = FileManager.default
         var files: [URL] = []
         var cueFiles: [URL] = []
+        var playlistFailures = 0
         var duplicates = 0
         var ignored = 0
         var unreadableDirectories = 0
@@ -170,7 +175,19 @@ final class Library: ObservableObject {
             }
         }
 
+        // Плейлисты M3U/PLS раскрываем до обхода папок.
+        var inputs: [URL] = []
         for url in urls {
+            if PlaylistFile.isPlaylist(url) {
+                let entries = PlaylistFile.parse(url)
+                if entries.isEmpty { playlistFailures += 1 }
+                inputs.append(contentsOf: entries)
+            } else {
+                inputs.append(url)
+            }
+        }
+
+        for url in inputs {
             var isDirectory: ObjCBool = false
             guard fm.fileExists(atPath: url.path, isDirectory: &isDirectory) else {
                 ignored += 1
@@ -187,10 +204,20 @@ final class Library: ObservableObject {
                                                })
                 if enumerator == nil { unreadableDirectories += 1 }
                 while let child = enumerator?.nextObject() as? URL {
+                    if PlaylistFile.isPlaylist(child) {
+                        let entries = PlaylistFile.parse(child)
+                        if entries.isEmpty { playlistFailures += 1 }
+                        entries.forEach(register)
+                        continue
+                    }
                     guard Track.isSupported(child) else { continue }
                     register(child)
                 }
                 if failed { unreadableDirectories += 1 }
+            } else if PlaylistFile.isPlaylist(url) {
+                let entries = PlaylistFile.parse(url)
+                if entries.isEmpty { playlistFailures += 1 }
+                entries.forEach(register)
             } else if Track.isSupported(url) {
                 register(url)
             } else {
@@ -304,6 +331,7 @@ final class Library: ObservableObject {
             parts.append("не читается: \(unreadableNames.count) (\(preview))")
         }
         if cueFailures > 0 { parts.append("CUE с ошибками: \(cueFailures)") }
+        if playlistFailures > 0 { parts.append("плейлистов с ошибками: \(playlistFailures)") }
         if ignored > 0 { parts.append("пропущено: \(ignored)") }
         if unreadableDirectories > 0 { parts.append("папок с ошибкой чтения: \(unreadableDirectories)") }
         statusMessage = parts.joined(separator: " · ")
