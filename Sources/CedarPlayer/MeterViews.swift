@@ -246,8 +246,6 @@ struct AnalogVUMeterView: View {
 
     @State private var needleL: Double
     @State private var needleR: Double
-    @State private var peakHoldL: Date
-    @State private var peakHoldR: Date
     @State private var lastTick: Date?
     private let tick = Timer.publish(every: 1.0 / 60.0, on: .main, in: .common).autoconnect()
 
@@ -256,9 +254,6 @@ struct AnalogVUMeterView: View {
         // Для офскрин-рендера и тестов сразу ставим стрелки по переданным уровням.
         _needleL = State(initialValue: VUCalibration.position(forLevel: Double(preview?.left ?? 0)))
         _needleR = State(initialValue: VUCalibration.position(forLevel: Double(preview?.right ?? 0)))
-        let hotPeak = Date.distantFuture
-        _peakHoldL = State(initialValue: (preview?.peakLeft ?? 0) > 0.95 ? hotPeak : .distantPast)
-        _peakHoldR = State(initialValue: (preview?.peakRight ?? 0) > 0.95 ? hotPeak : .distantPast)
     }
 
     private var levels: VULevels {
@@ -271,11 +266,11 @@ struct AnalogVUMeterView: View {
     var body: some View {
         VStack(spacing: Theme.Space.xs) {
             HStack(spacing: Theme.Space.s) {
-                dial(needle: needleL, peakLit: peakHoldL > Date(), title: "L")
-                dial(needle: needleR, peakLit: peakHoldR > Date(), title: "R")
+                dial(needle: needleL, peak: levels.peakLeft, title: "L")
+                dial(needle: needleR, peak: levels.peakRight, title: "R")
             }
 
-            Text("0 VU = \(String(format: "%.0f", VUCalibration.zeroVUdBFS)) dBFS · 300 мс · жёлтый — пик, красный — зона")
+            Text("0 VU = \(String(format: "%.0f", VUCalibration.zeroVUdBFS)) dBFS · интеграция 300 мс")
                 .font(.system(size: 10))
                 .foregroundStyle(Theme.secondaryText.opacity(0.8))
                 .frame(height: 16)
@@ -289,11 +284,6 @@ struct AnalogVUMeterView: View {
                 .padding(1)
         }
         .onReceive(tick) { now in
-            // Жёлтый индикатор держит короткий пик секунду, красный — зона стрелки.
-            if preview == nil {
-                if engine.peakL > 0.95 { peakHoldL = now.addingTimeInterval(1.0) }
-                if engine.peakR > 0.95 { peakHoldR = now.addingTimeInterval(1.0) }
-            }
             let dt = now.timeIntervalSince(lastTick ?? now)
             lastTick = now
             guard dt > 0 else { return }
@@ -312,15 +302,15 @@ struct AnalogVUMeterView: View {
                                    VUCalibration.vu(fromPosition: needleR)))
     }
 
-    private func dial(needle: Double, peakLit: Bool, title: String) -> some View {
+    private func dial(needle: Double, peak: Float, title: String) -> some View {
         Canvas { context, size in
-            drawDial(context: context, size: size, needle: needle, peakLit: peakLit, title: title)
+            drawDial(context: context, size: size, needle: needle, peak: peak, title: title)
         }
         .frame(width: 244, height: 250)
         .accessibilityHidden(true)
     }
 
-    private func drawDial(context: GraphicsContext, size: CGSize, needle: Double, peakLit: Bool, title: String) {
+    private func drawDial(context: GraphicsContext, size: CGSize, needle: Double, peak: Float, title: String) {
         let pivot = CGPoint(x: size.width / 2, y: size.height - 42)
         let radius = min(size.width * 0.5, size.height * 0.62)
 
@@ -377,21 +367,11 @@ struct AnalogVUMeterView: View {
             .foregroundColor(Theme.secondaryText.opacity(0.6))
         context.draw(context.resolve(vu), at: CGPoint(x: size.width / 2, y: 30), anchor: .center)
 
-        // Красный LED — вместе со стрелкой в красной зоне.
-        let zoneLit = needle >= VUCalibration.position(forVU: 0)
-        let zoneLED = CGRect(x: size.width - 22, y: 18, width: 8, height: 8)
-        context.fill(Path(ellipseIn: zoneLED),
-                     with: .color(zoneLit ? Color(hex: 0xE06C75) : Theme.separator))
-
-        // Жёлтый LED — короткий пик, держится секунду.
-        let hotLED = CGRect(x: size.width - 40, y: 18, width: 8, height: 8)
-        let hotColor = Color(hex: 0xE5B44A)
-        context.fill(Path(ellipseIn: hotLED),
-                     with: .color(peakLit ? hotColor : Theme.separator))
-        if peakLit {
-            context.fill(Path(ellipseIn: hotLED.insetBy(dx: -3, dy: -3)),
-                         with: .color(hotColor.opacity(0.25)))
-        }
+        // LED загорается вместе со стрелкой в красной зоне, без рассинхрона по пику.
+        let peakLit = needle >= VUCalibration.position(forVU: 0)
+        let led = CGRect(x: size.width - 22, y: 18, width: 8, height: 8)
+        context.fill(Path(ellipseIn: led),
+                     with: .color(peakLit ? Color(hex: 0xE06C75) : Theme.separator))
 
         let channel = Text(title)
             .font(.system(size: 13, weight: .semibold))
