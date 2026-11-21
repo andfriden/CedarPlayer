@@ -230,20 +230,50 @@ struct LevelMeterStrip: View {
     }
 }
 
-/// Окно аналогового VU-метра: два стрелочных прибора L/R, шкала −20…+3 дБ,
-/// индикатор перегруза. Регулятора громкости здесь нет — только индикация.
+/// Уровни для отрисовки прибора: сырые (0…1) и пики.
+struct VULevels {
+    var left: Float
+    var right: Float
+    var peakLeft: Float
+    var peakRight: Float
+}
+
+/// Окно аналогового VU-метра: два калиброванных прибора L/R.
+/// 0 VU = −20 dBFS, шкала −20…+3 VU, баллистика 300 мс. Громкости здесь нет.
 struct AnalogVUMeterView: View {
     @EnvironmentObject private var engine: PlayerEngine
+    var preview: VULevels?
 
-    private let marks: [(db: Double, label: String)] = [
-        (-20, "-20"), (-10, "-10"), (-7, "-7"), (-5, "-5"),
-        (-3, "-3"), (-1, "-1"), (0, "0"), (3, "+3")
-    ]
+    @State private var needleL: Double
+    @State private var needleR: Double
+    @State private var lastTick: Date?
+    private let tick = Timer.publish(every: 1.0 / 60.0, on: .main, in: .common).autoconnect()
+
+    init(preview: VULevels? = nil) {
+        self.preview = preview
+        // Для офскрин-рендера и тестов сразу ставим стрелки по переданным уровням.
+        _needleL = State(initialValue: VUCalibration.position(forLevel: Double(preview?.left ?? 0)))
+        _needleR = State(initialValue: VUCalibration.position(forLevel: Double(preview?.right ?? 0)))
+    }
+
+    private var levels: VULevels {
+        preview ?? VULevels(left: engine.rawLevelL,
+                            right: engine.rawLevelR,
+                            peakLeft: engine.peakL,
+                            peakRight: engine.peakR)
+    }
 
     var body: some View {
-        HStack(spacing: Theme.Space.s) {
-            dial(level: engine.levelL, peak: engine.peakL, title: "L")
-            dial(level: engine.levelR, peak: engine.peakR, title: "R")
+        VStack(spacing: Theme.Space.xs) {
+            HStack(spacing: Theme.Space.s) {
+                dial(needle: needleL, peak: levels.peakLeft, title: "L")
+                dial(needle: needleR, peak: levels.peakRight, title: "R")
+            }
+
+            Text("0 VU = −20 dBFS · интеграция 300 мс")
+                .font(.system(size: 10))
+                .foregroundStyle(Theme.secondaryText.opacity(0.8))
+                .frame(height: 16)
         }
         .padding(Theme.Space.s)
         .frame(width: 520, height: 300)
@@ -253,22 +283,35 @@ struct AnalogVUMeterView: View {
                 .strokeBorder(Theme.separator, lineWidth: 1)
                 .padding(1)
         }
-        .tint(Theme.accent)
+        .onReceive(tick) { now in
+            let dt = now.timeIntervalSince(lastTick ?? now)
+            lastTick = now
+            guard dt > 0 else { return }
+            // Стандартная баллистика VU: 300 мс.
+            let alpha = 1 - exp(-dt / 0.3)
+            let targetL = VUCalibration.position(forLevel: Double(levels.left))
+            let targetR = VUCalibration.position(forLevel: Double(levels.right))
+            needleL += (targetL - needleL) * alpha
+            needleR += (targetR - needleR) * alpha
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(String(format: "VU-метр: левый %+.1f, правый %+.1f",
+                                   VUCalibration.vu(fromPosition: needleL),
+                                   VUCalibration.vu(fromPosition: needleR)))
     }
 
-    private func dial(level: Float, peak: Float, title: String) -> some View {
+    private func dial(needle: Double, peak: Float, title: String) -> some View {
         Canvas { context, size in
-            drawDial(context: context, size: size, level: level, peak: peak, title: title)
+            drawDial(context: context, size: size, needle: needle, peak: peak, title: title)
         }
-        .frame(width: 244, height: 276)
+        .frame(width: 244, height: 250)
         .accessibilityHidden(true)
     }
 
-    private func drawDial(context: GraphicsContext, size: CGSize, level: Float, peak: Float, title: String) {
-        let pivot = CGPoint(x: size.width / 2, y: size.height - 44)
+    private func drawDial(context: GraphicsContext, size: CGSize, needle: Double, peak: Float, title: String) {
+        let pivot = CGPoint(x: size.width / 2, y: size.height - 42)
         let radius = min(size.width * 0.5, size.height * 0.62)
 
-        // Дуга шкалы и красная зона перегруза.
         var arc = Path()
         arc.addArc(center: pivot, radius: radius,
                    startAngle: .degrees(225), endAngle: .degrees(315), clockwise: false)
@@ -281,12 +324,11 @@ struct AnalogVUMeterView: View {
         context.stroke(redZone, with: .color(Color(hex: 0xE06C75)),
                        style: StrokeStyle(lineWidth: 2, lineCap: .round))
 
-        // Риски и подписи.
-        for (index, mark) in marks.enumerated() {
-            let t = Double(index) / Double(marks.count - 1)
+        for (index, mark) in VUCalibration.marks.enumerated() {
+            let t = Double(index) / Double(VUCalibration.marks.count - 1)
             let angle = 225 + 90 * t
-            let isZero = mark.db == 0
-            let isHot = mark.db > 0
+            let isZero = mark.vu == 0
+            let isHot = mark.vu > 0
             let inner = point(pivot, radius - (isZero ? 10 : 7), angle)
             let outer = point(pivot, radius + (isHot ? 4 : 0), angle)
 
@@ -304,48 +346,37 @@ struct AnalogVUMeterView: View {
             context.draw(context.resolve(label), at: labelPoint, anchor: .center)
         }
 
-        // Стрелка.
-        let value = Double(min(1, max(0, level)))
-        let needleAngle = 225 + 90 * value
-        let tip = point(pivot, radius - 6, needleAngle)
-        var needle = Path()
-        needle.move(to: pivot)
-        needle.addLine(to: tip)
-        context.stroke(needle, with: .color(Theme.accent),
+        let angle = 225 + 90 * min(max(needle, 0), 1)
+        let tip = point(pivot, radius - 6, angle)
+        var line = Path()
+        line.move(to: pivot)
+        line.addLine(to: tip)
+        context.stroke(line, with: .color(Theme.accent),
                        style: StrokeStyle(lineWidth: 2, lineCap: .round))
 
-        var pivotDot = Path()
-        pivotDot.addEllipse(in: CGRect(x: pivot.x - 3.5, y: pivot.y - 3.5, width: 7, height: 7))
-        context.fill(pivotDot, with: .color(Theme.text))
+        var dot = Path()
+        dot.addEllipse(in: CGRect(x: pivot.x - 3.5, y: pivot.y - 3.5, width: 7, height: 7))
+        context.fill(dot, with: .color(Theme.text))
 
-        // Надпись VU в верхней части прибора.
         let vu = Text("VU")
             .font(.system(size: 12, weight: .semibold, design: .rounded))
             .foregroundColor(Theme.secondaryText.opacity(0.6))
-        context.draw(context.resolve(vu), at: CGPoint(x: size.width / 2, y: 34), anchor: .center)
+        context.draw(context.resolve(vu), at: CGPoint(x: size.width / 2, y: 30), anchor: .center)
 
-        // Индикатор перегруза.
         let peakLit = peak > 0.95
-        let ledRect = CGRect(x: size.width - 22, y: 20, width: 8, height: 8)
-        context.fill(Path(ellipseIn: ledRect),
+        let led = CGRect(x: size.width - 22, y: 18, width: 8, height: 8)
+        context.fill(Path(ellipseIn: led),
                      with: .color(peakLit ? Color(hex: 0xE06C75) : Theme.separator))
-        if peakLit {
-            context.fill(Path(ellipseIn: ledRect.insetBy(dx: -3, dy: -3)),
-                         with: .color(Color(hex: 0xE06C75).opacity(0.25)))
-        }
 
-        // Канал и числовое значение.
         let channel = Text(title)
             .font(.system(size: 13, weight: .semibold))
             .foregroundColor(Theme.text)
-        context.draw(context.resolve(channel), at: CGPoint(x: 18, y: size.height - 20), anchor: .leading)
+        context.draw(context.resolve(channel), at: CGPoint(x: 18, y: size.height - 18), anchor: .leading)
 
-        // Шкала этого прибора: −20…+3 дБ, поэтому и подпись в тех же единицах.
-        let db = -20 + value * 23
-        let reading = Text(String(format: "%+.1f дБ", db))
+        let reading = Text(String(format: "%+.1f VU", VUCalibration.vu(fromPosition: needle)))
             .font(.system(size: 9, design: .monospaced))
             .foregroundColor(Theme.secondaryText)
-        context.draw(context.resolve(reading), at: CGPoint(x: size.width - 18, y: size.height - 20), anchor: .trailing)
+        context.draw(context.resolve(reading), at: CGPoint(x: size.width - 18, y: size.height - 18), anchor: .trailing)
     }
 
     private func point(_ pivot: CGPoint, _ radius: CGFloat, _ degrees: Double) -> CGPoint {

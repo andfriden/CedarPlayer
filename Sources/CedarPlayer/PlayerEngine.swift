@@ -95,6 +95,8 @@ final class PlayerEngine: ObservableObject {
     let spectrumAnalyzer = SpectrumAnalyzer()
     let levelMeter = LevelMeter()
     @Published private(set) var levelL: Float = 0
+    @Published private(set) var rawLevelL: Float = 0
+    @Published private(set) var rawLevelR: Float = 0
     @Published private(set) var levelR: Float = 0
     @Published private(set) var peakL: Float = 0
     @Published private(set) var peakR: Float = 0
@@ -153,6 +155,8 @@ final class PlayerEngine: ObservableObject {
                 self.levelR = reading.rms[1]
                 self.peakL = reading.peaks[0]
                 self.peakR = reading.peaks[1]
+                self.rawLevelL = reading.raw[0]
+                self.rawLevelR = reading.raw[1]
             }
         }
 

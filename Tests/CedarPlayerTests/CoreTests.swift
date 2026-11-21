@@ -364,3 +364,28 @@ final class RadioLogoTests: XCTestCase {
         XCTAssertNil(station.logoURLString)
     }
 }
+
+final class VUCalibrationTests: XCTestCase {
+    func testZeroVUIsMinus20dBFS() {
+        XCTAssertEqual(VUCalibration.vu(fromDBFS: -20), 0, accuracy: 0.001)
+        XCTAssertEqual(VUCalibration.dBFS(fromLevel: 40.0 / 60.0), -20, accuracy: 0.001)
+        XCTAssertEqual(VUCalibration.position(forVU: 0),
+                       VUCalibration.position(forDBFS: -20), accuracy: 0.001)
+    }
+
+    func testPositionIsMonotonicAndClamped() {
+        let positions = stride(from: -40.0, through: 20.0, by: 1).map { VUCalibration.position(forVU: $0) }
+        XCTAssertEqual(positions, positions.sorted())
+        XCTAssertEqual(VUCalibration.position(forVU: -100), 0, accuracy: 0.001)
+        XCTAssertEqual(VUCalibration.position(forVU: 100), 1, accuracy: 0.001)
+        XCTAssertEqual(VUCalibration.position(forLevel: 0), 0, accuracy: 0.001)
+        XCTAssertEqual(VUCalibration.position(forLevel: 1), 1, accuracy: 0.001)
+    }
+
+    func testInverseRoundTrip() {
+        for vu in [-20.0, -10, -5, -1, 0, 3] {
+            let position = VUCalibration.position(forVU: vu)
+            XCTAssertEqual(VUCalibration.vu(fromPosition: position), vu, accuracy: 0.001)
+        }
+    }
+}

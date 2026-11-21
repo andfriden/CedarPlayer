@@ -6,8 +6,9 @@ import AVFoundation
 final class LevelMeter {
 
     struct Reading {
-        var rms: [Float]     // по каналам, 0…1
+        var rms: [Float]     // сглаженные значения, 0…1
         var peaks: [Float]
+        var raw: [Float]     // без сглаживания — для VU-баллистики
     }
 
     private var rmsL: Float = 0
@@ -62,7 +63,7 @@ final class LevelMeter {
         rmsR = smooth(current: rmsR, target: targetR, attack: attack, release: release)
         peakL = max(display(normalize(peaks[0])), peakL - peakFall)
         peakR = max(display(normalize(peaks[1])), peakR - peakFall)
-        let reading = Reading(rms: [rmsL, rmsR], peaks: [peakL, peakR])
+        let reading = Reading(rms: [rmsL, rmsR], peaks: [peakL, peakR], raw: [targetL, targetR])
         lock.unlock()
 
         let handler = onUpdate
