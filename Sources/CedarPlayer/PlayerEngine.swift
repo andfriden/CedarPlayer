@@ -15,6 +15,10 @@ final class PlayerEngine: ObservableObject {
     private var radioPlayer: AVPlayer?
     private var icyReader: IcyMetadataReader?
     private var radioItemObservation: NSKeyValueObservation?
+    private var radioTimeObservation: NSKeyValueObservation?
+    private var radioRetryWork: DispatchWorkItem?
+    private var radioRetryAttempts = 0
+    @Published private(set) var radioBuffering = false
     @Published private(set) var radioNowPlaying: String?
 
     /// Истинный кроссфейд: наложение следующего трека на последние секунды текущего.
@@ -339,34 +343,12 @@ final class PlayerEngine: ObservableObject {
         currentTrack = nil
         errorMessage = nil
         currentStation = station
-
-        let item = AVPlayerItem(url: url)
-        let avPlayer = AVPlayer(playerItem: item)
-        avPlayer.volume = Float(isMuted ? 0 : volume)
-        radioPlayer = avPlayer
         radioNowPlaying = nil
         radioArtist = nil
         radioTrack = nil
-
-        radioItemObservation = item.observe(\.status, options: [.new]) { [weak self] item, _ in
-            Task { @MainActor [weak self] in
-                guard let self, self.currentStation != nil else { return }
-                switch item.status {
-                case .failed:
-                    let reason = item.error?.localizedDescription ?? "поток недоступен"
-                    self.errorMessage = "Радио: \(reason)"
-                    self.isPlaying = false
-                    self.radioPlayer?.pause()
-                case .readyToPlay:
-                    if self.errorMessage?.hasPrefix("Радио") == true { self.errorMessage = nil }
-                default:
-                    break
-                }
-            }
-        }
-
-        avPlayer.play()
-        isPlaying = true
+        radioRetryAttempts = 0
+        radioRetryWork?.cancel()
+        startRadioStream(url: url)
 
         if url.scheme == "http" || url.scheme == "https" {
             let reader = IcyMetadataReader()
@@ -382,7 +364,75 @@ final class PlayerEngine: ObservableObject {
         }
     }
 
+    private func startRadioStream(url: URL) {
+        radioPlayer?.pause()
+        radioItemObservation?.invalidate()
+        radioTimeObservation?.invalidate()
+        radioBuffering = true
+
+        let item = AVPlayerItem(url: url)
+        let avPlayer = AVPlayer(playerItem: item)
+        avPlayer.volume = Float(isMuted ? 0 : volume)
+        radioPlayer = avPlayer
+
+        radioItemObservation = item.observe(\.status, options: [.new]) { [weak self] item, _ in
+            Task { @MainActor [weak self] in
+                guard let self, self.currentStation != nil else { return }
+                switch item.status {
+                case .readyToPlay:
+                    self.errorMessage = nil
+                    self.radioRetryAttempts = 0
+                    self.radioBuffering = false
+                case .failed:
+                    self.scheduleRadioReconnect(reason: item.error?.localizedDescription ?? "поток недоступен")
+                default:
+                    break
+                }
+            }
+        }
+
+        radioTimeObservation = avPlayer.observe(\.timeControlStatus, options: [.new]) { [weak self] player, _ in
+            Task { @MainActor [weak self] in
+                guard let self, self.currentStation != nil else { return }
+                self.radioBuffering = player.timeControlStatus == .waitingToPlayAtSpecifiedRate
+            }
+        }
+
+        avPlayer.play()
+        isPlaying = true
+    }
+
+    private func scheduleRadioReconnect(reason: String) {
+        guard currentStation != nil else { return }
+        radioPlayer?.pause()
+        isPlaying = false
+        radioBuffering = true
+        radioRetryWork?.cancel()
+
+        guard radioRetryAttempts < 3 else {
+            errorMessage = "Радио недоступно: \(reason)"
+            radioBuffering = false
+            return
+        }
+        radioRetryAttempts += 1
+        errorMessage = "Переподключаюсь к станции (\(radioRetryAttempts)/3)…"
+        let work = DispatchWorkItem { [weak self] in
+            Task { @MainActor [weak self] in
+                guard let self, let url = self.currentStation?.url else { return }
+                self.startRadioStream(url: url)
+            }
+        }
+        radioRetryWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3, execute: work)
+    }
+
     private func stopRadioPlayback() {
+        radioRetryWork?.cancel()
+        radioRetryWork = nil
+        radioRetryAttempts = 0
+        radioTimeObservation?.invalidate()
+        radioTimeObservation = nil
+        radioBuffering = false
         icyReader?.cancel()
         icyReader = nil
         radioItemObservation?.invalidate()
@@ -419,6 +469,7 @@ final class PlayerEngine: ObservableObject {
         if let radioPlayer {
             radioPlayer.pause()
             isPlaying = false
+            radioBuffering = false
             return
         }
         cancelCrossfade()

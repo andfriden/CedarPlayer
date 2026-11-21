@@ -188,10 +188,18 @@ struct PlayerPane: View {
     }
 
     private var radioStatus: some View {
-        HStack {
-            Text("Прямой эфир")
-                .font(Theme.Fonts.caption)
-                .foregroundStyle(Theme.accent)
+        HStack(spacing: Theme.Space.s) {
+            if engine.radioBuffering {
+                ProgressView()
+                    .controlSize(.small)
+                Text("Буферизация…")
+                    .font(Theme.Fonts.caption)
+                    .foregroundStyle(Theme.secondaryText)
+            } else {
+                Text("Прямой эфир")
+                    .font(Theme.Fonts.caption)
+                    .foregroundStyle(Theme.accent)
+            }
             Spacer(minLength: 0)
         }
         .frame(height: 34)
