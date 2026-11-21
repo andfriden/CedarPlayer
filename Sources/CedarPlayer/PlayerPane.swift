@@ -17,7 +17,11 @@ struct PlayerPane: View {
             topRow
             meter
             volumeRow
-            seekBlock
+            if engine.currentStation != nil {
+                radioStatus
+            } else {
+                seekBlock
+            }
             transportRow
         }
         .padding(.horizontal, Theme.Space.l)
@@ -38,26 +42,31 @@ struct PlayerPane: View {
             artwork
 
             VStack(alignment: .leading, spacing: Theme.Space.xs) {
-                Text(engine.currentTrack?.displayTitle ?? "Ничего не играет")
+                Text(engine.currentStation?.name ?? engine.currentTrack?.displayTitle ?? "Ничего не играет")
                     .font(Theme.Fonts.nowPlaying)
                     .foregroundStyle(Theme.text)
                     .lineLimit(1)
                     .truncationMode(.tail)
                     .minimumScaleFactor(0.85)
 
-                Text(engine.currentTrack?.displayArtist ?? "—")
+                Text(engine.currentStation != nil ? "Онлайн-радио" : engine.currentTrack?.displayArtist ?? "—")
                     .font(Theme.Fonts.artist)
                     .foregroundStyle(Theme.secondaryText)
                     .lineLimit(1)
 
-                if let album = engine.currentTrack?.album, !album.isEmpty {
+                if engine.currentStation == nil, let album = engine.currentTrack?.album, !album.isEmpty {
                     Text(album)
                         .font(Theme.Fonts.caption)
                         .foregroundStyle(Theme.secondaryText.opacity(0.85))
                         .lineLimit(1)
                 }
 
-                if let quality = engine.currentTrack?.qualityText, !quality.isEmpty {
+                if let station = engine.currentStation {
+                    Text(station.host)
+                        .font(Theme.Fonts.caption)
+                        .foregroundStyle(Theme.secondaryText.opacity(0.8))
+                        .lineLimit(1)
+                } else if let quality = engine.currentTrack?.qualityText, !quality.isEmpty {
                     Text(quality)
                         .font(Theme.Fonts.caption)
                         .foregroundStyle(Theme.secondaryText.opacity(0.8))
@@ -175,6 +184,16 @@ struct PlayerPane: View {
         .frame(height: 32)
     }
 
+    private var radioStatus: some View {
+        HStack {
+            Text("Прямой эфир")
+                .font(Theme.Fonts.caption)
+                .foregroundStyle(Theme.accent)
+            Spacer(minLength: 0)
+        }
+        .frame(height: 34)
+    }
+
     // MARK: Позиция
 
     private var seekBlock: some View {
@@ -229,7 +248,7 @@ struct PlayerPane: View {
                 }
                 .buttonStyle(.plain)
                 .keyboardShortcut(.space, modifiers: [])
-                .disabled(engine.currentTrack == nil)
+                .disabled(engine.currentTrack == nil && engine.currentStation == nil)
                 .help("Воспроизведение (пробел)")
 
                 transportButton("forward.fill", size: 15) { engine.next(manual: true) }

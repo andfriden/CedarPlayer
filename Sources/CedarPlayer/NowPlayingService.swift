@@ -55,6 +55,15 @@ final class NowPlayingService {
     /// Полностью пересобирает словарь Now Playing (трек, очередь, обложка).
     func refreshNow() {
         let center = MPNowPlayingInfoCenter.default()
+        if let engine, let station = engine.currentStation {
+            center.nowPlayingInfo = [
+                MPMediaItemPropertyTitle: station.name,
+                MPMediaItemPropertyArtist: "Онлайн-радио",
+                MPNowPlayingInfoPropertyPlaybackRate: engine.isPlaying ? 1.0 : 0.0
+            ]
+            center.playbackState = engine.isPlaying ? .playing : .paused
+            return
+        }
         guard let engine, let track = engine.currentTrack else {
             center.nowPlayingInfo = nil
             center.playbackState = .stopped
@@ -86,7 +95,15 @@ final class NowPlayingService {
     // MARK: Обновления по частям
 
     private func refreshRate() {
-        guard let engine, engine.currentTrack != nil else { return }
+        guard let engine else { return }
+        if engine.currentStation != nil {
+            var info = MPNowPlayingInfoCenter.default().nowPlayingInfo ?? [:]
+            info[MPNowPlayingInfoPropertyPlaybackRate] = engine.isPlaying ? 1.0 : 0.0
+            MPNowPlayingInfoCenter.default().nowPlayingInfo = info
+            MPNowPlayingInfoCenter.default().playbackState = engine.isPlaying ? .playing : .paused
+            return
+        }
+        guard engine.currentTrack != nil else { return }
         var info = MPNowPlayingInfoCenter.default().nowPlayingInfo ?? [:]
         info[MPNowPlayingInfoPropertyPlaybackRate] = engine.isPlaying ? engine.playbackRate : 0.0
         MPNowPlayingInfoCenter.default().nowPlayingInfo = info

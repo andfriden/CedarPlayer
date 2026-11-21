@@ -93,6 +93,17 @@ struct CedarPlayerApp: App {
             }
         }
 
+        if let path = Self.argumentValue("--radiotest") {
+            let engine = PlayerEngine()
+            let station = RadioStation(name: "Проверка", urlString: URL(fileURLWithPath: path).absoluteString)
+            engine.playRadio(station)
+            RunLoop.main.run(until: Date().addingTimeInterval(1.5))
+            print("RADIO station=\(engine.currentStation?.name ?? "-") playing=\(engine.isPlaying) trackEmpty=\(engine.currentTrack == nil)")
+            engine.pause()
+            print("RADIO paused=\(!engine.isPlaying)")
+            exit(0)
+        }
+
         if let index = CommandLine.arguments.firstIndex(of: "--playlist-import") {
             let rest = Array(CommandLine.arguments.dropFirst(index + 1))
             Self.runPlaylistImportTest(path: rest.first ?? "", name: rest.count > 1 ? rest[1] : "Плейлист")

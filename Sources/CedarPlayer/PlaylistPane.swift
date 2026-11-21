@@ -117,6 +117,12 @@ struct PlaylistPane: View {
                 ForEach(SmartRule.allCases) { rule in
                     Button(rule.title) { filterID = "smart:\(rule.rawValue)" }
                 }
+                if !library.stations.isEmpty {
+                    Divider()
+                    ForEach(library.stations) { station in
+                        Button(station.name) { engine.playRadio(station) }
+                    }
+                }
                 Divider()
                 ForEach(library.playlists) { playlist in
                     Button(playlist.name) { filterID = playlist.id.uuidString }

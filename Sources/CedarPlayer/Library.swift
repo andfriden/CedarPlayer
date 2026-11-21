@@ -14,6 +14,9 @@ final class Library: ObservableObject {
     @Published var playlists: [Playlist] = [] {
         didSet { scheduleSave() }
     }
+    @Published var stations: [RadioStation] = [] {
+        didSet { scheduleSave() }
+    }
     @Published var searchText: String = ""
     @Published var sortKey: SortKey = .added {
         didSet { UserDefaults.standard.set(sortKey.rawValue, forKey: "sortKey") }
@@ -42,6 +45,7 @@ final class Library: ObservableObject {
     private struct Store: Codable {
         var tracks: [Track]
         var playlists: [Playlist]
+        var stations: [RadioStation]?
     }
 
     init() {
@@ -58,13 +62,14 @@ final class Library: ObservableObject {
         guard let store = try? JSONDecoder().decode(Store.self, from: data) else { return }
         tracks = store.tracks.filter { FileManager.default.fileExists(atPath: $0.url.path) }
         playlists = store.playlists
+        stations = store.stations ?? []
     }
 
     private func scheduleSave() {
         saveWorkItem?.cancel()
         let work = DispatchWorkItem { [weak self] in
             guard let self else { return }
-            let store = Store(tracks: self.tracks, playlists: self.playlists)
+            let store = Store(tracks: self.tracks, playlists: self.playlists, stations: self.stations)
             guard let data = try? JSONEncoder().encode(store) else { return }
             try? data.write(to: Self.storeURL, options: .atomic)
 
@@ -439,6 +444,20 @@ final class Library: ObservableObject {
     // MARK: Плейлисты
 
     @discardableResult
+    func addStation(name: String, urlString: String) -> RadioStation? {
+        let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let urlString = urlString.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !urlString.isEmpty, URL(string: urlString) != nil else { return nil }
+        let station = RadioStation(name: name.isEmpty ? URL(string: urlString)?.host ?? "Радио" : name,
+                                   urlString: urlString)
+        stations.append(station)
+        return station
+    }
+
+    func removeStation(_ id: UUID) {
+        stations.removeAll { $0.id == id }
+    }
+
     func createPlaylist(named name: String) -> Playlist {
         let playlist = Playlist(name: name)
         playlists.append(playlist)

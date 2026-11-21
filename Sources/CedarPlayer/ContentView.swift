@@ -11,6 +11,9 @@ struct ContentView: View {
     @State private var newPlaylistName = ""
     @State private var isNamingPlaylist = false
     @State private var isDropping = false
+    @State private var isAddingStation = false
+    @State private var stationName = ""
+    @State private var stationURL = ""
     @State private var openAlbum: AlbumGroup?
     @AppStorage("libraryLayout") private var layout = "list"
 
@@ -125,6 +128,14 @@ struct ContentView: View {
                 }
             }
         }
+        .alert("Новая станция", isPresented: $isAddingStation) {
+            TextField("Название", text: $stationName)
+            TextField("https://адрес/потока", text: $stationURL)
+            Button("Добавить") {
+                _ = library.addStation(name: stationName, urlString: stationURL)
+            }
+            Button("Отмена", role: .cancel) {}
+        }
         .alert("Новый плейлист", isPresented: $isNamingPlaylist) {
             TextField("Название", text: $newPlaylistName)
             Button("Создать") {
@@ -163,6 +174,33 @@ struct ContentView: View {
                     Label(rule.title, systemImage: rule.symbol)
                         .tag(SidebarItem.smart(rule))
                 }
+            }
+
+            Section {
+                ForEach(library.stations) { station in
+                    Button {
+                        engine.playRadio(station)
+                    } label: {
+                        Label(station.name, systemImage: "dot.radiowaves.left.and.right")
+                    }
+                    .buttonStyle(.plain)
+                    .contextMenu {
+                        Button("Удалить станцию", role: .destructive) {
+                            library.removeStation(station.id)
+                        }
+                    }
+                }
+                Button {
+                    stationName = ""
+                    stationURL = ""
+                    isAddingStation = true
+                } label: {
+                    Label("Добавить станцию…", systemImage: "plus.circle")
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.secondary)
+            } header: {
+                Text("Радио")
             }
 
             Section {

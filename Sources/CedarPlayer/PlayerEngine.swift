@@ -11,6 +11,8 @@ final class PlayerEngine: ObservableObject {
 
     @Published private(set) var isPlaying = false
     @Published private(set) var currentTrack: Track?
+    @Published private(set) var currentStation: RadioStation?
+    private var radioPlayer: AVPlayer?
 
     /// Подменяет метаданные играющего трека после правки тегов.
     func syncCurrentTrack(with track: Track) {
@@ -32,10 +34,16 @@ final class PlayerEngine: ObservableObject {
     @Published private(set) var position: TimeInterval = 0
     @Published private(set) var duration: TimeInterval = 0
     @Published var volume: Double = 0.8 {
-        didSet { engine.mainMixerNode.outputVolume = Float(volume) }
+        didSet {
+            engine.mainMixerNode.outputVolume = Float(volume)
+            radioPlayer?.volume = Float(isMuted ? 0 : volume)
+        }
     }
     @Published var isMuted = false {
-        didSet { engine.mainMixerNode.outputVolume = isMuted ? 0 : Float(volume) }
+        didSet {
+            engine.mainMixerNode.outputVolume = isMuted ? 0 : Float(volume)
+            radioPlayer?.volume = Float(isMuted ? 0 : volume)
+        }
     }
     @Published var isShuffle = false
     @Published var repeatMode: RepeatMode = .off
@@ -250,6 +258,7 @@ final class PlayerEngine: ObservableObject {
     }
 
     func load(_ track: Track, autoplay: Bool) {
+        stopRadioPlayback()
         do {
             let newFile = try AVAudioFile(forReading: track.url)
             let format = newFile.processingFormat
@@ -299,9 +308,44 @@ final class PlayerEngine: ObservableObject {
         }
     }
 
+    // MARK: Радио
+
+    /// Запускает интернет-станцию через AVPlayer; локальная очередь останавливается.
+    func playRadio(_ station: RadioStation) {
+        guard let url = station.url else {
+            errorMessage = "Некорректный адрес станции"
+            return
+        }
+        player.stop()
+        file = nil
+        isPlaying = false
+        position = 0
+        duration = 0
+        currentTrack = nil
+        errorMessage = nil
+        currentStation = station
+
+        let avPlayer = AVPlayer(playerItem: AVPlayerItem(url: url))
+        avPlayer.volume = Float(isMuted ? 0 : volume)
+        radioPlayer = avPlayer
+        avPlayer.play()
+        isPlaying = true
+    }
+
+    private func stopRadioPlayback() {
+        radioPlayer?.pause()
+        radioPlayer = nil
+        currentStation = nil
+    }
+
     // MARK: Управление
 
     func play() {
+        if let radioPlayer {
+            radioPlayer.play()
+            isPlaying = true
+            return
+        }
         guard file != nil else { return }
         if player.isPlaying { return }
         if !engine.isRunning {
@@ -315,6 +359,11 @@ final class PlayerEngine: ObservableObject {
     }
 
     func pause() {
+        if let radioPlayer {
+            radioPlayer.pause()
+            isPlaying = false
+            return
+        }
         guard player.isPlaying else { return }
         seekFrame = currentFrame()
         player.pause()
@@ -326,6 +375,11 @@ final class PlayerEngine: ObservableObject {
     }
 
     func stop() {
+        if radioPlayer != nil {
+            stopRadioPlayback()
+            isPlaying = false
+            return
+        }
         player.stop()
         isPlaying = false
         seekFrame = startFrame
@@ -333,7 +387,7 @@ final class PlayerEngine: ObservableObject {
     }
 
     func seek(to seconds: TimeInterval) {
-        guard file != nil, sampleRate > 0 else { return }
+        guard currentStation == nil, file != nil, sampleRate > 0 else { return }
         let clamped = max(0, min(seconds, duration))
         let frame = min(endFrame, startFrame + AVAudioFramePosition((clamped * sampleRate).rounded()))
         seekFrame = frame
@@ -349,6 +403,11 @@ final class PlayerEngine: ObservableObject {
     }
 
     func next(manual: Bool = false) {
+        if currentStation != nil {
+            stop()
+            if queue.indices.contains(queueIndex) { play(at: queueIndex) }
+            return
+        }
         guard !queue.isEmpty else { return }
         if repeatMode == .one && !manual {
             seek(to: 0)
@@ -462,7 +521,7 @@ final class PlayerEngine: ObservableObject {
         timer?.invalidate()
         timer = Timer.scheduledTimer(withTimeInterval: 0.2, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
-                guard let self, self.isPlaying, self.sampleRate > 0 else { return }
+                guard let self, self.isPlaying, self.currentStation == nil, self.sampleRate > 0 else { return }
                 let played = Double(self.currentFrame() - self.startFrame) / self.sampleRate
                 self.position = min(self.duration, max(0, played))
                 self.applyFade()
