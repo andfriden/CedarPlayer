@@ -96,6 +96,21 @@ struct CedarPlayerApp: App {
             }
         }
 
+        if CommandLine.arguments.contains("--audiodevices") {
+            let engine = PlayerEngine()
+            print("AUDIO default=\(AudioDevices.defaultOutputUID ?? "-")")
+            for device in engine.outputDevices {
+                print("AUDIO device=\(device.name) uid=\(device.id) channels=\(device.channels)")
+            }
+            if let index = CommandLine.arguments.firstIndex(of: "--audiodevices"),
+               CommandLine.arguments.count > index + 1 {
+                engine.selectOutput(uid: CommandLine.arguments[index + 1])
+                RunLoop.main.run(until: Date().addingTimeInterval(0.5))
+            }
+            print("AUDIO selected=\(engine.selectedOutputUID ?? "-") format=\(engine.outputFormatDescription) error=\(engine.errorMessage ?? "-")")
+            exit(0)
+        }
+
         if CommandLine.arguments.contains("--doctor") {
             Self.runDoctor()
         }

@@ -1,5 +1,6 @@
 import Foundation
 import AVFoundation
+import AudioToolbox
 import Combine
 
 /// Движок воспроизведения: AVAudioEngine + узел эквалайзера + регулировка скорости.
@@ -20,6 +21,12 @@ final class PlayerEngine: ObservableObject {
     private var radioRetryAttempts = 0
     @Published private(set) var radioBuffering = false
     @Published private(set) var radioNowPlaying: String?
+
+    // MARK: Устройство вывода
+
+    @Published private(set) var outputDevices: [AudioOutputDevice] = []
+    @Published private(set) var selectedOutputUID: String?
+    @Published private(set) var outputFormatDescription = "—"
 
     /// Истинный кроссфейд: наложение следующего трека на последние секунды текущего.
     @Published var crossfadeSeconds: Double = 0 {
@@ -147,6 +154,7 @@ final class PlayerEngine: ObservableObject {
         transitionFadeSeconds = UserDefaults.standard.object(forKey: "transitionFadeSeconds") as? Double ?? 1.0
         loadEQSettings()
         configureGraph()
+        restoreOutputDevice()
         startTimer()
         levelMeter.onUpdate = { [weak self] reading in
             guard let self else { return }
@@ -328,6 +336,76 @@ final class PlayerEngine: ObservableObject {
             currentTrack = track
             duration = track.duration
             errorMessage = "Файл не поддерживается или повреждён: \(track.url.lastPathComponent)"
+        }
+    }
+
+    // MARK: Устройство вывода
+
+    /// Перечитывает список устройств; выбранное сохраняется, если ещё доступно.
+    func refreshOutputDevices() {
+        outputDevices = AudioDevices.outputs()
+        if let uid = selectedOutputUID, outputDevices.contains(where: { $0.id == uid }) {
+            updateOutputFormat()
+        } else {
+            selectedOutputUID = AudioDevices.defaultOutputUID ?? outputDevices.first?.id
+            updateOutputFormat()
+        }
+    }
+
+    func selectOutput(uid: String) {
+        guard uid != selectedOutputUID else { return }
+        applyOutput(uid: uid, persist: true)
+    }
+
+    private func restoreOutputDevice() {
+        outputDevices = AudioDevices.outputs()
+        let saved = UserDefaults.standard.string(forKey: "outputDeviceUID")
+        if let saved, outputDevices.contains(where: { $0.id == saved }) {
+            selectedOutputUID = saved
+        } else {
+            selectedOutputUID = AudioDevices.defaultOutputUID ?? outputDevices.first?.id
+        }
+        updateOutputFormat()
+    }
+
+    private func applyOutput(uid: String, persist: Bool) {
+        guard let deviceID = AudioDevices.deviceID(forUID: uid),
+              let audioUnit = engine.outputNode.audioUnit else { return }
+
+        let wasPlaying = isPlaying
+        if wasPlaying { pause() }
+
+        engine.stop()
+        var identifier = deviceID
+        let status = AudioUnitSetProperty(audioUnit,
+                                          kAudioOutputUnitProperty_CurrentDevice,
+                                          kAudioUnitScope_Global,
+                                          0,
+                                          &identifier,
+                                          UInt32(MemoryLayout<AudioDeviceID>.size))
+        if status != noErr {
+            errorMessage = "Не удалось переключить устройство вывода"
+        }
+        try? engine.start()
+
+        selectedOutputUID = uid
+        if persist { UserDefaults.standard.set(uid, forKey: "outputDeviceUID") }
+        updateOutputFormat()
+        if wasPlaying { play() }
+    }
+
+    private func updateOutputFormat() {
+        if let uid = selectedOutputUID,
+           let format = AudioDevices.streamFormat(uid: uid),
+           format.rate > 0 {
+            outputFormatDescription = AudioDevices.describe(rate: format.rate,
+                                                            bits: format.bits,
+                                                            channels: format.channels)
+        } else {
+            let format = engine.outputNode.outputFormat(forBus: 0)
+            outputFormatDescription = AudioDevices.describe(rate: format.sampleRate,
+                                                            bits: 0,
+                                                            channels: Int(format.channelCount))
         }
     }
 

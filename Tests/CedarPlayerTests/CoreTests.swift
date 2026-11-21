@@ -389,3 +389,17 @@ final class VUCalibrationTests: XCTestCase {
         }
     }
 }
+
+final class AudioDevicesTests: XCTestCase {
+    func testFormatDescription() {
+        XCTAssertEqual(AudioDevices.describe(rate: 48000, bits: 24, channels: 2), "48 кГц · 24 бит · 2 кан.")
+        XCTAssertEqual(AudioDevices.describe(rate: 44100, bits: 16, channels: 2), "44.1 кГц · 16 бит · 2 кан.")
+        XCTAssertEqual(AudioDevices.describe(rate: 96000, bits: 0, channels: 6), "96 кГц · 6 кан.")
+        XCTAssertEqual(AudioDevices.describe(rate: 0, bits: 24, channels: 2), "—")
+    }
+
+    func testDeviceEnumerationDoesNotCrash() {
+        _ = AudioDevices.outputs()
+        _ = AudioDevices.defaultOutputUID
+    }
+}

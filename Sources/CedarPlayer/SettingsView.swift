@@ -37,6 +37,27 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
             }
 
+            Section("Вывод звука") {
+                Picker("Устройство", selection: Binding(
+                    get: { engine.selectedOutputUID ?? "" },
+                    set: { engine.selectOutput(uid: $0) }
+                )) {
+                    ForEach(engine.outputDevices) { device in
+                        Text(device.name).tag(device.id)
+                    }
+                }
+                HStack {
+                    Text("Формат вывода")
+                    Spacer()
+                    Text(engine.outputFormatDescription)
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                }
+                Button("Обновить список устройств") {
+                    engine.refreshOutputDevices()
+                }
+            }
+
             Section("Индикатор") {
                 Picker("Стиль", selection: Binding(
                     get: { MeterStyle(rawValue: UserDefaults.standard.string(forKey: "meterStyle") ?? "") ?? .segments },
