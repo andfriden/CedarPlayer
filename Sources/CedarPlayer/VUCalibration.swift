@@ -1,9 +1,11 @@
 import Foundation
 
-/// Калибровка стрелочного VU: 0 VU = −20 dBFS, шкала −20…+3 VU.
+/// Калибровка стрелочного VU: 0 VU = −12 dBFS, шкала −20…+3 VU.
+/// −12 dBFS выбран как компромисс для музыки: −20 dBFS «вешало» стрелку вправо
+/// на современных мастерингах.
 /// Позиция 0 — левый край шкалы, 1 — правый.
 enum VUCalibration {
-    static let zeroVUdBFS: Double = -20
+    static let zeroVUdBFS: Double = -12
 
     /// Пары «значение VU, подпись» в порядке шкалы.
     static let marks: [(vu: Double, label: String)] = [

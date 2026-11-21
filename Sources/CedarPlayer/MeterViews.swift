@@ -270,7 +270,7 @@ struct AnalogVUMeterView: View {
                 dial(needle: needleR, peak: levels.peakRight, title: "R")
             }
 
-            Text("0 VU = −20 dBFS · интеграция 300 мс")
+            Text("0 VU = \(String(format: "%.0f", VUCalibration.zeroVUdBFS)) dBFS · интеграция 300 мс")
                 .font(.system(size: 10))
                 .foregroundStyle(Theme.secondaryText.opacity(0.8))
                 .frame(height: 16)
@@ -289,8 +289,10 @@ struct AnalogVUMeterView: View {
             guard dt > 0 else { return }
             // Стандартная баллистика VU: 300 мс.
             let alpha = 1 - exp(-dt / 0.3)
-            let targetL = VUCalibration.position(forLevel: Double(levels.left))
-            let targetR = VUCalibration.position(forLevel: Double(levels.right))
+            // На паузе стрелки возвращаются к левому краю, а не висят на последнем уровне.
+            let active = preview != nil || engine.isPlaying
+            let targetL = active ? VUCalibration.position(forLevel: Double(levels.left)) : 0
+            let targetR = active ? VUCalibration.position(forLevel: Double(levels.right)) : 0
             needleL += (targetL - needleL) * alpha
             needleR += (targetR - needleR) * alpha
         }

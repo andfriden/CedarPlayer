@@ -366,11 +366,11 @@ final class RadioLogoTests: XCTestCase {
 }
 
 final class VUCalibrationTests: XCTestCase {
-    func testZeroVUIsMinus20dBFS() {
-        XCTAssertEqual(VUCalibration.vu(fromDBFS: -20), 0, accuracy: 0.001)
-        XCTAssertEqual(VUCalibration.dBFS(fromLevel: 40.0 / 60.0), -20, accuracy: 0.001)
+    func testZeroVUIsMinus12dBFS() {
+        XCTAssertEqual(VUCalibration.vu(fromDBFS: -12), 0, accuracy: 0.001)
+        XCTAssertEqual(VUCalibration.dBFS(fromLevel: 0.8), -12, accuracy: 0.001)
         XCTAssertEqual(VUCalibration.position(forVU: 0),
-                       VUCalibration.position(forDBFS: -20), accuracy: 0.001)
+                       VUCalibration.position(forDBFS: -12), accuracy: 0.001)
     }
 
     func testPositionIsMonotonicAndClamped() {
