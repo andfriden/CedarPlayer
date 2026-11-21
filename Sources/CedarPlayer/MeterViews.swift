@@ -80,7 +80,7 @@ struct LevelMeterStrip: View {
                 context.fill(path, with: .color(unlitColor))
             }
             if index == peakSegment && peak > 0.02 {
-                context.fill(path, with: .color(.white.opacity(0.85)))
+                context.fill(path, with: .color(Theme.text.opacity(0.85)))
             }
         }
         _ = size
@@ -117,7 +117,7 @@ struct LevelMeterStrip: View {
                 let x = size.width * peak
                 marker.move(to: CGPoint(x: x, y: y))
                 marker.addLine(to: CGPoint(x: x, y: y + barHeight))
-                context.stroke(marker, with: .color(.white.opacity(0.8)), lineWidth: 1)
+                context.stroke(marker, with: .color(Theme.text.opacity(0.8)), lineWidth: 1)
             }
         }
     }
@@ -149,7 +149,7 @@ struct LevelMeterStrip: View {
             if peak > 0.02 {
                 let peakIndex = Int((peak * CGFloat(dotCount - 1)).rounded())
                 let rect = CGRect(x: CGFloat(peakIndex) * step, y: y, width: dot, height: dot)
-                context.fill(Path(ellipseIn: rect), with: .color(.white.opacity(0.9)))
+                context.fill(Path(ellipseIn: rect), with: .color(Theme.text.opacity(0.9)))
             }
         }
     }
@@ -190,7 +190,7 @@ struct LevelMeterStrip: View {
             let rect = CGRect(x: CGFloat(index) * (width + gap),
                               y: max(0, y - 2),
                               width: width, height: 2)
-            context.fill(Path(roundedRect: rect, cornerRadius: 1), with: .color(.white.opacity(0.85)))
+            context.fill(Path(roundedRect: rect, cornerRadius: 1), with: .color(Theme.text.opacity(0.85)))
         }
     }
 

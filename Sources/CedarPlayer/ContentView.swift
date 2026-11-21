@@ -553,6 +553,10 @@ private struct TrackRow: View {
             artwork
                 .frame(width: 34, height: 34)
                 .clipShape(RoundedRectangle(cornerRadius: 5))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 5)
+                        .strokeBorder(Theme.separator, lineWidth: 0.5)
+                }
 
             VStack(alignment: .leading, spacing: 1) {
                 Text(track.displayTitle)
@@ -617,7 +621,7 @@ private struct AlbumCard: View {
                 .clipShape(RoundedRectangle(cornerRadius: 10))
                 .overlay {
                     RoundedRectangle(cornerRadius: 10)
-                        .strokeBorder(isCurrent ? Color.accentColor : Color.white.opacity(0.07),
+                        .strokeBorder(isCurrent ? Color.accentColor : Theme.separator,
                                       lineWidth: isCurrent ? 2 : 1)
                 }
 
@@ -651,7 +655,7 @@ private struct AlbumCard: View {
                 .aspectRatio(contentMode: .fill)
         } else {
             ZStack {
-                LinearGradient(colors: [Color(white: 0.22), Color(white: 0.13)],
+                LinearGradient(colors: [Theme.subtle, Theme.background],
                                startPoint: .topLeading,
                                endPoint: .bottomTrailing)
                 Image(systemName: "square.stack")

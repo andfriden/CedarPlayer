@@ -81,7 +81,7 @@ struct ArtworkWindowView: View {
                 Image(nsImage: image).resizable().aspectRatio(contentMode: .fill)
             } else {
                 ZStack {
-                    LinearGradient(colors: [Color(hex: 0x2B2F36), Color(hex: 0x22252B)],
+                    LinearGradient(colors: [Theme.subtle, Theme.panel],
                                    startPoint: .topLeading, endPoint: .bottomTrailing)
                     Image(systemName: "music.note")
                         .font(.system(size: 90, weight: .ultraLight))

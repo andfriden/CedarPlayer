@@ -64,7 +64,7 @@ struct EqualizerView: View {
                     .foregroundStyle(Theme.secondaryText)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 3)
-                    .background(Color(hex: 0x2B2F36), in: Capsule())
+                    .background(Theme.subtle, in: Capsule())
             }
             Toggle("Эквалайзер", isOn: $engine.isEQEnabled)
                 .toggleStyle(.switch)

@@ -6,11 +6,21 @@ struct SettingsView: View {
     @AppStorage("resumeLastTrack") private var resumeLastTrack = true
     @AppStorage("showFormatColumn") private var showFormatColumn = true
     @AppStorage("autoCoverSearch") private var autoCoverSearch = true
+    @AppStorage("appearanceMode") private var appearanceMode = AppearanceMode.system.rawValue
     @EnvironmentObject private var engine: PlayerEngine
     @EnvironmentObject private var library: Library
 
     var body: some View {
         Form {
+            Section("Оформление") {
+                Picker("Тема", selection: $appearanceMode) {
+                    ForEach(AppearanceMode.allCases) { mode in
+                        Text(mode.title).tag(mode.rawValue)
+                    }
+                }
+                .pickerStyle(.segmented)
+            }
+
             Section("Воспроизведение") {
                 Toggle("Запоминать последний трек при запуске", isOn: $resumeLastTrack)
                 Picker("Повтор", selection: $engine.repeatMode) {

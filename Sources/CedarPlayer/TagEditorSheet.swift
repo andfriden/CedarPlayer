@@ -64,7 +64,6 @@ struct TagEditorSheet: View {
         .padding(20)
         .frame(width: 380)
         .background(Theme.panel)
-        .preferredColorScheme(.dark)
     }
 
     private func field(_ caption: String, text: Binding<String>) -> some View {

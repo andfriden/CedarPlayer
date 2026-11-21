@@ -60,7 +60,6 @@ struct CoverPickerSheet: View {
         .padding(Theme.Space.l)
         .frame(width: 480, height: 440)
         .background(Theme.panel)
-        .preferredColorScheme(.dark)
         .task { await load() }
     }
 

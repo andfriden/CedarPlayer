@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import AVFoundation
 import MediaPlayer
 
 @main
@@ -9,6 +10,7 @@ struct CedarPlayerApp: App {
     @StateObject private var engine = PlayerEngine()
     @AppStorage("showPlaylist") private var showPlaylist = true
     @AppStorage("meterStyle") private var meterStyleRaw = MeterStyle.segments.rawValue
+    @AppStorage("appearanceMode") private var appearanceMode = AppearanceMode.system.rawValue
     @Environment(\.openWindow) private var openWindow
 
     init() {
@@ -390,6 +392,16 @@ struct CedarPlayerApp: App {
             exit(1)
         }
         let semaphore = DispatchSemaphore(value: 0)
+        let scheme: ColorScheme? = {
+            switch ProcessInfo.processInfo.environment["CEDAR_APPEARANCE"] {
+            case "light": return .light
+            case "dark": return .dark
+            default: return nil
+            }
+        }()
+        if let scheme {
+            NSAppearance.current = NSAppearance(named: scheme == .dark ? .darkAqua : .aqua) ?? NSAppearance.current
+        }
         Task { @MainActor in
             let engine = PlayerEngine()
             let library = Library()
@@ -406,7 +418,15 @@ struct CedarPlayerApp: App {
                 track.artwork = art
                 sample.append(track)
             }
-            var current = Track(url: URL(fileURLWithPath: "/tmp/cedar-music/cover.flac"))
+            let demoURL = URL(fileURLWithPath: "/tmp/cedar-render-demo.wav")
+            if !FileManager.default.fileExists(atPath: demoURL.path),
+               let format = AVAudioFormat(standardFormatWithSampleRate: 44100, channels: 2),
+               let demoFile = try? AVAudioFile(forWriting: demoURL, settings: format.settings),
+               let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 44100 * 2) {
+                buffer.frameLength = 44100 * 2
+                try? demoFile.write(from: buffer)
+            }
+            var current = Track(url: demoURL)
             current.title = "Midnight City"
             current.artist = "M83"
             current.album = "Hurry Up, We're Dreaming"
@@ -430,7 +450,8 @@ struct CedarPlayerApp: App {
                 let vuView = AnalogVUMeterView(preview: VULevels(left: 0.88, right: 0.55,
                                                                  peakLeft: 0.98, peakRight: 0.60))
                     .environmentObject(vuEngine)
-                    .frame(width: 520, height: 300)
+                    .preferredColorScheme(scheme)
+                .frame(width: 520, height: 300)
                 let renderer = ImageRenderer(content: vuView)
                 renderer.scale = 2
                 if let cg = renderer.cgImage,
@@ -447,7 +468,8 @@ struct CedarPlayerApp: App {
                 eqEngine.apply(preset: PlayerEngine.presets[1])
                 let eqView = EqualizerView()
                     .environmentObject(eqEngine)
-                    .frame(width: 760, height: 540)
+                    .preferredColorScheme(scheme)
+                .frame(width: 760, height: 540)
                 let renderer = ImageRenderer(content: eqView)
                 renderer.scale = 2
                 if let cg = renderer.cgImage,
@@ -463,7 +485,8 @@ struct CedarPlayerApp: App {
                 let mini = MiniPlayerView()
                     .environmentObject(library)
                     .environmentObject(engine)
-                    .frame(width: 372, height: 96)
+                    .preferredColorScheme(scheme)
+                .frame(width: 372, height: 96)
                 let renderer = ImageRenderer(content: mini)
                 renderer.scale = 2
                 if let cg = renderer.cgImage,
@@ -483,7 +506,8 @@ struct CedarPlayerApp: App {
             }
             .environmentObject(library)
             .environmentObject(engine)
-            .frame(width: 425, height: 600)
+            .preferredColorScheme(scheme)
+                .frame(width: 425, height: 600)
             .background(Theme.background)
             let renderer = ImageRenderer(content: view)
             renderer.scale = 2
@@ -625,12 +649,17 @@ struct CedarPlayerApp: App {
         exit(engine.errorMessage == nil && engine.duration > 0 ? 0 : 1)
     }
 
+    private var colorScheme: ColorScheme? {
+        AppearanceMode(rawValue: appearanceMode)?.colorScheme
+    }
+
     var body: some Scene {
         WindowGroup("Cedar Player", id: "main") {
             MainWindowView()
                 .environmentObject(library)
                 .environmentObject(engine)
                 .onAppear { appDelegate.configure(library: library, engine: engine) }
+                .preferredColorScheme(colorScheme)
         }
         .defaultSize(width: 425, height: 1006)
         .windowResizability(.contentMinSize)
@@ -738,29 +767,30 @@ struct CedarPlayerApp: App {
             ContentView()
                 .environmentObject(library)
                 .environmentObject(engine)
+                .preferredColorScheme(colorScheme)
         }
         .defaultSize(width: 900, height: 560)
 
         Window("VU-метр", id: "vu") {
             AnalogVUMeterView()
-                .preferredColorScheme(.dark)
                 .environmentObject(engine)
+                .preferredColorScheme(colorScheme)
         }
         .defaultSize(width: 520, height: 300)
 
         Window("Обложка", id: "albumart") {
             ArtworkWindowView()
-                .preferredColorScheme(.dark)
                 .environmentObject(library)
                 .environmentObject(engine)
+                .preferredColorScheme(colorScheme)
         }
         .defaultSize(width: 430, height: 560)
         .keyboardShortcut("1", modifiers: [.command])
 
         Window("Эквалайзер", id: "equalizer") {
             EqualizerView()
-                .preferredColorScheme(.dark)
                 .environmentObject(engine)
+                .preferredColorScheme(colorScheme)
         }
         .defaultSize(width: 760, height: 540)
         .windowResizability(.contentSize)
@@ -768,6 +798,7 @@ struct CedarPlayerApp: App {
         Window("Текст песни", id: "lyrics") {
             LyricsView()
                 .environmentObject(engine)
+                .preferredColorScheme(colorScheme)
         }
         .defaultSize(width: 480, height: 460)
 
@@ -775,6 +806,7 @@ struct CedarPlayerApp: App {
             MiniPlayerView()
                 .environmentObject(library)
                 .environmentObject(engine)
+                .preferredColorScheme(colorScheme)
         }
         .windowResizability(.contentMinSize)
         .defaultSize(width: 320, height: 96)
@@ -783,6 +815,7 @@ struct CedarPlayerApp: App {
             MenuBarPlayerView()
                 .environmentObject(library)
                 .environmentObject(engine)
+                .preferredColorScheme(colorScheme)
         } label: {
             Image(systemName: "music.note")
         }
@@ -790,6 +823,7 @@ struct CedarPlayerApp: App {
 
         Settings {
             SettingsView()
+                .preferredColorScheme(colorScheme)
                 .environmentObject(library)
                 .environmentObject(engine)
         }

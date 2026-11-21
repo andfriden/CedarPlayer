@@ -100,7 +100,7 @@ struct PlayerPane: View {
                 Image(nsImage: image).resizable().aspectRatio(contentMode: .fill)
             } else {
                 ZStack {
-                    Color(hex: 0x2B2F36)
+                    Theme.subtle
                     Image(systemName: engine.currentStation == nil ? "music.note" : "dot.radiowaves.left.and.right")
                         .font(.system(size: artworkSize * 0.28, weight: .light))
                         .foregroundStyle(Theme.secondaryText.opacity(0.7))

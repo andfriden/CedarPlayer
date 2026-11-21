@@ -403,3 +403,12 @@ final class AudioDevicesTests: XCTestCase {
         _ = AudioDevices.defaultOutputUID
     }
 }
+
+final class AppearanceModeTests: XCTestCase {
+    func testModesMapToSchemes() {
+        XCTAssertNil(AppearanceMode.system.colorScheme)
+        XCTAssertEqual(AppearanceMode.dark.colorScheme, .dark)
+        XCTAssertEqual(AppearanceMode.light.colorScheme, .light)
+        XCTAssertEqual(AppearanceMode.allCases.map(\.title), ["Системное", "Тёмное", "Светлое"])
+    }
+}

@@ -78,7 +78,7 @@ struct MenuBarPlayerView: View {
                 Image(nsImage: image).resizable().aspectRatio(contentMode: .fill)
             } else {
                 ZStack {
-                    Color(hex: 0x2B2F36)
+                    Theme.subtle
                     Image(systemName: "music.note")
                         .font(.system(size: 14, weight: .light))
                         .foregroundStyle(Theme.secondaryText)

@@ -226,6 +226,9 @@ struct MiniPlayerView: View {
             }
             coverCircle
                 .frame(width: 40, height: 40)
+                .overlay {
+                    Circle().strokeBorder(Theme.separator, lineWidth: 0.5)
+                }
             Circle()
                 .fill(Theme.panel)
                 .frame(width: 6, height: 6)
@@ -253,7 +256,7 @@ struct MiniPlayerView: View {
                 .clipShape(Circle())
         } else {
             ZStack {
-                Circle().fill(Color(hex: 0x2B2F36))
+                Circle().fill(Theme.subtle)
                 Image(systemName: engine.currentStation == nil ? "music.note" : "dot.radiowaves.left.and.right")
                     .font(.system(size: 13, weight: .light))
                     .foregroundStyle(Theme.secondaryText.opacity(0.8))

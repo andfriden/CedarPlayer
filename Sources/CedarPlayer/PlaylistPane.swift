@@ -194,7 +194,7 @@ struct PlaylistPane: View {
                 }
             }
             .padding(.horizontal, Theme.Space.s)
-            .background(Color(hex: 0x2B2F36), in: RoundedRectangle(cornerRadius: Theme.Radius.small))
+            .background(Theme.subtle, in: RoundedRectangle(cornerRadius: Theme.Radius.small))
             .frame(height: 26)
 
             Spacer(minLength: 4)
@@ -299,6 +299,10 @@ struct PlaylistPane: View {
                 artwork(track)
                     .frame(width: 28, height: 28)
                     .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.small, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: Theme.Radius.small, style: .continuous)
+                            .strokeBorder(Theme.separator, lineWidth: 0.5)
+                    }
             }
 
             VStack(alignment: .leading, spacing: 3) {
@@ -395,7 +399,7 @@ struct PlaylistPane: View {
             Image(nsImage: image).resizable().aspectRatio(contentMode: .fill)
         } else {
             ZStack {
-                Color(hex: 0x2B2F36)
+                Theme.subtle
                 Image(systemName: "music.note")
                     .font(.system(size: 11))
                     .foregroundStyle(Theme.secondaryText.opacity(0.8))

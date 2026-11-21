@@ -23,7 +23,7 @@ struct MainWindowView: View {
                         .disabled(engine.currentTrack == nil)
                 }
             if showPlaylist {
-                Divider().overlay(.white.opacity(0.10))
+                Divider().overlay(Theme.separator)
                 PlaylistPane()
                     .frame(height: playlistHeight)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
@@ -51,7 +51,6 @@ struct MainWindowView: View {
             }
         }
         .animation(.easeInOut(duration: 0.16), value: showPlaylist)
-        .preferredColorScheme(.dark)
         .tint(Theme.accent)
         .onReceive(NotificationCenter.default.publisher(for: .editTags)) { _ in
             editingTrack = engine.currentTrack
