@@ -202,3 +202,26 @@ final class LibraryKeyTests: XCTestCase {
         XCTAssertTrue(firstCopy.hasSuffix("#file"))
     }
 }
+
+final class TransitionFadeTests: XCTestCase {
+    func testMiddleIsFullVolume() {
+        XCTAssertEqual(TransitionFade.factor(position: 10, duration: 30, fadeIn: 0.4, fadeOut: 1), 1, accuracy: 0.0001)
+    }
+
+    func testFadeInAndOut() {
+        XCTAssertEqual(TransitionFade.factor(position: 0.2, duration: 30, fadeIn: 0.4, fadeOut: 1), 0.5, accuracy: 0.0001)
+        XCTAssertEqual(TransitionFade.factor(position: 29.5, duration: 30, fadeIn: 0.4, fadeOut: 1), 0.5, accuracy: 0.0001)
+        XCTAssertEqual(TransitionFade.factor(position: 30, duration: 30, fadeIn: 0.4, fadeOut: 1), 0, accuracy: 0.0001)
+    }
+
+    func testDisabledFadeIsSilentNoOp() {
+        XCTAssertEqual(TransitionFade.factor(position: 0, duration: 10, fadeIn: 0, fadeOut: 0), 1, accuracy: 0.0001)
+        XCTAssertEqual(TransitionFade.factor(position: 10, duration: 10, fadeIn: 0, fadeOut: 0), 1, accuracy: 0.0001)
+    }
+
+    func testShortTrackDoesNotExceedBounds() {
+        let value = TransitionFade.factor(position: 0.1, duration: 0.5, fadeIn: 0.4, fadeOut: 1)
+        XCTAssertGreaterThanOrEqual(value, 0)
+        XCTAssertLessThanOrEqual(value, 1)
+    }
+}

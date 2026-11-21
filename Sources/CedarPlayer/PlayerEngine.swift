@@ -51,6 +51,14 @@ final class PlayerEngine: ObservableObject {
     @Published var bands: [Double] = Array(repeating: 0, count: 10) {
         didSet { applyBands(); persistEQ() }
     }
+    /// Плавное затухание в конце и нарастание в начале трека.
+    @Published var transitionFadeSeconds: Double = 1.0 {
+        didSet {
+            UserDefaults.standard.set(transitionFadeSeconds, forKey: "transitionFadeSeconds")
+            applyFade()
+        }
+    }
+
     @Published var isReplayGainEnabled = false {
         didSet {
             UserDefaults.standard.set(isReplayGainEnabled, forKey: "replayGainEnabled")
@@ -106,6 +114,7 @@ final class PlayerEngine: ObservableObject {
 
     init() {
         isReplayGainEnabled = UserDefaults.standard.bool(forKey: "replayGainEnabled")
+        transitionFadeSeconds = UserDefaults.standard.object(forKey: "transitionFadeSeconds") as? Double ?? 1.0
         loadEQSettings()
         configureGraph()
         startTimer()
@@ -299,8 +308,10 @@ final class PlayerEngine: ObservableObject {
             try? engine.start()
         }
         scheduleFromCurrentFrame()
+        player.volume = 1
         player.play()
         isPlaying = true
+        applyFade()
     }
 
     func pause() {
@@ -327,6 +338,7 @@ final class PlayerEngine: ObservableObject {
         let frame = min(endFrame, startFrame + AVAudioFramePosition((clamped * sampleRate).rounded()))
         seekFrame = frame
         position = clamped
+        if player.isPlaying { player.volume = 1 }
 
         if player.isPlaying {
             let wasPlaying = isPlaying
@@ -419,6 +431,16 @@ final class PlayerEngine: ObservableObject {
         }
     }
 
+    /// Пересчитывает громкость по позиции: мягкий вход и выход без щелчков.
+    private func applyFade() {
+        guard file != nil, isPlaying, player.isPlaying else { return }
+        let fade = max(0, transitionFadeSeconds)
+        player.volume = TransitionFade.factor(position: position,
+                                              duration: duration,
+                                              fadeIn: min(0.4, fade),
+                                              fadeOut: fade)
+    }
+
     private func currentFrame() -> AVAudioFramePosition {
         guard let nodeTime = player.lastRenderTime,
               let playerTime = player.playerTime(forNodeTime: nodeTime) else { return seekFrame }
@@ -443,6 +465,7 @@ final class PlayerEngine: ObservableObject {
                 guard let self, self.isPlaying, self.sampleRate > 0 else { return }
                 let played = Double(self.currentFrame() - self.startFrame) / self.sampleRate
                 self.position = min(self.duration, max(0, played))
+                self.applyFade()
                 self.tick += 1
                 if self.tick % 10 == 0 { self.persistPlaybackState() }
             }
