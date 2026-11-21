@@ -320,9 +320,11 @@ struct AnalogVUMeterView: View {
         context.stroke(arc, with: .color(Theme.separator),
                        style: StrokeStyle(lineWidth: 2, lineCap: .round))
 
+        // Красная зона начинается ровно с риски 0 VU.
+        let redStart = 225 + 90 * Double(VUCalibration.marks.count - 2) / Double(VUCalibration.marks.count - 1)
         var redZone = Path()
         redZone.addArc(center: pivot, radius: radius,
-                       startAngle: .degrees(300), endAngle: .degrees(315), clockwise: false)
+                       startAngle: .degrees(redStart), endAngle: .degrees(315), clockwise: false)
         context.stroke(redZone, with: .color(Color(hex: 0xE06C75)),
                        style: StrokeStyle(lineWidth: 2, lineCap: .round))
 
@@ -365,7 +367,8 @@ struct AnalogVUMeterView: View {
             .foregroundColor(Theme.secondaryText.opacity(0.6))
         context.draw(context.resolve(vu), at: CGPoint(x: size.width / 2, y: 30), anchor: .center)
 
-        let peakLit = peak > 0.95
+        // LED загорается вместе со стрелкой в красной зоне, без рассинхрона по пику.
+        let peakLit = needle >= VUCalibration.position(forVU: 0)
         let led = CGRect(x: size.width - 22, y: 18, width: 8, height: 8)
         context.fill(Path(ellipseIn: led),
                      with: .color(peakLit ? Color(hex: 0xE06C75) : Theme.separator))

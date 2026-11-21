@@ -396,7 +396,7 @@ struct CedarPlayerApp: App {
 
             if ProcessInfo.processInfo.environment["CEDAR_RENDER_VU"] != nil {
                 let vuEngine = PlayerEngine()
-                let vuView = AnalogVUMeterView(preview: VULevels(left: 0.70, right: 0.52,
+                let vuView = AnalogVUMeterView(preview: VULevels(left: 0.88, right: 0.55,
                                                                  peakLeft: 0.98, peakRight: 0.60))
                     .environmentObject(vuEngine)
                     .frame(width: 520, height: 300)
