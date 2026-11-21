@@ -21,3 +21,14 @@ enum TransitionFade {
         return Float(min(max(value, 0), 1))
     }
 }
+
+/// Рампа кроссфейда: старый трек уходит, новый приходит линейно.
+enum Crossfade {
+    static func outgoing(_ progress: Double) -> Float {
+        Float(min(max(1 - progress, 0), 1))
+    }
+
+    static func incoming(_ progress: Double) -> Float {
+        Float(min(max(progress, 0), 1))
+    }
+}

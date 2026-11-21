@@ -93,6 +93,22 @@ struct CedarPlayerApp: App {
             }
         }
 
+        if let index = CommandLine.arguments.firstIndex(of: "--crossfadetest") {
+            let rest = Array(CommandLine.arguments.dropFirst(index + 1))
+            guard rest.count >= 2 else { print("нужны два файла"); exit(1) }
+            let engine = PlayerEngine()
+            var first = Track(url: URL(fileURLWithPath: rest[0]))
+            first.title = "A"
+            var second = Track(url: URL(fileURLWithPath: rest[1]))
+            second.title = "B"
+            engine.setQueue([first, second], startAt: 0, autoplay: false)
+            engine.crossfadeSeconds = 1.5
+            engine.play()
+            RunLoop.main.run(until: Date().addingTimeInterval(3.2))
+            print(String(format: "CROSSFADE current=%@ playing=%@ pos=%.2f", engine.currentTrack?.title ?? "-", engine.isPlaying ? "true" : "false", engine.position))
+            exit(0)
+        }
+
         if let path = Self.argumentValue("--radiotest") {
             let engine = PlayerEngine()
             let urlString = path.hasPrefix("http://") || path.hasPrefix("https://")

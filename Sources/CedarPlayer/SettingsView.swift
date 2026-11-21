@@ -25,6 +25,12 @@ struct SettingsView: View {
                     Text("1 с").tag(1.0)
                     Text("2 с").tag(2.0)
                 }
+                Picker("Кроссфейд", selection: $engine.crossfadeSeconds) {
+                    Text("Выключен").tag(0.0)
+                    Text("2 с").tag(2.0)
+                    Text("4 с").tag(4.0)
+                    Text("6 с").tag(6.0)
+                }
                 Toggle("Выравнивать громкость (ReplayGain)", isOn: $engine.isReplayGainEnabled)
                 Text("Громкость подстраивается по тегам REPLAYGAIN_TRACK_GAIN и пику трека; буст ограничен +6 дБ.")
                     .font(.caption)

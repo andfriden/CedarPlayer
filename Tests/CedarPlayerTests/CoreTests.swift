@@ -314,3 +314,20 @@ final class MiniRotationTests: XCTestCase {
         XCTAssertEqual(MiniRotation.advance(42, by: -1), 42, accuracy: 0.001)
     }
 }
+
+final class CrossfadeRampTests: XCTestCase {
+    func testRampEndpoints() {
+        XCTAssertEqual(Crossfade.outgoing(0), 1, accuracy: 0.0001)
+        XCTAssertEqual(Crossfade.outgoing(1), 0, accuracy: 0.0001)
+        XCTAssertEqual(Crossfade.incoming(0), 0, accuracy: 0.0001)
+        XCTAssertEqual(Crossfade.incoming(1), 1, accuracy: 0.0001)
+    }
+
+    func testRampIsClamped() {
+        XCTAssertEqual(Crossfade.outgoing(-1), 1, accuracy: 0.0001)
+        XCTAssertEqual(Crossfade.outgoing(2), 0, accuracy: 0.0001)
+        XCTAssertEqual(Crossfade.incoming(-1), 0, accuracy: 0.0001)
+        XCTAssertEqual(Crossfade.incoming(2), 1, accuracy: 0.0001)
+        XCTAssertEqual(Crossfade.outgoing(0.25) + Crossfade.incoming(0.25), 1, accuracy: 0.0001)
+    }
+}

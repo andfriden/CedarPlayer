@@ -16,6 +16,11 @@ final class PlayerEngine: ObservableObject {
     private var icyReader: IcyMetadataReader?
     private var radioItemObservation: NSKeyValueObservation?
     @Published private(set) var radioNowPlaying: String?
+
+    /// Истинный кроссфейд: наложение следующего трека на последние секунды текущего.
+    @Published var crossfadeSeconds: Double = 0 {
+        didSet { UserDefaults.standard.set(crossfadeSeconds, forKey: "crossfadeSeconds") }
+    }
     @Published private(set) var radioArtist: String?
     @Published private(set) var radioTrack: String?
 
@@ -101,6 +106,10 @@ final class PlayerEngine: ObservableObject {
 
     private let engine = AVAudioEngine()
     private let player = AVAudioPlayerNode()
+    private let fadePlayer = AVAudioPlayerNode()
+    private let blendMixer = AVAudioMixerNode()
+    private var activeNode: AVAudioPlayerNode!
+    private var idleNode: AVAudioPlayerNode { activeNode === player ? fadePlayer : player }
     private var equalizer: AVAudioUnit!
     private var biquad: BiquadEQAudioUnit?
     private let replayGainNode: AVAudioUnitEQ = {
@@ -126,7 +135,9 @@ final class PlayerEngine: ObservableObject {
     private var timer: Timer?
 
     init() {
+        activeNode = player
         isReplayGainEnabled = UserDefaults.standard.bool(forKey: "replayGainEnabled")
+        crossfadeSeconds = UserDefaults.standard.object(forKey: "crossfadeSeconds") as? Double ?? 0
         transitionFadeSeconds = UserDefaults.standard.object(forKey: "transitionFadeSeconds") as? Double ?? 1.0
         loadEQSettings()
         configureGraph()
@@ -171,17 +182,21 @@ final class PlayerEngine: ObservableObject {
         }
 
         engine.attach(player)
+        engine.attach(fadePlayer)
+        engine.attach(blendMixer)
         engine.attach(timePitch)
         engine.attach(equalizer)
         engine.attach(replayGainNode)
         applyEQState()
         applyBands()
 
-        let format = AVAudioFormat(standardFormatWithSampleRate: 44100, channels: 2)
-        engine.connect(player, to: timePitch, format: format)
-        engine.connect(timePitch, to: equalizer, format: format)
-        engine.connect(equalizer, to: replayGainNode, format: format)
-        engine.connect(replayGainNode, to: engine.mainMixerNode, format: format)
+        // Оба плеера входят в общий микшер, дальше одна цепочка обработки.
+        engine.connect(player, to: blendMixer, format: nil)
+        engine.connect(fadePlayer, to: blendMixer, format: nil)
+        engine.connect(blendMixer, to: timePitch, format: nil)
+        engine.connect(timePitch, to: equalizer, format: nil)
+        engine.connect(equalizer, to: replayGainNode, format: nil)
+        engine.connect(replayGainNode, to: engine.mainMixerNode, format: nil)
         engine.mainMixerNode.outputVolume = Float(volume)
 
         do {
@@ -269,20 +284,15 @@ final class PlayerEngine: ObservableObject {
             let format = newFile.processingFormat
 
             generation += 1
+            cancelCrossfade()
             player.stop()
-            engine.stop()
+            fadePlayer.stop()
+            activeNode = player
+            activeNode.volume = 1
 
-            engine.disconnectNodeOutput(player)
-            engine.disconnectNodeOutput(timePitch)
-            engine.disconnectNodeOutput(equalizer)
-            engine.disconnectNodeOutput(replayGainNode)
-
-            engine.connect(player, to: timePitch, format: format)
-            engine.connect(timePitch, to: equalizer, format: format)
-            engine.connect(equalizer, to: replayGainNode, format: format)
-            engine.connect(replayGainNode, to: engine.mainMixerNode, format: format)
-
-            try engine.start()
+            if !engine.isRunning {
+                try engine.start()
+            }
 
             file = newFile
             sampleRate = format.sampleRate
@@ -305,7 +315,7 @@ final class PlayerEngine: ObservableObject {
 
             if autoplay { play() }
         } catch {
-            player.stop()
+            activeNode.stop()
             isPlaying = false
             currentTrack = track
             duration = track.duration
@@ -394,13 +404,13 @@ final class PlayerEngine: ObservableObject {
             return
         }
         guard file != nil else { return }
-        if player.isPlaying { return }
+        if activeNode.isPlaying { return }
         if !engine.isRunning {
             try? engine.start()
         }
         scheduleFromCurrentFrame()
-        player.volume = 1
-        player.play()
+        activeNode.volume = 1
+        activeNode.play()
         isPlaying = true
         applyFade()
     }
@@ -411,9 +421,10 @@ final class PlayerEngine: ObservableObject {
             isPlaying = false
             return
         }
-        guard player.isPlaying else { return }
+        cancelCrossfade()
+        guard activeNode.isPlaying else { return }
         seekFrame = currentFrame()
-        player.pause()
+        activeNode.pause()
         isPlaying = false
     }
 
@@ -427,7 +438,8 @@ final class PlayerEngine: ObservableObject {
             isPlaying = false
             return
         }
-        player.stop()
+        cancelCrossfade()
+        activeNode.stop()
         isPlaying = false
         seekFrame = startFrame
         position = 0
@@ -437,19 +449,21 @@ final class PlayerEngine: ObservableObject {
         guard currentStation == nil, file != nil, sampleRate > 0 else { return }
         let clamped = max(0, min(seconds, duration))
         let frame = min(endFrame, startFrame + AVAudioFramePosition((clamped * sampleRate).rounded()))
+        cancelCrossfade()
         seekFrame = frame
         position = clamped
-        if player.isPlaying { player.volume = 1 }
+        if activeNode.isPlaying { activeNode.volume = 1 }
 
-        if player.isPlaying {
+        if activeNode.isPlaying {
             let wasPlaying = isPlaying
-            player.stop()
+            activeNode.stop()
             isPlaying = false
             if wasPlaying { play() }
         }
     }
 
     func next(manual: Bool = false) {
+        cancelCrossfade()
         if currentStation != nil {
             stop()
             if queue.indices.contains(queueIndex) { play(at: queueIndex) }
@@ -500,6 +514,158 @@ final class PlayerEngine: ObservableObject {
 
     func currentIndex() -> Int? { queueIndex >= 0 ? queueIndex : nil }
 
+    // MARK: Кроссфейд
+
+    private struct CrossfadeState {
+        let node: AVAudioPlayerNode
+        let file: AVAudioFile
+        let track: Track
+        let index: Int
+        let startFrame: AVAudioFramePosition
+        let endFrame: AVAudioFramePosition
+        let sampleRate: Double
+        let duration: TimeInterval
+        let fade: TimeInterval
+        let startedAt: Date
+        let incomingToken: Int
+    }
+
+    private var crossfadeState: CrossfadeState?
+    private var crossfadeTimer: Timer?
+
+    /// Следующий индекс очереди с учётом перемешивания и повтора.
+    private func upcomingIndex() -> Int? {
+        guard !queue.isEmpty, repeatMode != .one else { return nil }
+        var next = queueIndex + 1
+        if isShuffle {
+            guard queue.count > 1 else { return nil }
+            var candidate = queueIndex
+            while candidate == queueIndex { candidate = Int.random(in: 0..<queue.count) }
+            next = candidate
+        } else if next >= queue.count {
+            guard repeatMode == .all else { return nil }
+            next = 0
+        }
+        return queue.indices.contains(next) ? next : nil
+    }
+
+    private func startCrossfadeIfNeeded() {
+        guard crossfadeSeconds > 0,
+              crossfadeState == nil,
+              currentStation == nil,
+              isPlaying,
+              activeNode.isPlaying,
+              file != nil,
+              duration > 0,
+              position > 0.5 else { return }
+
+        let remaining = duration - position
+        guard remaining > 0.3, remaining <= crossfadeSeconds,
+              let index = upcomingIndex(),
+              queue.indices.contains(index) else { return }
+        let track = queue[index]
+        guard let nextFile = try? AVAudioFile(forReading: track.url) else { return }
+
+        let nextRate = nextFile.processingFormat.sampleRate
+        guard nextRate > 0 else { return }
+        let fileDuration = Double(nextFile.length) / nextRate
+        let segmentStart = max(0, min(track.cueStart ?? 0, fileDuration))
+        let segmentEnd = max(segmentStart, min(track.cueEnd ?? fileDuration, fileDuration))
+        let startFrame = AVAudioFramePosition((segmentStart * nextRate).rounded())
+        let endFrame = min(nextFile.length,
+                           max(startFrame + 1, AVAudioFramePosition((segmentEnd * nextRate).rounded())))
+        let segmentDuration = nextRate > 0 ? Double(endFrame - startFrame) / nextRate : track.duration
+        let fade = min(crossfadeSeconds, remaining, max(0.3, segmentDuration - 0.2))
+        guard fade > 0.2 else { return }
+
+        let incoming = idleNode
+        incoming.stop()
+        incoming.volume = 0
+
+        let incomingToken = generation + 1
+        incoming.scheduleSegment(nextFile,
+                                 startingFrame: startFrame,
+                                 frameCount: AVAudioFrameCount(endFrame - startFrame),
+                                 at: nil,
+                                 completionCallbackType: .dataPlayedBack) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self, self.generation == incomingToken else { return }
+                self.handleTrackEnd()
+            }
+        }
+        incoming.play()
+
+        crossfadeState = CrossfadeState(node: incoming,
+                                        file: nextFile,
+                                        track: track,
+                                        index: index,
+                                        startFrame: startFrame,
+                                        endFrame: endFrame,
+                                        sampleRate: nextRate,
+                                        duration: segmentDuration,
+                                        fade: fade,
+                                        startedAt: Date(),
+                                        incomingToken: incomingToken)
+        startCrossfadeTimer()
+    }
+
+    private func startCrossfadeTimer() {
+        crossfadeTimer?.invalidate()
+        let timer = Timer(timeInterval: 1.0 / 30.0, repeats: true) { [weak self] _ in
+            Task { @MainActor [weak self] in self?.updateCrossfade() }
+        }
+        crossfadeTimer = timer
+        RunLoop.main.add(timer, forMode: .common)
+    }
+
+    private func updateCrossfade() {
+        guard let state = crossfadeState,
+              let active = activeNode else { return }
+        let elapsed = Date().timeIntervalSince(state.startedAt)
+        let progress = min(1, max(0, elapsed / max(0.05, state.fade)))
+        active.volume = Crossfade.outgoing(progress)
+        state.node.volume = Crossfade.incoming(progress)
+        if progress >= 1 { finishCrossfade() }
+    }
+
+    private func finishCrossfade() {
+        guard let state = crossfadeState else { return }
+        crossfadeTimer?.invalidate()
+        crossfadeTimer = nil
+        crossfadeState = nil
+
+        let old = activeNode
+        old?.stop()
+        old?.volume = 0
+
+        activeNode = state.node
+        file = state.file
+        sampleRate = state.sampleRate
+        startFrame = state.startFrame
+        endFrame = state.endFrame
+        seekFrame = state.startFrame
+        totalFrames = state.file.length
+        duration = state.duration
+        currentTrack = state.track
+        queueIndex = state.index
+        generation = state.incomingToken
+        activeNode.volume = 1
+        position = 0
+        applyReplayGain()
+    }
+
+    private func cancelCrossfade() {
+        crossfadeTimer?.invalidate()
+        crossfadeTimer = nil
+        if let state = crossfadeState {
+            state.node.stop()
+            state.node.volume = 0
+        }
+        crossfadeState = nil
+        activeNode?.volume = 1
+        generation += 1
+    }
+
     // MARK: Планирование сегмента
 
     private func scheduleFromCurrentFrame() {
@@ -510,7 +676,7 @@ final class PlayerEngine: ObservableObject {
         generation += 1
         let token = generation
 
-        player.scheduleSegment(
+        activeNode.scheduleSegment(
             file,
             startingFrame: seekFrame,
             frameCount: AVAudioFrameCount(remaining),
@@ -525,12 +691,13 @@ final class PlayerEngine: ObservableObject {
     }
 
     private func handleTrackEnd() {
+        guard crossfadeState == nil else { return }
         guard isPlaying || position >= duration - 0.5 else { return }
         if repeatMode == .one {
             seekFrame = startFrame
             position = 0
             scheduleFromCurrentFrame()
-            player.play()
+            activeNode.play()
             isPlaying = true
         } else {
             next()
@@ -539,17 +706,17 @@ final class PlayerEngine: ObservableObject {
 
     /// Пересчитывает громкость по позиции: мягкий вход и выход без щелчков.
     private func applyFade() {
-        guard file != nil, isPlaying, player.isPlaying else { return }
+        guard file != nil, isPlaying, activeNode.isPlaying, crossfadeState == nil else { return }
         let fade = max(0, transitionFadeSeconds)
-        player.volume = TransitionFade.factor(position: position,
+        activeNode.volume = TransitionFade.factor(position: position,
                                               duration: duration,
                                               fadeIn: min(0.4, fade),
                                               fadeOut: fade)
     }
 
     private func currentFrame() -> AVAudioFramePosition {
-        guard let nodeTime = player.lastRenderTime,
-              let playerTime = player.playerTime(forNodeTime: nodeTime) else { return seekFrame }
+        guard let nodeTime = activeNode.lastRenderTime,
+              let playerTime = activeNode.playerTime(forNodeTime: nodeTime) else { return seekFrame }
         return min(endFrame, seekFrame + playerTime.sampleTime)
     }
 
@@ -572,6 +739,7 @@ final class PlayerEngine: ObservableObject {
                 let played = Double(self.currentFrame() - self.startFrame) / self.sampleRate
                 self.position = min(self.duration, max(0, played))
                 self.applyFade()
+                self.startCrossfadeIfNeeded()
                 self.tick += 1
                 if self.tick % 10 == 0 { self.persistPlaybackState() }
             }
