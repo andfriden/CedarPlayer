@@ -13,6 +13,9 @@ struct TagEditorSheet: View {
     @State private var album: String
     @State private var albumArtist: String
     @State private var trackNumber: String
+    @State private var genre: String
+    @State private var year: String
+    @State private var composer: String
     @State private var errorMessage: String?
 
     init(track: Track) {
@@ -22,6 +25,9 @@ struct TagEditorSheet: View {
         _album = State(initialValue: track.album)
         _albumArtist = State(initialValue: track.albumArtist)
         _trackNumber = State(initialValue: track.trackNumber > 0 ? String(track.trackNumber) : "")
+        _genre = State(initialValue: track.genre)
+        _year = State(initialValue: track.year)
+        _composer = State(initialValue: track.composer)
     }
 
     var body: some View {
@@ -36,6 +42,9 @@ struct TagEditorSheet: View {
             field("Альбом", text: $album)
             field("Исполнитель альбома", text: $albumArtist)
             field("Номер трека", text: $trackNumber)
+            field("Жанр", text: $genre)
+            field("Год", text: $year)
+            field("Композитор", text: $composer)
 
             if let errorMessage {
                 Text(errorMessage)
@@ -74,7 +83,10 @@ struct TagEditorSheet: View {
                            artist: artist.trimmingCharacters(in: .whitespacesAndNewlines),
                            album: album.trimmingCharacters(in: .whitespacesAndNewlines),
                            albumArtist: albumArtist.trimmingCharacters(in: .whitespacesAndNewlines),
-                           trackNumber: Int(trackNumber.trimmingCharacters(in: .whitespacesAndNewlines)) ?? 0)
+                           trackNumber: Int(trackNumber.trimmingCharacters(in: .whitespacesAndNewlines)) ?? 0,
+                           genre: genre.trimmingCharacters(in: .whitespacesAndNewlines),
+                           year: year.trimmingCharacters(in: .whitespacesAndNewlines),
+                           composer: composer.trimmingCharacters(in: .whitespacesAndNewlines))
         do {
             if let updated = try library.applyTags(edit, to: track.id) {
                 engine.syncCurrentTrack(with: updated)

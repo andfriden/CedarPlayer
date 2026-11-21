@@ -64,6 +64,9 @@ struct CedarPlayerApp: App {
                 case "album": edit.album = parts[1]
                 case "albumartist": edit.albumArtist = parts[1]
                 case "track": edit.trackNumber = Int(parts[1]) ?? 0
+                case "genre": edit.genre = parts[1]
+                case "year": edit.year = parts[1]
+                case "composer": edit.composer = parts[1]
                 default: break
                 }
             }
@@ -499,6 +502,9 @@ struct CedarPlayerApp: App {
                 Divider()
                 Button("Отменить импорт") { library.cancelImport() }
                     .disabled(!library.isImporting)
+                Button("Отменить удаление") { library.undoRemove() }
+                    .keyboardShortcut("z", modifiers: [.option, .command])
+                    .disabled(!library.canUndoRemove)
                 Button("Изменить теги…") {
                     NotificationCenter.default.post(name: .editTags, object: nil)
                 }

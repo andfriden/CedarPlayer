@@ -8,6 +8,9 @@ struct TagEdit {
     var album: String
     var albumArtist: String
     var trackNumber: Int
+    var genre: String = ""
+    var year: String = ""
+    var composer: String = ""
 }
 
 enum TagWriteError: LocalizedError {
@@ -39,7 +42,10 @@ enum TagWriter {
                            artist: tags.artist ?? "",
                            album: tags.album ?? "",
                            albumArtist: tags.albumArtist ?? "",
-                           trackNumber: tags.trackNumber ?? 0)
+                           trackNumber: tags.trackNumber ?? 0,
+                           genre: tags.genre ?? "",
+                           year: tags.year ?? "",
+                           composer: tags.composer ?? "")
 
         if head.count >= 4, head.prefix(4) == Data("fLaC".utf8) {
             try rewriteFLAC(edit, url: url, handle: handle, artwork: image)
@@ -143,14 +149,18 @@ enum TagWriter {
     }
 
     private static func update(_ entries: [(String, String)], with edit: TagEdit) -> [(String, String)] {
-        let managed: Set<String> = ["TITLE", "ARTIST", "ALBUM", "ALBUMARTIST", "ALBUM ARTIST", "TRACKNUMBER"]
+        let managed: Set<String> = ["TITLE", "ARTIST", "ALBUM", "ALBUMARTIST", "ALBUM ARTIST",
+                                    "TRACKNUMBER", "GENRE", "DATE", "YEAR", "COMPOSER"]
         var result = entries.filter { !managed.contains($0.0) }
         let additions: [(String, String)] = [
             ("TITLE", edit.title),
             ("ARTIST", edit.artist),
             ("ALBUM", edit.album),
             ("ALBUMARTIST", edit.albumArtist),
-            ("TRACKNUMBER", edit.trackNumber > 0 ? String(edit.trackNumber) : "")
+            ("TRACKNUMBER", edit.trackNumber > 0 ? String(edit.trackNumber) : ""),
+            ("GENRE", edit.genre),
+            ("DATE", edit.year),
+            ("COMPOSER", edit.composer)
         ]
         result.append(contentsOf: additions.filter { !$0.1.isEmpty })
         return result
@@ -197,6 +207,9 @@ enum TagWriter {
         appendText("TALB", edit.album)
         appendText("TPE2", edit.albumArtist)
         if edit.trackNumber > 0 { appendText("TRCK", String(edit.trackNumber)) }
+        appendText("TCON", edit.genre)
+        appendText("TDRC", edit.year)
+        appendText("TCOM", edit.composer)
         if let overrideArtwork {
             appendFrame("APIC", body: buildAPIC(overrideArtwork), to: &frames)
         } else if let existingArtwork {

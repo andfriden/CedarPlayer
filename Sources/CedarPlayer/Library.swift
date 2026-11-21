@@ -30,6 +30,8 @@ final class Library: ObservableObject {
     @Published var sortAscending: Bool = true
     @Published var isImporting = false
     @Published var statusMessage: String?
+    @Published private(set) var canUndoRemove = false
+    private var lastRemoval: (tracks: [Track], playlists: [Playlist])?
 
     private var saveWorkItem: DispatchWorkItem?
     private let watcher = FolderWatcher()
@@ -444,6 +446,9 @@ final class Library: ObservableObject {
         tracks[index].album = edit.album
         tracks[index].albumArtist = edit.albumArtist
         tracks[index].trackNumber = edit.trackNumber
+        tracks[index].genre = edit.genre
+        tracks[index].year = edit.year
+        tracks[index].composer = edit.composer
         return tracks[index]
     }
 
@@ -456,10 +461,24 @@ final class Library: ObservableObject {
     }
 
     func remove(_ ids: Set<UUID>) {
+        guard !ids.isEmpty, tracks.contains(where: { ids.contains($0.id) }) else { return }
+        lastRemoval = (tracks, playlists)
+        canUndoRemove = true
         tracks.removeAll { ids.contains($0.id) }
         for index in playlists.indices {
             playlists[index].trackIDs.removeAll { ids.contains($0) }
         }
+        statusMessage = "Удалено треков: \(ids.count) · ⌥⌘Z вернёт"
+    }
+
+    /// Возвращает последнее удаление (одно действие, пока его не перезаписали).
+    func undoRemove() {
+        guard let snapshot = lastRemoval else { return }
+        tracks = snapshot.tracks
+        playlists = snapshot.playlists
+        lastRemoval = nil
+        canUndoRemove = false
+        statusMessage = "Удаление отменено"
     }
 
     // MARK: Плейлисты

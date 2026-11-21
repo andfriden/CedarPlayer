@@ -101,13 +101,17 @@ final class TagWriterTests: XCTestCase {
     func testWritesFLACTagsAndKeepsAudio() throws {
         let url = try makeFLAC()
         try TagWriter.write(TagEdit(title: "Заголовок", artist: "Кто-то", album: "Альбом",
-                                    albumArtist: "Кто-то", trackNumber: 3), to: url)
+                                    albumArtist: "Кто-то", trackNumber: 3,
+                                    genre: "Rock", year: "2004", composer: "Автор"), to: url)
 
         let tags = TagReader.read(url: url)
         XCTAssertEqual(tags.title, "Заголовок")
         XCTAssertEqual(tags.artist, "Кто-то")
         XCTAssertEqual(tags.album, "Альбом")
         XCTAssertEqual(tags.trackNumber, 3)
+        XCTAssertEqual(tags.genre, "Rock")
+        XCTAssertEqual(tags.year, "2004")
+        XCTAssertEqual(tags.composer, "Автор")
 
         let data = try Data(contentsOf: url)
         XCTAssertEqual(Array(data.suffix(3)), [0x11, 0x22, 0x33], "аудиоданные должны остаться в конце")
@@ -122,11 +126,14 @@ final class TagWriterTests: XCTestCase {
         file.append(Data(count: 64))
         try file.write(to: url)
 
-        try TagWriter.write(TagEdit(title: "MP3", artist: "A", album: "B", albumArtist: "C", trackNumber: 5), to: url)
+        try TagWriter.write(TagEdit(title: "MP3", artist: "A", album: "B", albumArtist: "C", trackNumber: 5,
+                                    genre: "Pop", year: "2010"), to: url)
 
         let tags = TagReader.read(url: url)
         XCTAssertEqual(tags.title, "MP3")
         XCTAssertEqual(tags.trackNumber, 5)
+        XCTAssertEqual(tags.genre, "Pop")
+        XCTAssertEqual(tags.year, "2010")
 
         let data = try Data(contentsOf: url)
         XCTAssertEqual(data[3], 4, "должен быть ID3v2.4")

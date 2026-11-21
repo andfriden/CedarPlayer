@@ -162,5 +162,15 @@ final class LibraryPlaylistTests: XCTestCase {
         let second = library.createPlaylist(named: "Второй")
         library.add(Set(library.tracks.map(\.id)), to: second.id)
         XCTAssertEqual(library.playlists.first { $0.id == second.id }?.trackIDs.count, 1)
+
+        // Удаление можно отменить одним действием.
+        library.searchText = ""
+        let removedID = try XCTUnwrap(library.tracks.first?.id)
+        library.remove([removedID])
+        XCTAssertEqual(library.tracks.count, 0)
+        XCTAssertTrue(library.canUndoRemove)
+        library.undoRemove()
+        XCTAssertEqual(library.tracks.count, 1)
+        XCTAssertFalse(library.canUndoRemove)
     }
 }

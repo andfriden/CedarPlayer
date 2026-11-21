@@ -9,6 +9,7 @@ struct PlaylistPane: View {
 
     @AppStorage("playlistFilter") private var filterID = "all"
     @AppStorage("sortKey") private var sortKeyRaw = SortKey.added.rawValue
+    @AppStorage("playlistSortAscending") private var sortAscending = true
     @State private var search = ""
     @State private var selection: Set<UUID> = []
     @State private var isDropping = false
@@ -48,6 +49,7 @@ struct PlaylistPane: View {
         case .album: list.sort { $0.displayAlbum.localizedStandardCompare($1.displayAlbum) == .orderedAscending }
         case .duration: list.sort { $0.duration < $1.duration }
         }
+        if !sortAscending { list.reverse() }
         guard !search.isEmpty else { return list }
         let needle = search.lowercased()
         return list.filter {
@@ -171,6 +173,23 @@ struct PlaylistPane: View {
             .frame(height: 26)
 
             Spacer(minLength: 4)
+
+            Menu {
+                Picker("Сортировка", selection: $sortKeyRaw) {
+                    ForEach(SortKey.allCases) { key in
+                        Text(key.title).tag(key.rawValue)
+                    }
+                }
+                Toggle("По возрастанию", isOn: $sortAscending)
+            } label: {
+                Image(systemName: "arrow.up.arrow.down")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(Theme.secondaryText)
+                    .frame(width: 24, height: 24)
+                    .contentShape(Rectangle())
+            }
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
 
             Text("\(tracks.count)")
                 .font(Theme.Fonts.captionMono)
