@@ -232,6 +232,13 @@ struct PlaylistPane: View {
             Text(selectedSmart != nil ? "Выберите «Все треки» в меню фильтра" : "Перетащите файлы сюда")
                 .font(Theme.Fonts.caption)
                 .foregroundStyle(Theme.secondaryText.opacity(0.8))
+
+            if selectedSmart != nil || selectedPlaylist != nil {
+                Button("Показать все треки") { filterID = "all" }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .padding(.top, 4)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
