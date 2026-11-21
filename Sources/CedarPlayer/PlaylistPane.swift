@@ -114,23 +114,33 @@ struct PlaylistPane: View {
     private var header: some View {
         HStack(spacing: 8) {
             Menu {
-                Button("Все треки") { filterID = "all" }
-                Divider()
-                ForEach(SmartRule.allCases) { rule in
-                    Button(rule.title) { filterID = "smart:\(rule.rawValue)" }
-                }
-                if !library.stations.isEmpty {
+                Button("Все треки (\(library.tracks.count))") { filterID = "all" }
+                if !library.playlists.isEmpty {
                     Divider()
-                    ForEach(library.stations) { station in
-                        Button(station.name) {
-                            library.ensureStationLogo(station)
-                            engine.playRadio(station)
+                    ForEach(library.playlists) { playlist in
+                        Button("\(playlist.name) (\(library.tracks(in: playlist).count))") {
+                            filterID = playlist.id.uuidString
                         }
                     }
                 }
                 Divider()
-                ForEach(library.playlists) { playlist in
-                    Button(playlist.name) { filterID = playlist.id.uuidString }
+                Menu("Умные подборки") {
+                    ForEach(SmartRule.allCases) { rule in
+                        Button("\(rule.title) (\(rule.filter(library.tracks).count))") {
+                            filterID = "smart:\(rule.rawValue)"
+                        }
+                    }
+                }
+                if !library.stations.isEmpty {
+                    Divider()
+                    Menu("Радио") {
+                        ForEach(library.stations) { station in
+                            Button(station.name) {
+                                library.ensureStationLogo(station)
+                                engine.playRadio(station)
+                            }
+                        }
+                    }
                 }
                 Divider()
                 Button("Новый плейлист…") {
@@ -216,10 +226,10 @@ struct PlaylistPane: View {
 
     private var emptyState: some View {
         VStack(spacing: 4) {
-            Text("Плейлист пуст")
+            Text(selectedSmart != nil ? "В подборке пока нет треков" : "Плейлист пуст")
                 .font(Theme.Fonts.artist)
                 .foregroundStyle(Theme.secondaryText)
-            Text("Перетащите файлы сюда")
+            Text(selectedSmart != nil ? "Выберите «Все треки» в меню фильтра" : "Перетащите файлы сюда")
                 .font(Theme.Fonts.caption)
                 .foregroundStyle(Theme.secondaryText.opacity(0.8))
         }
