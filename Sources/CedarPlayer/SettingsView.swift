@@ -48,6 +48,29 @@ struct SettingsView: View {
                 }
             }
 
+            Section("Папки наблюдения") {
+                ForEach(library.watchFolders, id: \.self) { folder in
+                    HStack {
+                        Text(folder.path)
+                            .font(.caption)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                        Spacer()
+                        Button("Убрать", role: .destructive) {
+                            library.removeWatchFolder(folder)
+                        }
+                        .buttonStyle(.plain)
+                        .foregroundStyle(.secondary)
+                    }
+                }
+                Button("Добавить папку…") {
+                    library.presentWatchFolderPanel()
+                }
+                Text("Новые аудиофайлы в этих папках добавляются в библиотеку автоматически.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
             Section("Окна") {
                 Toggle("Мини-плеер поверх остальных окон", isOn: $keepMiniOnTop)
             }
@@ -76,7 +99,7 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 460, height: 380)
+        .frame(width: 460, height: 480)
         .padding(.vertical, 8)
     }
 }

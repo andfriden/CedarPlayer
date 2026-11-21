@@ -17,6 +17,12 @@ final class Library: ObservableObject {
     @Published var stations: [RadioStation] = [] {
         didSet { scheduleSave() }
     }
+    @Published var watchFolders: [URL] = [] {
+        didSet {
+            scheduleSave()
+            watcher.watch(watchFolders)
+        }
+    }
     @Published var searchText: String = ""
     @Published var sortKey: SortKey = .added {
         didSet { UserDefaults.standard.set(sortKey.rawValue, forKey: "sortKey") }
@@ -26,6 +32,7 @@ final class Library: ObservableObject {
     @Published var statusMessage: String?
 
     private var saveWorkItem: DispatchWorkItem?
+    private let watcher = FolderWatcher()
     private var importTask: Task<Void, Never>?
 
     private static let supportDirectory: URL = {
@@ -46,6 +53,7 @@ final class Library: ObservableObject {
         var tracks: [Track]
         var playlists: [Playlist]
         var stations: [RadioStation]?
+        var watchFolders: [String]?
     }
 
     init() {
@@ -53,6 +61,15 @@ final class Library: ObservableObject {
             sortKey = key
         }
         load()
+        watcher.onChange = { [weak self] folder in
+            guard let self else { return }
+            Task { @MainActor in
+                let previous = self.statusMessage
+                let imported = await self.importFiles([folder])
+                if imported.isEmpty { self.statusMessage = previous }
+            }
+        }
+        watcher.watch(watchFolders)
     }
 
     // MARK: Хранилище
@@ -63,13 +80,17 @@ final class Library: ObservableObject {
         tracks = store.tracks.filter { FileManager.default.fileExists(atPath: $0.url.path) }
         playlists = store.playlists
         stations = store.stations ?? []
+        watchFolders = (store.watchFolders ?? []).map { URL(fileURLWithPath: $0) }
     }
 
     private func scheduleSave() {
         saveWorkItem?.cancel()
         let work = DispatchWorkItem { [weak self] in
             guard let self else { return }
-            let store = Store(tracks: self.tracks, playlists: self.playlists, stations: self.stations)
+            let store = Store(tracks: self.tracks,
+                              playlists: self.playlists,
+                              stations: self.stations,
+                              watchFolders: self.watchFolders.map(\.path))
             guard let data = try? JSONEncoder().encode(store) else { return }
             try? data.write(to: Self.storeURL, options: .atomic)
 
@@ -442,6 +463,31 @@ final class Library: ObservableObject {
     }
 
     // MARK: Плейлисты
+
+    // MARK: Папки наблюдения
+
+    func presentWatchFolderPanel() {
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.allowsMultipleSelection = true
+        panel.message = "Выберите папки, за которыми следить"
+        panel.prompt = "Следить"
+        guard panel.runModal() == .OK else { return }
+        for url in panel.urls {
+            addWatchFolder(url)
+        }
+    }
+
+    func addWatchFolder(_ url: URL) {
+        let standardized = url.standardizedFileURL
+        guard !watchFolders.contains(where: { $0.standardizedFileURL == standardized }) else { return }
+        watchFolders.append(standardized)
+    }
+
+    func removeWatchFolder(_ url: URL) {
+        watchFolders.removeAll { $0.standardizedFileURL == url.standardizedFileURL }
+    }
 
     @discardableResult
     func addStation(name: String, urlString: String) -> RadioStation? {

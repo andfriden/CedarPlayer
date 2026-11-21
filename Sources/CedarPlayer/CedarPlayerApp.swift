@@ -93,6 +93,24 @@ struct CedarPlayerApp: App {
             }
         }
 
+        if let index = CommandLine.arguments.firstIndex(of: "--watchtest") {
+            guard ProcessInfo.processInfo.environment["CEDAR_LIBRARY_DIR"] != nil else {
+                print("watchtest: задайте CEDAR_LIBRARY_DIR")
+                exit(1)
+            }
+            let rest = Array(CommandLine.arguments.dropFirst(index + 1))
+            guard rest.count >= 2 else { print("нужны папка и файл"); exit(1) }
+            let library = Library()
+            let folder = URL(fileURLWithPath: rest[0])
+            library.addWatchFolder(folder)
+            let source = URL(fileURLWithPath: rest[1])
+            let target = folder.appendingPathComponent("watch-added-" + source.lastPathComponent)
+            try? FileManager.default.copyItem(at: source, to: target)
+            RunLoop.main.run(until: Date().addingTimeInterval(4.0))
+            print("WATCH tracks=\(library.tracks.count) status=\(library.statusMessage ?? "-")")
+            exit(0)
+        }
+
         if let index = CommandLine.arguments.firstIndex(of: "--crossfadetest") {
             let rest = Array(CommandLine.arguments.dropFirst(index + 1))
             guard rest.count >= 2 else { print("нужны два файла"); exit(1) }
