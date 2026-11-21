@@ -311,6 +311,8 @@ struct PlaylistPane: View {
             }
         }
         .help(track.extendedInfoText)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(index + 1). \(track.displayTitle), \(track.displayArtist), \(track.timeText)")
         .onTapGesture { selection = [track.id] }
         .onTapGesture(count: 2) {
             let list = tracks

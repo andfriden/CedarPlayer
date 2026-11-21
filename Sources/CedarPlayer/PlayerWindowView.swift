@@ -124,6 +124,7 @@ struct MiniPlayerView: View {
                         .frame(width: 28, height: 28)
                         .contentShape(Rectangle())
                 }
+                .accessibilityLabel("Предыдущий трек")
                 Button { engine.toggle() } label: {
                     ZStack {
                         Circle().fill(Theme.text.opacity(0.10))
@@ -135,12 +136,14 @@ struct MiniPlayerView: View {
                     .frame(width: 34, height: 34)
                     .contentShape(Rectangle())
                 }
+                .accessibilityLabel(engine.isPlaying ? "Пауза" : "Воспроизвести")
                 Button { engine.next(manual: true) } label: {
                     Image(systemName: "forward.fill")
                         .font(.system(size: 12))
                         .frame(width: 28, height: 28)
                         .contentShape(Rectangle())
                 }
+                .accessibilityLabel("Следующий трек")
             }
             .buttonStyle(.plain)
             .foregroundStyle(Theme.text.opacity(0.9))

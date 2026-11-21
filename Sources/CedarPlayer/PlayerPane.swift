@@ -179,6 +179,7 @@ struct PlayerPane: View {
             }
             .buttonStyle(.plain)
             .help("Звук (⇧⌘M)")
+            .accessibilityLabel(engine.isMuted ? "Включить звук" : "Заглушить")
 
             Slider(value: $engine.volume, in: 0...1)
                 .controlSize(.mini)
@@ -241,7 +242,7 @@ struct PlayerPane: View {
     private var transportRow: some View {
         ZStack {
             HStack(spacing: Theme.Space.s) {
-                transportButton("backward.fill", size: 15) { engine.previous() }
+                transportButton("backward.fill", label: "Предыдущий трек", size: 15) { engine.previous() }
                     .keyboardShortcut(.leftArrow, modifiers: .command)
 
                 Button { engine.toggle() } label: {
@@ -261,8 +262,9 @@ struct PlayerPane: View {
                 .keyboardShortcut(.space, modifiers: [])
                 .disabled(engine.currentTrack == nil && engine.currentStation == nil)
                 .help("Воспроизведение (пробел)")
+                .accessibilityLabel(engine.isPlaying ? "Пауза" : "Воспроизвести")
 
-                transportButton("forward.fill", size: 15) { engine.next(manual: true) }
+                transportButton("forward.fill", label: "Следующий трек", size: 15) { engine.next(manual: true) }
                     .keyboardShortcut(.rightArrow, modifiers: .command)
             }
 
@@ -275,7 +277,8 @@ struct PlayerPane: View {
         .frame(height: 48)
     }
 
-    private func transportButton(_ symbol: String, size: CGFloat, action: @escaping () -> Void) -> some View {
+    private func transportButton(_ symbol: String, label: String, size: CGFloat,
+                                 action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: symbol)
                 .font(.system(size: size, weight: .regular))
@@ -298,6 +301,7 @@ struct PlayerPane: View {
         }
         .buttonStyle(.plain)
         .help("Показать/скрыть плейлист (⌥⌘P)")
+        .accessibilityLabel(showPlaylist ? "Скрыть плейлист" : "Показать плейлист")
     }
 
     private func timeText(_ seconds: TimeInterval) -> String {
