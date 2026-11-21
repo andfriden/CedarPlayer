@@ -202,8 +202,7 @@ struct PlayerPane: View {
     private var progressTooltip: String {
         let left = timeText(engine.position)
         let total = timeText(engine.duration)
-        let parts = [engine.currentTrack?.qualityText ?? "",
-                     engine.currentTrack?.replayGainText ?? ""].filter { !$0.isEmpty }
+        let parts = [engine.currentTrack?.extendedInfoText ?? ""].filter { !$0.isEmpty }
         return parts.isEmpty ? "\(left) из \(total)" : "\(left) из \(total) · \(parts.joined(separator: " · "))"
     }
 

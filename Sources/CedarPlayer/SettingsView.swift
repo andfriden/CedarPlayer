@@ -5,6 +5,7 @@ struct SettingsView: View {
     @AppStorage("keepMiniOnTop") private var keepMiniOnTop = true
     @AppStorage("resumeLastTrack") private var resumeLastTrack = true
     @AppStorage("showFormatColumn") private var showFormatColumn = true
+    @AppStorage("autoCoverSearch") private var autoCoverSearch = true
     @EnvironmentObject private var engine: PlayerEngine
     @EnvironmentObject private var library: Library
 
@@ -40,6 +41,10 @@ struct SettingsView: View {
             }
 
             Section("Библиотека") {
+                Toggle("Искать обложки при импорте", isOn: $autoCoverSearch)
+                Text("Для треков без обложки запрос идёт в iTunes и Deezer; нужен интернет.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 Toggle("Показывать формат и частоту дискретизации", isOn: $showFormatColumn)
                 HStack {
                     Text("Треков в библиотеке: \(library.tracks.count)")

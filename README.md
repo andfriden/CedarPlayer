@@ -19,9 +19,16 @@
 
 **Теги, обложки, правка**
 - Свои парсеры: FLAC (STREAMINFO, Vorbis comments, PICTURE), ID3v2.2/2.3/2.4,
+  ID3v1, APE-теги (включая обложку), RIFF INFO и чанк `ID3 ` в WAV/AIFF,
   AVFoundation как фолбэк для m4a/aac; обложки из папки (`cover`, `folder`, `front`, `album`).
+- Из тегов читаются название, исполнитель, альбом, исполнитель альбома, номер
+  трека и диска, жанр, год, композитор, ReplayGain; всё это видно в подсказке
+  к треку и в прогресс-баре.
 - Запись тегов в файл (⌘T): FLAC и MP3 (ID3v2.4), обложка APIC сохраняется,
   аудиоданные не перекодируются, запись атомарная.
+- Автопоиск обложек при импорте (включается в настройках): для треков без
+  картинки запрос уходит в iTunes/Deezer по альбому и исполнителю, результат
+  применяется ко всем трекам альбома.
 - Поиск обложки в базах, если её нет: лупа на пустой обложке, контекстные меню,
   «Ещё → Найти обложку…». Источники — iTunes Search API и Deezer, найденное можно
   применить ко всему альбому и встроить в файл (FLAC `PICTURE`, MP3 `APIC`).
@@ -105,8 +112,8 @@ iconutil -c icns Resources/AppIcon.iconset -o Resources/AppIcon.icns
 ## Тесты и CI
 
 ```bash
-swift test        # XCTest: альбомы, теги FLAC/MP3, CUE, ReplayGain, кэш обложек,
-                  # импорт в плейлист и добавление при активном поиске
+swift test        # XCTest: альбомы, CUE, ReplayGain, кэш обложек, импорт в плейлист,
+                  # теги FLAC/MP3, ID3v1, APE, RIFF INFO
 ```
 
 CI (`.github/workflows/ci.yml`) на `macos-latest`: release-сборка, тесты,
@@ -117,7 +124,7 @@ CI (`.github/workflows/ci.yml`) на `macos-latest`: release-сборка, те�
 ```bash
 APP="./build/Cedar Player.app/Contents/MacOS/CedarPlayer"
 $APP --selftest /путь/трек.flac        # движок: длительность, seek, EQ, спектр
-$APP --tags /путь/трек.flac            # теги, обложка и ReplayGain
+$APP --tags /путь/трек.flac            # теги, жанр/год/композитор, обложка, ReplayGain
 $APP --cuesheet /путь/album.cue        # треки CUE
 $APP --segment /путь/album.cue 1       # воспроизведение сегмента
 $APP --import /путь/папка              # импорт с отчётом

@@ -307,7 +307,46 @@ final class Library: ObservableObject {
         if ignored > 0 { parts.append("пропущено: \(ignored)") }
         if unreadableDirectories > 0 { parts.append("папок с ошибкой чтения: \(unreadableDirectories)") }
         statusMessage = parts.joined(separator: " · ")
+        autoFetchArtwork(for: imported)
         return imported
+    }
+
+    /// Фоновый поиск обложек для импортированных треков без картинки.
+    private func autoFetchArtwork(for imported: [Track]) {
+        guard !imported.isEmpty else { return }
+        let defaults = UserDefaults.standard
+        let enabled = defaults.object(forKey: "autoCoverSearch") == nil
+            ? true
+            : defaults.bool(forKey: "autoCoverSearch")
+        guard enabled else { return }
+
+        let missing = imported.filter { $0.artwork == nil && !$0.album.isEmpty }
+        guard !missing.isEmpty else { return }
+        let groups = Dictionary(grouping: missing) { track in
+            "\(track.album)|\(track.albumArtist.isEmpty ? track.artist : track.albumArtist)"
+        }
+        guard !groups.isEmpty else { return }
+
+        Task { @MainActor [weak self] in
+            var found = 0
+            var checked = 0
+            for group in groups.values.prefix(20) {
+                guard let first = group.first else { continue }
+                checked += 1
+                let artist = first.albumArtist.isEmpty ? first.artist : first.albumArtist
+                guard let candidate = try? await CoverArtService.shared
+                    .search(artist: artist, album: first.album).first else { continue }
+                self?.setArtwork(candidate.imageData, for: Set(group.map(\.id)))
+                found += 1
+                if found == 1 { self?.statusMessage = "Нашёл обложку: \(first.album)" }
+            }
+            guard let self else { return }
+            if found > 0 {
+                self.statusMessage = "Обложки найдены для \(found) из \(checked) альбомов"
+            } else if checked > 0 {
+                self.statusMessage = "Обложки не найдены (\(checked) альбомов)"
+            }
+        }
     }
 
     /// Проверяет, что файл действительно открывается декодером Core Audio.

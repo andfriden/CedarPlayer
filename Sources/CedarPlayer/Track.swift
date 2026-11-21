@@ -14,7 +14,11 @@ struct Track: Identifiable, Hashable, Codable {
     var channels: Int
     var bitrate: Int
     var albumArtist: String
+    var genre: String
+    var year: String
+    var composer: String
     var trackNumber: Int
+    var discNumber: Int
     var addedAt: Date
     var artwork: Data?
     var artworkID: String?
@@ -35,7 +39,11 @@ struct Track: Identifiable, Hashable, Codable {
         self.channels = 0
         self.bitrate = 0
         self.albumArtist = ""
+        self.genre = ""
+        self.year = ""
+        self.composer = ""
         self.trackNumber = 0
+        self.discNumber = 0
         self.addedAt = Date()
         self.artwork = nil
         self.artworkID = nil
@@ -60,6 +68,16 @@ struct Track: Identifiable, Hashable, Codable {
     var replayGainText: String? {
         guard let gain = replayGainDB else { return nil }
         return "ReplayGain \(ReplayGain.text(gain))"
+    }
+
+    /// Подсказка: формат, жанр, год, композитор, ReplayGain.
+    var extendedInfoText: String {
+        var parts: [String] = [qualityText]
+        if !genre.isEmpty { parts.append(genre) }
+        if !year.isEmpty { parts.append(year) }
+        if !composer.isEmpty { parts.append(composer) }
+        if let replayGainText { parts.append(replayGainText) }
+        return parts.joined(separator: " · ")
     }
 
     var formatText: String {
@@ -167,6 +185,10 @@ enum MetadataReader {
         if let depth = tags.bitDepth { track.bitDepth = depth }
         if let channels = tags.channels { track.channels = channels }
         if let duration = tags.duration { track.duration = duration }
+        if let genre = tags.genre, !genre.isEmpty { track.genre = genre }
+        if let year = tags.year, !year.isEmpty { track.year = year }
+        if let composer = tags.composer, !composer.isEmpty { track.composer = composer }
+        if let disc = tags.discNumber { track.discNumber = disc }
         track.replayGainDB = tags.replayGainDB
         track.replayGainPeak = tags.replayGainPeak
 
@@ -220,6 +242,7 @@ enum MetadataReader {
 extension Track {
     enum CodingKeys: String, CodingKey {
         case id, url, title, artist, album, albumArtist, trackNumber
+        case genre, year, composer, discNumber
         case duration, sampleRate, bitDepth, channels, bitrate
         case addedAt, artwork, artworkID, replayGainDB, replayGainPeak, cueStart, cueEnd
     }
@@ -233,6 +256,10 @@ extension Track {
         album = try container.decodeIfPresent(String.self, forKey: .album) ?? ""
         albumArtist = try container.decodeIfPresent(String.self, forKey: .albumArtist) ?? ""
         trackNumber = try container.decodeIfPresent(Int.self, forKey: .trackNumber) ?? 0
+        genre = try container.decodeIfPresent(String.self, forKey: .genre) ?? ""
+        year = try container.decodeIfPresent(String.self, forKey: .year) ?? ""
+        composer = try container.decodeIfPresent(String.self, forKey: .composer) ?? ""
+        discNumber = try container.decodeIfPresent(Int.self, forKey: .discNumber) ?? 0
         duration = try container.decodeIfPresent(TimeInterval.self, forKey: .duration) ?? 0
         sampleRate = try container.decodeIfPresent(Double.self, forKey: .sampleRate) ?? 0
         bitDepth = try container.decodeIfPresent(Int.self, forKey: .bitDepth) ?? 0
@@ -266,6 +293,10 @@ extension Track {
         try container.encode(album, forKey: .album)
         try container.encode(albumArtist, forKey: .albumArtist)
         try container.encode(trackNumber, forKey: .trackNumber)
+        try container.encode(genre, forKey: .genre)
+        try container.encode(year, forKey: .year)
+        try container.encode(composer, forKey: .composer)
+        try container.encode(discNumber, forKey: .discNumber)
         try container.encode(duration, forKey: .duration)
         try container.encode(sampleRate, forKey: .sampleRate)
         try container.encode(bitDepth, forKey: .bitDepth)

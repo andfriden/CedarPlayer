@@ -117,7 +117,7 @@ struct CedarPlayerApp: App {
 
         if let path = Self.argumentValue("--tags") {
             let tags = TagReader.read(url: URL(fileURLWithPath: path))
-            print("TAGS title=\(tags.title ?? "-") artist=\(tags.artist ?? "-") album=\(tags.album ?? "-") albumArtist=\(tags.albumArtist ?? "-") track=\(tags.trackNumber.map(String.init) ?? "-")")
+            print("TAGS title=\(tags.title ?? "-") artist=\(tags.artist ?? "-") album=\(tags.album ?? "-") albumArtist=\(tags.albumArtist ?? "-") track=\(tags.trackNumber.map(String.init) ?? "-") genre=\(tags.genre ?? "-") year=\(tags.year ?? "-") composer=\(tags.composer ?? "-") disc=\(tags.discNumber.map(String.init) ?? "-")")
             print("TAGS artworkBytes=\(tags.artwork?.count ?? 0) sampleRate=\(tags.sampleRate ?? 0) bitDepth=\(tags.bitDepth ?? 0) channels=\(tags.channels ?? 0) duration=\(String(format: "%.2f", tags.duration ?? 0)) replayGain=\(tags.replayGainDB.map { String(format: "%.2f", $0) } ?? "-") peak=\(tags.replayGainPeak.map { String(format: "%.3f", $0) } ?? "-")")
             exit(0)
         }
@@ -156,8 +156,9 @@ struct CedarPlayerApp: App {
         while semaphore.wait(timeout: .now()) == .timedOut {
             RunLoop.main.run(until: Date().addingTimeInterval(0.1))
         }
-        // Дать библиотеке сохранить состояние (debounce 0.6 с).
-        RunLoop.main.run(until: Date().addingTimeInterval(1.0))
+        // Дать библиотеке сохранить состояние и дождаться автопоиска обложек.
+        let wait: TimeInterval = ProcessInfo.processInfo.environment["CEDAR_WAIT_IMPORT"] != nil ? 8 : 1.0
+        RunLoop.main.run(until: Date().addingTimeInterval(wait))
         exit(0)
     }
 
