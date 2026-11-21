@@ -101,7 +101,7 @@ struct CedarPlayerApp: App {
             let station = RadioStation(name: "Проверка", urlString: urlString)
             engine.playRadio(station)
             RunLoop.main.run(until: Date().addingTimeInterval(6))
-            print("RADIO station=\(engine.currentStation?.name ?? "-") playing=\(engine.isPlaying) trackEmpty=\(engine.currentTrack == nil) nowPlaying=\(engine.radioNowPlaying ?? "-") error=\(engine.errorMessage ?? "-")")
+            print("RADIO station=\(engine.currentStation?.name ?? "-") playing=\(engine.isPlaying) trackEmpty=\(engine.currentTrack == nil) artist=\(engine.radioArtist ?? "-") track=\(engine.radioTrack ?? "-") error=\(engine.errorMessage ?? "-")")
             engine.pause()
             print("RADIO paused=\(!engine.isPlaying)")
             exit(0)

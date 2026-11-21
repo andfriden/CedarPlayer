@@ -40,6 +40,23 @@ final class IcyMetadataReader: NSObject {
         onTitle = nil
     }
 
+    /// "Artist - Song" → ("Artist", "Song"); дефисы внутри имени не трогаем,
+    /// потому что разделитель — только дефис с пробелами вокруг.
+    static func splitTitle(_ value: String) -> (artist: String?, title: String) {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return (nil, value) }
+        for separator in [" - ", " – ", " — "] {
+            if let range = trimmed.range(of: separator) {
+                let artist = trimmed[..<range.lowerBound].trimmingCharacters(in: .whitespaces)
+                let title = trimmed[range.upperBound...].trimmingCharacters(in: .whitespaces)
+                if !artist.isEmpty, !title.isEmpty {
+                    return (artist, title)
+                }
+            }
+        }
+        return (nil, trimmed)
+    }
+
     /// "StreamTitle='Artist - Song';" → "Artist - Song".
     static func extractTitle(from metadata: Data) -> String? {
         guard let text = String(data: metadata, encoding: .utf8)

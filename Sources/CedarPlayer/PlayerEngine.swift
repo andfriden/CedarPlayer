@@ -16,6 +16,8 @@ final class PlayerEngine: ObservableObject {
     private var icyReader: IcyMetadataReader?
     private var radioItemObservation: NSKeyValueObservation?
     @Published private(set) var radioNowPlaying: String?
+    @Published private(set) var radioArtist: String?
+    @Published private(set) var radioTrack: String?
 
     /// Подменяет метаданные играющего трека после правки тегов.
     func syncCurrentTrack(with track: Track) {
@@ -333,6 +335,8 @@ final class PlayerEngine: ObservableObject {
         avPlayer.volume = Float(isMuted ? 0 : volume)
         radioPlayer = avPlayer
         radioNowPlaying = nil
+        radioArtist = nil
+        radioTrack = nil
 
         radioItemObservation = item.observe(\.status, options: [.new]) { [weak self] item, _ in
             Task { @MainActor [weak self] in
@@ -358,7 +362,12 @@ final class PlayerEngine: ObservableObject {
             let reader = IcyMetadataReader()
             icyReader = reader
             reader.start(url: url) { [weak self] title in
-                Task { @MainActor [weak self] in self?.radioNowPlaying = title }
+                let parts = IcyMetadataReader.splitTitle(title)
+                Task { @MainActor [weak self] in
+                    self?.radioNowPlaying = title
+                    self?.radioArtist = parts.artist
+                    self?.radioTrack = parts.title
+                }
             }
         }
     }
@@ -372,6 +381,8 @@ final class PlayerEngine: ObservableObject {
         radioPlayer = nil
         currentStation = nil
         radioNowPlaying = nil
+        radioArtist = nil
+        radioTrack = nil
     }
 
     // MARK: Управление

@@ -268,3 +268,35 @@ final class IcyMetadataTests: XCTestCase {
         XCTAssertNil(IcyMetadataReader.extractTitle(from: Data("StreamTitle='';".utf8)))
     }
 }
+
+final class IcySplitTests: XCTestCase {
+    func testSplitsArtistAndTrack() {
+        let parts = IcyMetadataReader.splitTitle("M83 - Midnight City")
+        XCTAssertEqual(parts.artist, "M83")
+        XCTAssertEqual(parts.title, "Midnight City")
+    }
+
+    func testKeepsHyphenatedArtistName() {
+        let parts = IcyMetadataReader.splitTitle("Jay-Z - 99 Problems")
+        XCTAssertEqual(parts.artist, "Jay-Z")
+        XCTAssertEqual(parts.title, "99 Problems")
+    }
+
+    func testSplitsOnlyFirstSeparator() {
+        let parts = IcyMetadataReader.splitTitle("A - B - C")
+        XCTAssertEqual(parts.artist, "A")
+        XCTAssertEqual(parts.title, "B - C")
+    }
+
+    func testNoSeparator() {
+        let parts = IcyMetadataReader.splitTitle("Just a track")
+        XCTAssertNil(parts.artist)
+        XCTAssertEqual(parts.title, "Just a track")
+    }
+
+    func testEnDash() {
+        let parts = IcyMetadataReader.splitTitle("Artist – Song")
+        XCTAssertEqual(parts.artist, "Artist")
+        XCTAssertEqual(parts.title, "Song")
+    }
+}

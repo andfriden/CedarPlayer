@@ -42,7 +42,8 @@ struct PlayerPane: View {
             artwork
 
             VStack(alignment: .leading, spacing: Theme.Space.xs) {
-                Text(engine.currentStation?.name ?? engine.currentTrack?.displayTitle ?? "Ничего не играет")
+                Text(engine.currentStation.map { engine.radioTrack ?? $0.name }
+                     ?? engine.currentTrack?.displayTitle ?? "Ничего не играет")
                     .font(Theme.Fonts.nowPlaying)
                     .foregroundStyle(Theme.text)
                     .lineLimit(1)
@@ -50,7 +51,7 @@ struct PlayerPane: View {
                     .minimumScaleFactor(0.85)
 
                 Text(engine.currentStation != nil
-                     ? (engine.radioNowPlaying ?? "Онлайн-радио")
+                     ? (engine.radioArtist ?? "Онлайн-радио")
                      : engine.currentTrack?.displayArtist ?? "—")
                     .font(Theme.Fonts.artist)
                     .foregroundStyle(Theme.secondaryText)
@@ -64,7 +65,7 @@ struct PlayerPane: View {
                 }
 
                 if let station = engine.currentStation {
-                    Text(station.host)
+                    Text(station.name)
                         .font(Theme.Fonts.caption)
                         .foregroundStyle(Theme.secondaryText.opacity(0.8))
                         .lineLimit(1)

@@ -43,7 +43,7 @@ final class NowPlayingService {
                 Task { @MainActor [weak self] in self?.updateDuration(duration) }
             }
             .store(in: &cancellables)
-        engine.$radioNowPlaying
+        engine.$radioTrack
             .sink { [weak self] _ in
                 Task { @MainActor [weak self] in self?.refreshNow() }
             }
@@ -62,8 +62,9 @@ final class NowPlayingService {
         let center = MPNowPlayingInfoCenter.default()
         if let engine, let station = engine.currentStation {
             center.nowPlayingInfo = [
-                MPMediaItemPropertyTitle: station.name,
-                MPMediaItemPropertyArtist: engine.radioNowPlaying ?? "Онлайн-радио",
+                MPMediaItemPropertyTitle: engine.radioTrack ?? station.name,
+                MPMediaItemPropertyArtist: engine.radioArtist ?? "Онлайн-радио",
+                MPMediaItemPropertyAlbumTitle: station.name,
                 MPNowPlayingInfoPropertyPlaybackRate: engine.isPlaying ? 1.0 : 0.0
             ]
             center.playbackState = engine.isPlaying ? .playing : .paused
