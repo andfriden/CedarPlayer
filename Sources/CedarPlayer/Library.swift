@@ -115,7 +115,7 @@ final class Library: ObservableObject {
 
     // MARK: Импорт
 
-    func presentImportPanel() {
+    func presentImportPanel(into playlistID: UUID? = nil) {
         let panel = NSOpenPanel()
         panel.allowsMultipleSelection = true
         panel.canChooseDirectories = true
@@ -125,12 +125,12 @@ final class Library: ObservableObject {
         panel.prompt = "Добавить"
 
         guard panel.runModal() == .OK else { return }
-        importURLs(panel.urls)
+        importURLs(panel.urls, into: playlistID)
     }
 
-    func importURLs(_ urls: [URL]) {
+    func importURLs(_ urls: [URL], into playlistID: UUID? = nil) {
         importTask?.cancel()
-        importTask = Task { await importFiles(urls) }
+        importTask = Task { await importFiles(urls, into: playlistID) }
     }
 
     /// Прерывает текущий импорт: уже прочитанные треки остаются в библиотеке.
@@ -141,7 +141,7 @@ final class Library: ObservableObject {
     /// Добавляет файлы и папки, возвращает только что добавленные треки.
     /// Битые, пустые и дублирующиеся файлы пропускаются и попадают в отчёт.
     @discardableResult
-    func importFiles(_ urls: [URL]) async -> [Track] {
+    func importFiles(_ urls: [URL], into playlistID: UUID? = nil) async -> [Track] {
         let fm = FileManager.default
         var files: [URL] = []
         var cueFiles: [URL] = []
@@ -279,6 +279,15 @@ final class Library: ObservableObject {
         }
 
         tracks.append(contentsOf: imported)
+
+        // Новые треки сразу попадают в выбранный плейлист, а не только в «Все треки».
+        if let playlistID,
+           !imported.isEmpty,
+           let index = playlists.firstIndex(where: { $0.id == playlistID }) {
+            let ids = imported.map(\.id).filter { !playlists[index].trackIDs.contains($0) }
+            playlists[index].trackIDs.append(contentsOf: ids)
+        }
+
         isImporting = false
         importTask = nil
 
@@ -367,7 +376,8 @@ final class Library: ObservableObject {
 
     func add(_ ids: Set<UUID>, to playlistID: UUID) {
         guard let index = playlists.firstIndex(where: { $0.id == playlistID }) else { return }
-        let ordered = visibleTracks.map(\.id).filter { ids.contains($0) }
+        // Порядок — как в библиотеке: поиск и сортировка не должны мешать добавлению.
+        let ordered = tracks.map(\.id).filter { ids.contains($0) }
         playlists[index].trackIDs.append(contentsOf: ordered.filter { !playlists[index].trackIDs.contains($0) })
     }
 

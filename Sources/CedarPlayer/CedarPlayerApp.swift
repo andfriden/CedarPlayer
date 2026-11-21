@@ -78,6 +78,11 @@ struct CedarPlayerApp: App {
             }
         }
 
+        if let index = CommandLine.arguments.firstIndex(of: "--playlist-import") {
+            let rest = Array(CommandLine.arguments.dropFirst(index + 1))
+            Self.runPlaylistImportTest(path: rest.first ?? "", name: rest.count > 1 ? rest[1] : "Плейлист")
+        }
+
         if let index = CommandLine.arguments.firstIndex(of: "--cover") {
             let rest = Array(CommandLine.arguments.dropFirst(index + 1))
             Self.runCoverTest(artist: rest.first ?? "", album: rest.count > 1 ? rest[1] : "")
@@ -137,6 +142,37 @@ struct CedarPlayerApp: App {
             RunLoop.main.run(until: Date().addingTimeInterval(0.1))
         }
         // Дать библиотеке сохранить состояние (debounce 0.6 с).
+        RunLoop.main.run(until: Date().addingTimeInterval(1.0))
+        exit(0)
+    }
+
+    /// Проверка импорта в конкретный плейлист: `--playlist-import <папка> <имя>`.
+    /// Требует CEDAR_LIBRARY_DIR, чтобы не трогать рабочую библиотеку.
+    private static func runPlaylistImportTest(path: String, name: String) -> Never {
+        guard ProcessInfo.processInfo.environment["CEDAR_LIBRARY_DIR"] != nil else {
+            print("playlist-import: задайте CEDAR_LIBRARY_DIR")
+            exit(1)
+        }
+        let semaphore = DispatchSemaphore(value: 0)
+        Task { @MainActor in
+            let library = Library()
+            let playlist = library.createPlaylist(named: name)
+            let imported = await library.importFiles([URL(fileURLWithPath: path)], into: playlist.id)
+            let inPlaylist = library.playlists.first { $0.id == playlist.id }?.trackIDs.count ?? -1
+
+            // Добавление выделения не должно зависеть от поиска.
+            library.searchText = "zzz"
+            let second = library.createPlaylist(named: "Второй")
+            library.add(Set(library.tracks.map(\.id)), to: second.id)
+            let inSecond = library.playlists.first { $0.id == second.id }?.trackIDs.count ?? -1
+            library.searchText = ""
+
+            print("PLAYLIST name=\(name) imported=\(imported.count) inPlaylist=\(inPlaylist) all=\(library.tracks.count) secondUnderSearch=\(inSecond)")
+            semaphore.signal()
+        }
+        while semaphore.wait(timeout: .now()) == .timedOut {
+            RunLoop.main.run(until: Date().addingTimeInterval(0.1))
+        }
         RunLoop.main.run(until: Date().addingTimeInterval(1.0))
         exit(0)
     }

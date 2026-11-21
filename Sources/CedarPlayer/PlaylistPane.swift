@@ -75,7 +75,7 @@ struct PlaylistPane: View {
             for provider in providers {
                 _ = provider.loadObject(ofClass: URL.self) { url, _ in
                     guard let url else { return }
-                    Task { @MainActor in library.importURLs([url]) }
+                    Task { @MainActor in library.importURLs([url], into: selectedPlaylist?.id) }
                 }
             }
             return true
@@ -159,7 +159,7 @@ struct PlaylistPane: View {
                 .foregroundStyle(Theme.secondaryText)
 
             Button {
-                library.presentImportPanel()
+                library.presentImportPanel(into: selectedPlaylist?.id)
             } label: {
                 Image(systemName: "plus")
                     .font(.system(size: 12, weight: .medium))

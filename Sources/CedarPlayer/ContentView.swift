@@ -36,6 +36,11 @@ struct ContentView: View {
         }
     }
 
+    private var selectedPlaylistID: UUID? {
+        if case .playlist(let id) = sidebarSelection { return id }
+        return nil
+    }
+
     private var detailTracks: [Track] { openAlbum?.tracks ?? displayedTracks }
 
     private var albums: [AlbumGroup] { AlbumGroup.group(displayedTracks) }
@@ -79,7 +84,7 @@ struct ContentView: View {
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
                 Button {
-                    library.presentImportPanel()
+                    library.presentImportPanel(into: selectedPlaylistID)
                 } label: {
                     Label("Добавить файлы", systemImage: "plus")
                 }
@@ -337,7 +342,7 @@ struct ContentView: View {
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: 360)
-            Button("Добавить файлы…") { library.presentImportPanel() }
+            Button("Добавить файлы…") { library.presentImportPanel(into: selectedPlaylistID) }
                 .buttonStyle(.borderedProminent)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -362,7 +367,7 @@ struct ContentView: View {
             _ = provider.loadObject(ofClass: URL.self) { url, _ in
                 guard let url else { return }
                 Task { @MainActor in
-                    library.importURLs([url])
+                    library.importURLs([url], into: selectedPlaylistID)
                 }
             }
         }
