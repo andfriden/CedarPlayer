@@ -1,4 +1,5 @@
 import Foundation
+import AppKit
 import CryptoKit
 
 /// Кэш обложек на диске: файлы по SHA-256, в библиотеке хранится только ключ.
@@ -8,6 +9,7 @@ final class ArtworkCache {
 
     private let directory: URL
     private let queue = DispatchQueue(label: "cedar.artwork.cache")
+    private let images = NSCache<NSString, NSImage>()
 
     private init() {
         let base = Self.defaultRoot.appendingPathComponent("Artwork", isDirectory: true)
@@ -46,6 +48,17 @@ final class ArtworkCache {
     func data(for key: String) -> Data? {
         let url = directory.appendingPathComponent(key)
         return try? Data(contentsOf: url)
+    }
+
+    /// Декодированная обложка для списков: повторные перерисовки не декодируют PNG заново.
+    func image(for key: String) -> NSImage? {
+        let cacheKey = key as NSString
+        if let cached = images.object(forKey: cacheKey) {
+            return cached
+        }
+        guard let data = data(for: key), let image = NSImage(data: data) else { return nil }
+        images.setObject(image, forKey: cacheKey)
+        return image
     }
 
     /// Удаляет файлы, на которые больше не ссылается библиотека.

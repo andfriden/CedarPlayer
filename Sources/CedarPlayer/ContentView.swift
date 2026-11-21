@@ -4,7 +4,7 @@ import UniformTypeIdentifiers
 
 struct ContentView: View {
     @EnvironmentObject private var library: Library
-    @EnvironmentObject private var engine: PlayerEngine
+    @Environment(\.player) private var player
 
     @State private var selection: Set<UUID> = []
     @State private var sidebarSelection: SidebarItem? = .allTracks
@@ -196,7 +196,7 @@ struct ContentView: View {
                 ForEach(library.stations) { station in
                     Button {
                         library.ensureStationLogo(station)
-                        engine.playRadio(station)
+                        player?.playRadio(station)
                     } label: {
                         HStack(spacing: Theme.Space.s) {
                             stationIcon(station)
@@ -333,11 +333,9 @@ struct ContentView: View {
                 ScrollView {
                     LazyVStack(spacing: 0) {
                         ForEach(Array(detailTracks.enumerated()), id: \.element.id) { index, track in
-                            TrackRow(
+                            LiveTrackRow(
                                 index: index + 1,
                                 track: track,
-                                isCurrent: engine.currentTrack?.id == track.id,
-                                isPlaying: engine.isPlaying && engine.currentTrack?.id == track.id,
                                 isSelected: selection.contains(track.id)
                             )
                             .contentShape(Rectangle())
@@ -399,10 +397,7 @@ struct ContentView: View {
                               alignment: .leading,
                               spacing: 18) {
                         ForEach(albums) { album in
-                            AlbumCard(album: album,
-                                      isCurrent: engine.currentTrack.map { current in
-                                          album.tracks.contains { $0.id == current.id }
-                                      } ?? false)
+                            LiveAlbumCard(album: album)
                             .onTapGesture(count: 2) { play(album: album) }
                             .onTapGesture { openAlbum = album }
                             .contextMenu {
@@ -435,7 +430,7 @@ struct ContentView: View {
     private func play(album: AlbumGroup) {
         guard !album.tracks.isEmpty else { return }
         selection = [album.tracks[0].id]
-        engine.setQueue(album.tracks, startAt: 0)
+        player?.setQueue(album.tracks, startAt: 0)
     }
 
     private var emptyState: some View {
@@ -467,7 +462,7 @@ struct ContentView: View {
         let tracks = detailTracks
         guard tracks.indices.contains(index) else { return }
         selection = [tracks[index].id]
-        engine.setQueue(tracks, startAt: index)
+        player?.setQueue(tracks, startAt: index)
     }
 
     private func handleTrackDrop(_ providers: [NSItemProvider], into playlistID: UUID) -> Bool {
@@ -525,6 +520,34 @@ struct ContentView: View {
             }
         }
         return true
+    }
+}
+
+/// Строка сама следит за текущим треком, чтобы список не перерисовывался целиком.
+private struct LiveTrackRow: View {
+    @EnvironmentObject private var engine: PlayerEngine
+    let index: Int
+    let track: Track
+    let isSelected: Bool
+
+    var body: some View {
+        TrackRow(index: index,
+                 track: track,
+                 isCurrent: engine.currentTrack?.id == track.id,
+                 isPlaying: engine.isPlaying && engine.currentTrack?.id == track.id,
+                 isSelected: isSelected)
+    }
+}
+
+private struct LiveAlbumCard: View {
+    @EnvironmentObject private var engine: PlayerEngine
+    let album: AlbumGroup
+
+    var body: some View {
+        AlbumCard(album: album,
+                  isCurrent: engine.currentTrack.map { current in
+                      album.tracks.contains { $0.id == current.id }
+                  } ?? false)
     }
 }
 

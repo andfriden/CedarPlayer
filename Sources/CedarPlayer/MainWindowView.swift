@@ -5,7 +5,7 @@ import AppKit
 /// сворачивается кнопкой в плеере, пунктом меню и ⌥⌘P, окно подстраивает высоту.
 struct MainWindowView: View {
     @EnvironmentObject private var library: Library
-    @EnvironmentObject private var engine: PlayerEngine
+    @Environment(\.player) private var player
     @AppStorage("showPlaylist") private var showPlaylist = true
     @AppStorage("resumeLastTrack") private var resumeLastTrack = true
     @State private var window: NSWindow?
@@ -19,8 +19,7 @@ struct MainWindowView: View {
         VStack(spacing: 0) {
             PlayerPane()
                 .contextMenu {
-                    Button("Изменить теги…") { editingTrack = engine.currentTrack }
-                        .disabled(engine.currentTrack == nil)
+                    EditTagsMenuItem { track in editingTrack = track }
                 }
             if showPlaylist {
                 Divider().overlay(Theme.separator)
@@ -42,7 +41,7 @@ struct MainWindowView: View {
                 guard let window else { return }
                 window.minSize = NSSize(width: width, height: playerHeight)
                 forceDesignSize(window)
-                NowPlayingService.shared.attach(engine)
+                if let player { NowPlayingService.shared.attach(player) }
                 if let shotPath = ProcessInfo.processInfo.environment["CEDAR_WINDOW_SHOT"] {
                     prepareScreenshot(path: shotPath)
                 } else {
@@ -53,12 +52,14 @@ struct MainWindowView: View {
         .animation(.easeInOut(duration: 0.16), value: showPlaylist)
         .tint(Theme.accent)
         .onReceive(NotificationCenter.default.publisher(for: .editTags)) { _ in
-            editingTrack = engine.currentTrack
+            editingTrack = player?.currentTrack
         }
         .sheet(item: $editingTrack) { track in
-            TagEditorSheet(track: track)
-                .environmentObject(library)
-                .environmentObject(engine)
+            if let player {
+                TagEditorSheet(track: track)
+                    .environmentObject(library)
+                    .environmentObject(player)
+            }
         }
     }
 
@@ -69,10 +70,10 @@ struct MainWindowView: View {
             if !trackPath.isEmpty {
                 let shotURL = URL(fileURLWithPath: trackPath).standardizedFileURL
                 if let index = library.tracks.firstIndex(where: { $0.url.standardizedFileURL.path == shotURL.path }) {
-                    engine.setQueue(library.tracks, startAt: index, autoplay: true)
+                    player?.setQueue(library.tracks, startAt: index, autoplay: true)
                 } else {
                     let track = await MetadataReader.read(url: URL(fileURLWithPath: trackPath))
-                    engine.setQueue([track], startAt: 0, autoplay: true)
+                    player?.setQueue([track], startAt: 0, autoplay: true)
                 }
             }
             try? await Task.sleep(nanoseconds: 1_800_000_000)
@@ -109,17 +110,17 @@ struct MainWindowView: View {
 
     /// Восстанавливает последний трек и позицию (настройка «Запоминать последний трек»).
     private func restoreLastPlayback() {
-        guard resumeLastTrack, engine.currentTrack == nil else { return }
+        guard resumeLastTrack, let player, player.currentTrack == nil else { return }
         let defaults = UserDefaults.standard
         guard let idString = defaults.string(forKey: "lastTrackID"),
               let id = UUID(uuidString: idString) else { return }
         let tracks = library.visibleTracks
         guard let index = tracks.firstIndex(where: { $0.id == id }) else { return }
 
-        engine.setQueue(tracks, startAt: index, autoplay: false)
+        player.setQueue(tracks, startAt: index, autoplay: false)
         let position = defaults.double(forKey: "lastPosition")
         if position > 0.5 {
-            engine.seek(to: position)
+            player.seek(to: position)
         }
     }
 
@@ -162,5 +163,18 @@ struct WindowAccessor: NSViewRepresentable {
 
     func updateNSView(_ nsView: NSView, context: Context) {
         DispatchQueue.main.async { onWindow(nsView.window) }
+    }
+}
+
+
+/// Пункт меню с живым состоянием текущего трека: сам подписан на движок,
+/// чтобы главное окно не перерисовывалось на каждом обновлении позиции.
+private struct EditTagsMenuItem: View {
+    @EnvironmentObject private var engine: PlayerEngine
+    let action: (Track?) -> Void
+
+    var body: some View {
+        Button("Изменить теги…") { action(engine.currentTrack) }
+            .disabled(engine.currentTrack == nil)
     }
 }

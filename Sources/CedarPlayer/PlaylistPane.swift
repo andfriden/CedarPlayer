@@ -11,6 +11,7 @@ struct PlaylistPane: View {
     @AppStorage("sortKey") private var sortKeyRaw = SortKey.added.rawValue
     @AppStorage("playlistSortAscending") private var sortAscending = true
     @State private var search = ""
+    @State private var appliedSearch = ""
     @State private var selection: Set<UUID> = []
     @State private var isDropping = false
     @State private var hoveredTrackID: UUID?
@@ -33,33 +34,16 @@ struct PlaylistPane: View {
         return SmartRule(rawValue: String(filterID.dropFirst(6)))
     }
 
-    private var tracks: [Track] {
-        var list: [Track]
-        if let playlist = selectedPlaylist {
-            list = library.tracks(in: playlist)
-        } else {
-            list = library.tracks
-        }
-        if let selectedSmart {
-            list = selectedSmart.filter(list)
-        }
-        let sortKey = SortKey(rawValue: sortKeyRaw) ?? .added
-        switch sortKey {
-        case .added: list.sort { $0.addedAt < $1.addedAt }
-        case .title: list.sort { $0.displayTitle.localizedStandardCompare($1.displayTitle) == .orderedAscending }
-        case .artist: list.sort { $0.displayArtist.localizedStandardCompare($1.displayArtist) == .orderedAscending }
-        case .album: list.sort { $0.displayAlbum.localizedStandardCompare($1.displayAlbum) == .orderedAscending }
-        case .duration: list.sort { $0.duration < $1.duration }
-        }
-        if !sortAscending { list.reverse() }
-        guard !search.isEmpty else { return list }
-        let needle = search.lowercased()
-        return list.filter {
-            $0.displayTitle.lowercased().contains(needle)
-            || $0.artist.lowercased().contains(needle)
-            || $0.album.lowercased().contains(needle)
-        }
+    private var result: Library.TrackListResult {
+        library.query(filterID: filterID,
+                      search: appliedSearch,
+                      sortKey: SortKey(rawValue: sortKeyRaw) ?? .added,
+                      ascending: sortAscending)
     }
+
+    private var tracks: [Track] { result.tracks }
+
+    private var showsArtwork: Bool { result.mixedArtwork }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -87,6 +71,15 @@ struct PlaylistPane: View {
         .frame(width: 425)
         .background(Theme.panel)
         .onAppear { if isShot { search = "" } }
+        .task(id: search) {
+            if search.isEmpty {
+                appliedSearch = ""
+                return
+            }
+            try? await Task.sleep(nanoseconds: 180_000_000)
+            guard !Task.isCancelled else { return }
+            appliedSearch = search
+        }
         .sheet(item: $coverTrack) { track in
             CoverPickerSheet(track: track)
                 .environmentObject(library)
@@ -257,18 +250,6 @@ struct PlaylistPane: View {
 
     // MARK: Строка
 
-    /// Обложки в строках нужны, только когда список смешивает разные альбомы.
-    private var showsArtwork: Bool {
-        let withArtwork = tracks.filter { $0.artwork != nil }
-        guard withArtwork.count > 1 else { return false }
-        return Set(withArtwork.map(coverSignature)).count > 1
-    }
-
-    private func coverSignature(_ track: Track) -> String {
-        if let id = track.artworkID { return id }
-        return "\(track.album)|\(track.albumArtist)|\(track.artist)"
-    }
-
     private func row(_ track: Track, index: Int) -> some View {
         let isCurrent = engine.currentTrack?.id == track.id
         let isSelected = selection.contains(track.id)
@@ -395,7 +376,8 @@ struct PlaylistPane: View {
 
     @ViewBuilder
     private func artwork(_ track: Track) -> some View {
-        if let data = track.artwork, let image = NSImage(data: data) {
+        if let image = track.artworkID.flatMap({ ArtworkCache.shared.image(for: $0) })
+            ?? track.artwork.flatMap({ NSImage(data: $0) }) {
             Image(nsImage: image).resizable().aspectRatio(contentMode: .fill)
         } else {
             ZStack {

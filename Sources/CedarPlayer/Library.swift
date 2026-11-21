@@ -9,10 +9,16 @@ import AVFoundation
 final class Library: ObservableObject {
 
     @Published var tracks: [Track] = [] {
-        didSet { scheduleSave() }
+        didSet {
+            revision &+= 1
+            scheduleSave()
+        }
     }
     @Published var playlists: [Playlist] = [] {
-        didSet { scheduleSave() }
+        didSet {
+            revision &+= 1
+            scheduleSave()
+        }
     }
     @Published var stations: [RadioStation] = [] {
         didSet { scheduleSave() }
@@ -32,6 +38,29 @@ final class Library: ObservableObject {
     @Published var statusMessage: String?
     @Published private(set) var canUndoRemove = false
     private var lastRemoval: (tracks: [Track], playlists: [Playlist])?
+
+    /// Растёт при любом изменении треков или плейлистов; ключ кэша запросов.
+    private var revision = 0
+
+    /// Результат выборки для списка: треки и признак смешанных обложек.
+    struct TrackListResult {
+        let tracks: [Track]
+        let mixedArtwork: Bool
+    }
+
+    private struct QueryKey: Hashable {
+        var filterID: String
+        var search: String
+        var sortKey: SortKey
+        var ascending: Bool
+        var revision: Int
+    }
+
+    private var queryCache: [QueryKey: TrackListResult] = [:]
+    private var queryOrder: [QueryKey] = []
+    private var indexRevision = -1
+    private var tracksByID: [UUID: Track] = [:]
+    private var searchIndex: [UUID: String] = [:]
 
     private var saveWorkItem: DispatchWorkItem?
     private let watcher = FolderWatcher()
@@ -119,36 +148,88 @@ final class Library: ObservableObject {
     // MARK: Список
 
     var visibleTracks: [Track] {
-        let filtered: [Track]
-        if searchText.trimmingCharacters(in: .whitespaces).isEmpty {
-            filtered = tracks
-        } else {
-            let needle = searchText.lowercased()
-            filtered = tracks.filter {
-                $0.displayTitle.lowercased().contains(needle)
-                || $0.artist.lowercased().contains(needle)
-                || $0.album.lowercased().contains(needle)
-                || $0.url.lastPathComponent.lowercased().contains(needle)
-            }
+        query(filterID: "all", search: searchText, sortKey: sortKey, ascending: sortAscending).tracks
+    }
+
+    private func ensureIndex() {
+        guard indexRevision != revision else { return }
+        tracksByID = Dictionary(tracks.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        searchIndex = Dictionary(uniqueKeysWithValues: tracks.map { track in
+            (track.id, "\(track.displayTitle)\n\(track.artist)\n\(track.album)\n\(track.url.lastPathComponent)".lowercased())
+        })
+        indexRevision = revision
+    }
+
+    private func trackMap() -> [UUID: Track] {
+        ensureIndex()
+        return tracksByID
+    }
+
+    /// Единая выборка для панели плейлиста и окна библиотеки.
+    /// Кэш живёт до изменения библиотеки, поиска, сортировки или фильтра.
+    func query(filterID: String, search: String, sortKey: SortKey, ascending: Bool) -> TrackListResult {
+        let key = QueryKey(filterID: filterID,
+                           search: search,
+                           sortKey: sortKey,
+                           ascending: ascending,
+                           revision: revision)
+        if let cached = queryCache[key] {
+            return cached
         }
 
-        let sorted: [Track]
-        switch sortKey {
-        case .added: sorted = filtered.sorted { $0.addedAt < $1.addedAt }
-        case .title: sorted = filtered.sorted { $0.displayTitle.localizedStandardCompare($1.displayTitle) == .orderedAscending }
-        case .artist: sorted = filtered.sorted { $0.displayArtist.localizedStandardCompare($1.displayArtist) == .orderedAscending }
-        case .album: sorted = filtered.sorted { $0.displayAlbum.localizedStandardCompare($1.displayAlbum) == .orderedAscending }
-        case .duration: sorted = filtered.sorted { $0.duration < $1.duration }
+        var list: [Track]
+        if filterID == "all" {
+            list = tracks
+        } else if filterID.hasPrefix("smart:"),
+                  let rule = SmartRule(rawValue: String(filterID.dropFirst(6))) {
+            list = rule.filter(tracks)
+        } else if let playlist = playlists.first(where: { $0.id.uuidString == filterID }) {
+            let byID = trackMap()
+            list = playlist.trackIDs.compactMap { byID[$0] }
+        } else {
+            list = tracks
         }
-        return sortAscending ? sorted : sorted.reversed()
+
+        let needle = search.trimmingCharacters(in: .whitespaces).lowercased()
+        if !needle.isEmpty {
+            ensureIndex()
+            list = list.filter { (searchIndex[$0.id] ?? "").contains(needle) }
+        }
+
+        switch sortKey {
+        case .added: list.sort { $0.addedAt < $1.addedAt }
+        case .title: list.sort { $0.displayTitle.localizedStandardCompare($1.displayTitle) == .orderedAscending }
+        case .artist: list.sort { $0.displayArtist.localizedStandardCompare($1.displayArtist) == .orderedAscending }
+        case .album: list.sort { $0.displayAlbum.localizedStandardCompare($1.displayAlbum) == .orderedAscending }
+        case .duration: list.sort { $0.duration < $1.duration }
+        }
+        if !ascending { list.reverse() }
+
+        var signatures = Set<String>()
+        var withArtwork = 0
+        for track in list where track.artwork != nil {
+            withArtwork += 1
+            signatures.insert(track.artworkID ?? "\(track.album)|\(track.albumArtist)|\(track.artist)")
+            if signatures.count > 1 { break }
+        }
+        let result = TrackListResult(tracks: list, mixedArtwork: withArtwork > 1 && signatures.count > 1)
+
+        queryCache[key] = result
+        queryOrder.append(key)
+        if queryOrder.count > 4, let oldest = queryOrder.first {
+            queryOrder.removeFirst()
+            queryCache.removeValue(forKey: oldest)
+        }
+        return result
     }
 
     func track(with id: UUID) -> Track? {
-        tracks.first { $0.id == id }
+        trackMap()[id]
     }
 
     func tracks(in playlist: Playlist) -> [Track] {
-        playlist.trackIDs.compactMap { track(with: $0) }
+        let byID = trackMap()
+        return playlist.trackIDs.compactMap { byID[$0] }
     }
 
     // MARK: Импорт

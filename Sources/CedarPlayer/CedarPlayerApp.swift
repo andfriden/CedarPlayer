@@ -113,6 +113,10 @@ struct CedarPlayerApp: App {
             exit(0)
         }
 
+        if CommandLine.arguments.contains("--bench") {
+            Self.runBench()
+        }
+
         if let path = Self.argumentValue("--snapshots") {
             Self.runSnapshots(path: path)
         }
@@ -271,6 +275,56 @@ struct CedarPlayerApp: App {
         // Дать библиотеке сохранить состояние и дождаться автопоиска обложек.
         let wait: TimeInterval = ProcessInfo.processInfo.environment["CEDAR_WAIT_IMPORT"] != nil ? 8 : 1.0
         RunLoop.main.run(until: Date().addingTimeInterval(wait))
+        exit(0)
+    }
+
+    // MARK: Замер больших библиотек
+
+    private static func runBench() -> Never {
+        let count = Int(Self.argumentValue("--tracks") ?? "") ?? 10000
+        let playlistSize = min(count, Int(Self.argumentValue("--playlist") ?? "") ?? 5000)
+        var tracks: [Track] = []
+        tracks.reserveCapacity(count)
+        for index in 0..<count {
+            var track = Track(url: URL(fileURLWithPath: "/tmp/bench/\(index).flac"))
+            track.title = "Track \(index)"
+            track.artist = "Artist \(index % 100)"
+            track.album = "Album \(index % 250)"
+            track.duration = 120 + Double(index % 240)
+            track.addedAt = Date(timeIntervalSince1970: Double(index))
+            tracks.append(track)
+        }
+        let library = Library(testTracks: tracks)
+        var playlist = Playlist(name: "Bench")
+        playlist.trackIDs = tracks.prefix(playlistSize).map(\.id)
+        library.playlists = [playlist]
+
+        func measure(_ name: String, iterations: Int, _ body: () -> Int) {
+            _ = body()
+            let start = Date()
+            var sink = 0
+            for _ in 0..<iterations { sink &+= body() }
+            let ms = Date().timeIntervalSince(start) / Double(iterations) * 1000
+            print(String(format: "BENCH %@ avg=%.2f ms sink=%d", name, ms, sink))
+        }
+
+        print("BENCH tracks=\(count) playlist=\(playlistSize)")
+        measure("visibleTracks", iterations: 20) { library.visibleTracks.count }
+        measure("playlistTracks", iterations: 20) { library.tracks(in: playlist).count }
+        measure("sortedPlaylistQuery", iterations: 20) {
+            let list = library.tracks(in: playlist).sorted {
+                $0.displayTitle.localizedStandardCompare($1.displayTitle) == .orderedAscending
+            }
+            return list.count
+        }
+        var searchCounter = 0
+        measure("querySearchCold", iterations: 20) {
+            searchCounter += 1
+            return library.query(filterID: "all",
+                                 search: "Track \(searchCounter)",
+                                 sortKey: .title,
+                                 ascending: true).tracks.count
+        }
         exit(0)
     }
 
@@ -802,6 +856,7 @@ struct CedarPlayerApp: App {
             MainWindowView()
                 .environmentObject(library)
                 .environmentObject(engine)
+                .environment(\.player, engine)
                 .onAppear { appDelegate.configure(library: library, engine: engine) }
                 .preferredColorScheme(colorScheme)
         }
@@ -911,6 +966,7 @@ struct CedarPlayerApp: App {
             ContentView()
                 .environmentObject(library)
                 .environmentObject(engine)
+                .environment(\.player, engine)
                 .preferredColorScheme(colorScheme)
         }
         .defaultSize(width: 900, height: 560)
