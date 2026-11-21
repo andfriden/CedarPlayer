@@ -82,6 +82,7 @@ struct MiniPlayerView: View {
     @EnvironmentObject private var library: Library
 
     @State private var angle: Double = 0
+    @State private var miniWindow: NSWindow?
     private let tick = Timer.publish(every: 1.0 / 30.0, on: .main, in: .common).autoconnect()
 
     var body: some View {
@@ -136,6 +137,21 @@ struct MiniPlayerView: View {
         .frame(minWidth: 286, minHeight: 92)
         .background(Theme.background)
         .tint(Theme.accent)
+        .background(WindowAccessor { candidate in
+            if let candidate { miniWindow = candidate }
+        })
+        .overlay(alignment: .topTrailing) {
+            Button(action: returnToMain) {
+                Image(systemName: "arrow.up.left.and.arrow.down.right")
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(Theme.secondaryText)
+                    .frame(width: 22, height: 22)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .padding(Theme.Space.xs)
+            .help("Вернуться в обычный режим")
+        }
         .onAppear { setMainWindowHidden(true) }
         .onDisappear { setMainWindowHidden(false) }
         .onReceive(tick) { _ in
@@ -144,10 +160,23 @@ struct MiniPlayerView: View {
         }
     }
 
+    /// Закрывает мини-плеер; главное окно вернёт onDisappear.
+    private func returnToMain() {
+        if let miniWindow {
+            miniWindow.close()
+            return
+        }
+        guard NSApp != nil else { return }
+        for window in NSApp.windows where window.title == "Мини-плеер" {
+            window.close()
+        }
+    }
+
     /// Пока открыт мини-плеер, основное окно убрано; после закрытия возвращается.
     private func setMainWindowHidden(_ hidden: Bool) {
-        // В CLI-рендере приложения ещё нет: NSApp == nil.
-        guard NSApp != nil else { return }
+        // В CLI-рендере AppKit ещё не запущен: не трогаем окна.
+        guard ProcessInfo.processInfo.environment["CEDAR_RENDER_MINI"] == nil,
+              NSApp != nil else { return }
         for window in NSApp.windows where window.identifier?.rawValue.contains("main-AppWindow") == true {
             if hidden {
                 window.orderOut(nil)
