@@ -66,6 +66,10 @@
 - Онлайн-радио: станции (имя + URL) хранятся в библиотеке, запускаются через
   `AVPlayer`; play/pause работают с пульта и медиа-клавиш, Now Playing показывает
   название станции, перемотки для потока нет (вместо неё «Прямой эфир»).
+- ICY-метаданные: отдельное соединение с `Icy-MetaData: 1` вытаскивает
+  `StreamTitle` («исполнитель — трек»), он виден в плеере и уходит в Now Playing.
+- Ошибки потока (недоступный хост, отказ воспроизведения) показываются в строке
+  ошибки плеера, воспроизведение при этом останавливается.
 - Мини-плеер: вращающаяся «пластинка» с обложкой, название и исполнитель,
   тонкий прогресс с временем, назад / play / вперёд. Цвета и кнопки — как в
   основном плеере; окно 320×96 по умолчанию, минимум 286×92, тянется за угол.
@@ -138,7 +142,8 @@ $APP --playlist-import /путь/папка "Имя"   # импорт сразу
 $APP --writetags /путь/трек.flac title="Имя" artist="Кто" track=3
 $APP --cover "M83" "Hurry Up, We're Dreaming"
 $APP --embedcover /путь/трек.flac /путь/обложка.png
-$APP --radiotest /путь/файл.mp3        # проверка радио-ветки AVPlayer
+$APP --radiotest /путь/файл.mp3        # радио-ветка AVPlayer
+$APP --radiotest https://поток          # ICY-метаданные и ошибки потока
 $APP --nowplaying /путь/трек.flac      # словарь Now Playing и команды
 $APP --eqdump                          # сохранённые настройки EQ
 ```
@@ -181,6 +186,7 @@ CedarPlayer/
     ├── SmartPlaylist.swift       правила умных подборок
     ├── PlaylistFile.swift        импорт/экспорт M3U и PLS
     ├── RadioStation.swift        модель онлайн-станции
+    ├── IcyMetadataReader.swift   StreamTitle из ICY-потока
     ├── CueSheet.swift            парсер CUE и сегменты
     ├── PlayerEngine.swift        AVAudioEngine, очередь, сегменты, EQ, состояние
     ├── BiquadEQAudioUnit.swift   DSP-эквалайзер на vDSP_biquadm

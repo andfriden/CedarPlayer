@@ -13,6 +13,9 @@ final class PlayerEngine: ObservableObject {
     @Published private(set) var currentTrack: Track?
     @Published private(set) var currentStation: RadioStation?
     private var radioPlayer: AVPlayer?
+    private var icyReader: IcyMetadataReader?
+    private var radioItemObservation: NSKeyValueObservation?
+    @Published private(set) var radioNowPlaying: String?
 
     /// Подменяет метаданные играющего трека после правки тегов.
     func syncCurrentTrack(with track: Track) {
@@ -325,17 +328,50 @@ final class PlayerEngine: ObservableObject {
         errorMessage = nil
         currentStation = station
 
-        let avPlayer = AVPlayer(playerItem: AVPlayerItem(url: url))
+        let item = AVPlayerItem(url: url)
+        let avPlayer = AVPlayer(playerItem: item)
         avPlayer.volume = Float(isMuted ? 0 : volume)
         radioPlayer = avPlayer
+        radioNowPlaying = nil
+
+        radioItemObservation = item.observe(\.status, options: [.new]) { [weak self] item, _ in
+            Task { @MainActor [weak self] in
+                guard let self, self.currentStation != nil else { return }
+                switch item.status {
+                case .failed:
+                    let reason = item.error?.localizedDescription ?? "поток недоступен"
+                    self.errorMessage = "Радио: \(reason)"
+                    self.isPlaying = false
+                    self.radioPlayer?.pause()
+                case .readyToPlay:
+                    if self.errorMessage?.hasPrefix("Радио") == true { self.errorMessage = nil }
+                default:
+                    break
+                }
+            }
+        }
+
         avPlayer.play()
         isPlaying = true
+
+        if url.scheme == "http" || url.scheme == "https" {
+            let reader = IcyMetadataReader()
+            icyReader = reader
+            reader.start(url: url) { [weak self] title in
+                Task { @MainActor [weak self] in self?.radioNowPlaying = title }
+            }
+        }
     }
 
     private func stopRadioPlayback() {
+        icyReader?.cancel()
+        icyReader = nil
+        radioItemObservation?.invalidate()
+        radioItemObservation = nil
         radioPlayer?.pause()
         radioPlayer = nil
         currentStation = nil
+        radioNowPlaying = nil
     }
 
     // MARK: Управление

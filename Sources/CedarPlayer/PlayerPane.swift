@@ -49,7 +49,9 @@ struct PlayerPane: View {
                     .truncationMode(.tail)
                     .minimumScaleFactor(0.85)
 
-                Text(engine.currentStation != nil ? "Онлайн-радио" : engine.currentTrack?.displayArtist ?? "—")
+                Text(engine.currentStation != nil
+                     ? (engine.radioNowPlaying ?? "Онлайн-радио")
+                     : engine.currentTrack?.displayArtist ?? "—")
                     .font(Theme.Fonts.artist)
                     .foregroundStyle(Theme.secondaryText)
                     .lineLimit(1)

@@ -95,10 +95,13 @@ struct CedarPlayerApp: App {
 
         if let path = Self.argumentValue("--radiotest") {
             let engine = PlayerEngine()
-            let station = RadioStation(name: "Проверка", urlString: URL(fileURLWithPath: path).absoluteString)
+            let urlString = path.hasPrefix("http://") || path.hasPrefix("https://")
+                ? path
+                : URL(fileURLWithPath: path).absoluteString
+            let station = RadioStation(name: "Проверка", urlString: urlString)
             engine.playRadio(station)
-            RunLoop.main.run(until: Date().addingTimeInterval(1.5))
-            print("RADIO station=\(engine.currentStation?.name ?? "-") playing=\(engine.isPlaying) trackEmpty=\(engine.currentTrack == nil)")
+            RunLoop.main.run(until: Date().addingTimeInterval(6))
+            print("RADIO station=\(engine.currentStation?.name ?? "-") playing=\(engine.isPlaying) trackEmpty=\(engine.currentTrack == nil) nowPlaying=\(engine.radioNowPlaying ?? "-") error=\(engine.errorMessage ?? "-")")
             engine.pause()
             print("RADIO paused=\(!engine.isPlaying)")
             exit(0)

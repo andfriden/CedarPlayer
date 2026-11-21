@@ -256,3 +256,15 @@ final class SmartRuleTests: XCTestCase {
         XCTAssertEqual(decoded.rating, 4)
     }
 }
+
+final class IcyMetadataTests: XCTestCase {
+    func testExtractsStreamTitle() {
+        let metadata = Data("StreamTitle='M83 - Midnight City';".utf8)
+        XCTAssertEqual(IcyMetadataReader.extractTitle(from: metadata), "M83 - Midnight City")
+    }
+
+    func testMissingOrEmptyTitle() {
+        XCTAssertNil(IcyMetadataReader.extractTitle(from: Data("StreamUrl='x';".utf8)))
+        XCTAssertNil(IcyMetadataReader.extractTitle(from: Data("StreamTitle='';".utf8)))
+    }
+}
