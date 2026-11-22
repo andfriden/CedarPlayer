@@ -130,7 +130,7 @@
 Рядом с DMG лежит `.sha256`; проверка:
 
 ```bash
-shasum -a 256 -c CedarPlayer-1.0.1.dmg.sha256
+shasum -a 256 -c CedarPlayer-1.1.0.dmg.sha256
 ```
 
 В релизе также остаётся zip-архив для тех, кому удобнее распаковать вручную.
@@ -162,10 +162,10 @@ iconutil -c icns Resources/AppIcon.iconset -o Resources/AppIcon.icns
 ## Релиз
 
 ```bash
-Scripts/package-release.sh 1.0.1   # сборка, dist/CedarPlayer-1.0.1.dmg/.zip и .sha256
+Scripts/package-release.sh 1.1.0   # сборка, dist/CedarPlayer-1.1.0.dmg/.zip и .sha256
 ```
 
-Тег `v*` (например, `v1.0.1`) запускает `.github/workflows/release.yml`: сборка, упаковка и
+Тег `v*` (например, `v1.1.0`) запускает `.github/workflows/release.yml`: сборка, упаковка и
 публикация GitHub Release. Если в секретах репозитория заданы
 `MACOS_CERTIFICATE`, `MACOS_CERTIFICATE_PASSWORD`, `KEYCHAIN_PASSWORD`,
 `CEDAR_SIGN_IDENTITY`, `APPLE_ID`, `APPLE_TEAM_ID` и `APPLE_APP_PASSWORD`,

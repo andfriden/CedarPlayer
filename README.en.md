@@ -133,7 +133,7 @@ flag with `xattr -dr com.apple.quarantine "/Applications/Cedar Player.app"`.
 A `.sha256` file is published next to the DMG; verify it with:
 
 ```bash
-shasum -a 256 -c CedarPlayer-1.0.1.dmg.sha256
+shasum -a 256 -c CedarPlayer-1.1.0.dmg.sha256
 ```
 
 A zip archive is also included for those who prefer to unpack manually.
@@ -164,10 +164,10 @@ iconutil -c icns Resources/AppIcon.iconset -o Resources/AppIcon.icns
 ## Release
 
 ```bash
-Scripts/package-release.sh 1.0.1   # build, dist/CedarPlayer-1.0.1.dmg/.zip and .sha256
+Scripts/package-release.sh 1.1.0   # build, dist/CedarPlayer-1.1.0.dmg/.zip and .sha256
 ```
 
-A `v*` tag (for example, `v1.0.1`) triggers `.github/workflows/release.yml`:
+A `v*` tag (for example, `v1.1.0`) triggers `.github/workflows/release.yml`:
 build, packaging and GitHub Release publication. If the repository secrets
 `MACOS_CERTIFICATE`, `MACOS_CERTIFICATE_PASSWORD`, `KEYCHAIN_PASSWORD`,
 `CEDAR_SIGN_IDENTITY`, `APPLE_ID`, `APPLE_TEAM_ID` and `APPLE_APP_PASSWORD` are
