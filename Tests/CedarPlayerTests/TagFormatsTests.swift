@@ -13,6 +13,93 @@ final class TagFormatsTests: XCTestCase {
         try? FileManager.default.removeItem(at: directory)
     }
 
+    private func syncSafe(_ value: Int) -> Data {
+        Data([UInt8((value >> 21) & 0x7F), UInt8((value >> 14) & 0x7F),
+              UInt8((value >> 7) & 0x7F), UInt8(value & 0x7F)])
+    }
+
+    private func id3Frame(_ id: String, body: Data, major: Int) -> Data {
+        var data = Data(id.utf8)
+        if major == 4 {
+            data.append(syncSafe(body.count))
+        } else {
+            data.append(Data([UInt8((body.count >> 24) & 0xFF), UInt8((body.count >> 16) & 0xFF),
+                              UInt8((body.count >> 8) & 0xFF), UInt8(body.count & 0xFF)]))
+        }
+        data.append(Data([0, 0]))
+        data.append(body)
+        return data
+    }
+
+    private func id3Tag(major: Int, flags: UInt8, body: Data) -> Data {
+        var data = Data("ID3".utf8)
+        data.append(Data([UInt8(major), 0, flags]))
+        data.append(syncSafe(body.count))
+        data.append(body)
+        return data
+    }
+
+    func testReadsAPICWithUTF16Description() throws {
+        let image = Data([0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10]) + Data("JFIF".utf8)
+        var body = Data([1])
+        body.append(Data("image/jpeg".utf8))
+        body.append(0)
+        body.append(3)
+        body.append(Data([0xFF, 0xFE]))
+        body.append("vkn.ext.net".data(using: .utf16LittleEndian)!)
+        body.append(Data([0, 0]))
+        body.append(image)
+
+        let file = id3Tag(major: 3, flags: 0, body: id3Frame("APIC", body: body, major: 3))
+        let url = directory.appendingPathComponent("utf16-apic.mp3")
+        try file.write(to: url)
+
+        let tags = TagReader.read(url: url)
+        XCTAssertEqual(tags.artwork, image)
+    }
+
+    func testReadsAPICAfterID3v24ExtendedHeader() throws {
+        let image = Data([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]) + Data("PNG".utf8)
+        var body = Data([0])
+        body.append(Data("image/png".utf8))
+        body.append(0)
+        body.append(3)
+        body.append(0)
+        body.append(image)
+
+        let extended = Data([0, 0, 0, 6, 1, 0])
+        let frames = extended + id3Frame("APIC", body: body, major: 4)
+        let file = id3Tag(major: 4, flags: 0x40, body: frames)
+        let url = directory.appendingPathComponent("extended-apic.mp3")
+        try file.write(to: url)
+
+        let tags = TagReader.read(url: url)
+        XCTAssertEqual(tags.artwork, image)
+    }
+
+    func testReadsID3v22PIC() throws {
+        let image = Data([0xFF, 0xD8, 0xFF, 0xDB, 0x00, 0x43]) + Data("JPEG".utf8)
+        var body = Data([0])
+        body.append(Data("JPG".utf8))
+        body.append(3)
+        body.append(Data("cover".utf8))
+        body.append(0)
+        body.append(image)
+
+        var frame = Data("PIC".utf8)
+        frame.append(Data([UInt8((body.count >> 16) & 0xFF),
+                           UInt8((body.count >> 8) & 0xFF),
+                           UInt8(body.count & 0xFF)]))
+        frame.append(body)
+
+        let file = id3Tag(major: 2, flags: 0, body: frame)
+        let url = directory.appendingPathComponent("v22-pic.mp3")
+        try file.write(to: url)
+
+        let tags = TagReader.read(url: url)
+        XCTAssertEqual(tags.artwork, image)
+    }
+
     func testReadsID3v1() throws {
         func pad(_ value: String, _ length: Int) -> Data {
             var data = Data(value.utf8.prefix(length))

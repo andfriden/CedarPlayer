@@ -155,16 +155,29 @@ enum TagReader {
         var tags = AudioTags()
         guard head.count >= 10 else { return tags }
         let major = Int(head[3])
+        let flags = head[5]
         let tagSize = syncSafe(head[6..<10])
         handle.seek(toFileOffset: 10)
         let payload = handle.readData(ofLength: tagSize)
-        parseID3v2(payload, major: major, into: &tags)
+        parseID3v2(payload, major: major, flags: flags, into: &tags)
         return tags
     }
 
-    private static func parseID3v2(_ rawPayload: Data, major: Int, into tags: inout AudioTags) {
+    private static func parseID3v2(_ rawPayload: Data, major: Int, flags: UInt8, into tags: inout AudioTags) {
         let payload = major == 2 ? convertID3v22(rawPayload) : rawPayload
         var offset = 0
+        // Extended header: v2.3 stores its size excluding the size field, v2.4 includes it.
+        if flags & 0x40 != 0, payload.count >= 4 {
+            if major == 4 {
+                let extended = syncSafe(payload[0..<4])
+                if extended >= 6, extended <= payload.count { offset = extended }
+            } else if major == 3 {
+                let extended = Int(payload[0]) << 24 | Int(payload[1]) << 16
+                    | Int(payload[2]) << 8 | Int(payload[3])
+                let total = 4 + extended
+                if extended >= 6, total <= payload.count { offset = total }
+            }
+        }
         while offset + 10 <= payload.count {
             let idData = payload.subdata(in: offset..<offset+4)
             guard let id = String(data: idData, encoding: .isoLatin1), id.first != "\0" else { break }
@@ -216,6 +229,7 @@ enum TagReader {
             let size = Int(payload[offset+3]) << 16 | Int(payload[offset+4]) << 8 | Int(payload[offset+5])
             guard size > 0, offset + 6 + size <= payload.count else { break }
             let frame = payload.subdata(in: offset+6..<offset+6+size)
+            var frameBody = frame
             let mapped: String?
             switch id {
             case "TT2": mapped = "TIT2"
@@ -230,9 +244,25 @@ enum TagReader {
             case "PIC": mapped = "APIC"
             default: mapped = nil
             }
+            if id == "PIC", frame.count >= 4 {
+                // ID3v2.2 PIC has a 3-byte image format where APIC expects a MIME type.
+                let format = String(data: frame[1..<4], encoding: .isoLatin1)?.uppercased() ?? ""
+                let mime: String
+                switch format {
+                case "JPG", "JPEG": mime = "image/jpeg"
+                case "PNG": mime = "image/png"
+                case "GIF": mime = "image/gif"
+                case "BMP": mime = "image/bmp"
+                default: mime = "image/\(format.lowercased())"
+                }
+                frameBody = Data([frame[0]])
+                    + Data(mime.utf8)
+                    + Data([0])
+                    + frame.subdata(in: 4..<frame.count)
+            }
             if let mapped, let idBytes = mapped.data(using: .isoLatin1) {
                 var sizeBytes = Data()
-                let value = frame.count
+                let value = frameBody.count
                 sizeBytes.append(UInt8((value >> 24) & 0xFF))
                 sizeBytes.append(UInt8((value >> 16) & 0xFF))
                 sizeBytes.append(UInt8((value >> 8) & 0xFF))
@@ -240,7 +270,7 @@ enum TagReader {
                 output.append(idBytes)
                 output.append(sizeBytes)
                 output.append(Data([0, 0]))
-                output.append(frame)
+                output.append(frameBody)
             }
             offset += 6 + size
         }
@@ -353,7 +383,7 @@ enum TagReader {
                     let start = 10
                     let end = min(body.count, start + tagSize)
                     if start <= end {
-                        parseID3v2(body.subdata(in: start..<end), major: major, into: &tags)
+                        parseID3v2(body.subdata(in: start..<end), major: major, flags: body[5], into: &tags)
                     }
                 }
             case "NAME":
@@ -444,8 +474,15 @@ enum TagReader {
         guard index < frame.count else { return nil }
         index += 1
         if encoding == 1 || encoding == 2 {
-            while index + 1 < frame.count && !(frame[index] == 0 && frame[index+1] == 0) { index += 1 }
-            index += 2
+            // UTF-16 code units are two bytes; scanning byte-by-byte can stop
+            // on a 0x00 high byte followed by the first terminator byte.
+            while index + 1 < frame.count {
+                if frame[index] == 0 && frame[index+1] == 0 {
+                    index += 2
+                    break
+                }
+                index += 2
+            }
         } else {
             while index < frame.count && frame[index] != 0 { index += 1 }
             index += 1
