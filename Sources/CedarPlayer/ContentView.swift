@@ -16,6 +16,7 @@ struct ContentView: View {
     @State private var stationURL = ""
     @State private var stationLogoURL = ""
     @State private var dropTargetPlaylist: UUID?
+    @State private var isCreatingPlaylistFromDrop = false
     @State private var openAlbum: AlbumGroup?
     @AppStorage("libraryLayout") private var layout = "list"
 
@@ -235,7 +236,7 @@ struct ContentView: View {
                                 ? Color.accentColor.opacity(0.18)
                                 : Color.clear
                         )
-                        .onDrop(of: [UTType.text],
+                        .onDrop(of: [UTType.text, UTType.fileURL],
                                 isTargeted: Binding(
                                     get: { dropTargetPlaylist == playlist.id },
                                     set: { targeted in
@@ -245,16 +246,19 @@ struct ContentView: View {
                                             dropTargetPlaylist = nil
                                         }
                                     })) { providers in
-                            handleTrackDrop(providers, into: playlist.id)
+                            handlePlaylistDrop(providers, into: playlist.id)
                         }
                         .contextMenu {
-                        Button("Удалить плейлист", role: .destructive) {
-                            library.delete(playlist)
-                            if sidebarSelection == .playlist(playlist.id) {
-                                sidebarSelection = .allTracks
+                            Button("Переименовать…") { renamePlaylist(playlist) }
+                            Button("Очистить плейлист", role: .destructive) {
+                                clearPlaylist(playlist)
+                            }
+                            .disabled(playlist.trackIDs.isEmpty)
+                            Divider()
+                            Button("Удалить плейлист…", role: .destructive) {
+                                deletePlaylist(playlist)
                             }
                         }
-                    }
                 }
                 Button {
                     isNamingPlaylist = true
@@ -263,6 +267,27 @@ struct ContentView: View {
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(.secondary)
+                .listRowBackground(
+                    isCreatingPlaylistFromDrop ? Color.accentColor.opacity(0.18) : Color.clear
+                )
+                .help("Можно перетащить папку — плейлист получит её имя")
+                .onDrop(of: [UTType.fileURL], isTargeted: $isCreatingPlaylistFromDrop) { providers in
+                    loadDroppedURLs(providers) { urls in
+                        let folders = urls.filter(isDirectory)
+                        guard !folders.isEmpty else {
+                            Task { @MainActor in library.statusMessage = "Перетащите папку с музыкой" }
+                            return
+                        }
+                        Task { @MainActor in
+                            for folder in folders {
+                                if let created = await library.importFolderAsPlaylist(folder) {
+                                    sidebarSelection = .playlist(created.id)
+                                }
+                            }
+                        }
+                    }
+                    return true
+                }
             } header: {
                 Text("Плейлисты")
             }
@@ -479,31 +504,134 @@ struct ContentView: View {
         library.presentReplacePanel(for: track)
     }
 
-    private func handleTrackDrop(_ providers: [NSItemProvider], into playlistID: UUID) -> Bool {
+    private func loadDroppedURLs(_ providers: [NSItemProvider], completion: @escaping ([URL]) -> Void) {
+        let group = DispatchGroup()
+        var urls: [URL] = []
+        let lock = NSLock()
+        for provider in providers where provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
+            group.enter()
+            _ = provider.loadObject(ofClass: URL.self) { url, _ in
+                if let url {
+                    lock.lock()
+                    urls.append(url)
+                    lock.unlock()
+                }
+                group.leave()
+            }
+        }
+        group.notify(queue: .main) { completion(urls) }
+    }
+
+    private func isDirectory(_ url: URL) -> Bool {
+        (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? url.hasDirectoryPath
+    }
+
+    private func importDropped(_ urls: [URL], into playlistID: UUID?) async {
+        let folders = urls.filter(isDirectory)
+        let files = urls.filter { !isDirectory($0) }
+
+        if let playlistID, library.playlist(with: playlistID) != nil {
+            for folder in folders {
+                _ = await library.importFolder(folder, into: playlistID)
+            }
+            if !files.isEmpty {
+                await library.importFiles(files, into: playlistID)
+            }
+            return
+        }
+
+        for folder in folders {
+            if let created = await library.importFolderAsPlaylist(folder) {
+                sidebarSelection = .playlist(created.id)
+            }
+        }
+        if !files.isEmpty {
+            await library.importFiles(files)
+        }
+    }
+
+    private func handlePlaylistDrop(_ providers: [NSItemProvider], into playlistID: UUID) -> Bool {
         dropTargetPlaylist = nil
         let group = DispatchGroup()
+        var urls: [URL] = []
         var ids: Set<UUID> = []
         let lock = NSLock()
 
         for provider in providers {
-            group.enter()
-            _ = provider.loadObject(ofClass: NSString.self) { value, _ in
-                defer { group.leave() }
-                guard let string = value as? String, let id = UUID(uuidString: string) else { return }
-                lock.lock()
-                ids.insert(id)
-                lock.unlock()
+            if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
+                group.enter()
+                _ = provider.loadObject(ofClass: URL.self) { url, _ in
+                    if let url {
+                        lock.lock()
+                        urls.append(url)
+                        lock.unlock()
+                    }
+                    group.leave()
+                }
+            } else if provider.hasItemConformingToTypeIdentifier(UTType.text.identifier) {
+                group.enter()
+                _ = provider.loadObject(ofClass: NSString.self) { value, _ in
+                    if let string = value as? String, let id = UUID(uuidString: string) {
+                        lock.lock()
+                        ids.insert(id)
+                        lock.unlock()
+                    }
+                    group.leave()
+                }
             }
         }
 
         group.notify(queue: .main) {
-            guard !ids.isEmpty else { return }
-            library.add(ids, to: playlistID)
-            if let playlist = library.playlist(with: playlistID) {
-                library.statusMessage = "Добавлено в «\(playlist.name)»: \(ids.count)"
+            if !ids.isEmpty {
+                library.add(ids, to: playlistID)
+                if let playlist = library.playlist(with: playlistID) {
+                    library.statusMessage = "Добавлено в «\(playlist.name)»: \(ids.count)"
+                }
             }
+            guard !urls.isEmpty else { return }
+            Task { @MainActor in await importDropped(urls, into: playlistID) }
         }
         return true
+    }
+
+    private func renamePlaylist(_ playlist: Playlist) {
+        let alert = NSAlert()
+        alert.messageText = "Переименовать плейлист"
+        alert.informativeText = "Новое название"
+        alert.addButton(withTitle: "Переименовать")
+        alert.addButton(withTitle: "Отмена")
+        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 240, height: 24))
+        field.stringValue = playlist.name
+        alert.accessoryView = field
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        library.renamePlaylist(playlist.id, to: field.stringValue)
+    }
+
+    private func clearPlaylist(_ playlist: Playlist) {
+        let alert = NSAlert()
+        alert.messageText = "Очистить плейлист «\(playlist.name)»?"
+        alert.informativeText = "Треки останутся в библиотеке."
+        alert.addButton(withTitle: "Очистить")
+        alert.addButton(withTitle: "Отмена")
+        alert.buttons.first?.hasDestructiveAction = true
+        if alert.runModal() == .alertFirstButtonReturn {
+            library.clearPlaylist(playlist.id)
+        }
+    }
+
+    private func deletePlaylist(_ playlist: Playlist) {
+        let alert = NSAlert()
+        alert.messageText = "Удалить плейлист «\(playlist.name)»?"
+        alert.informativeText = "Треки останутся в библиотеке."
+        alert.addButton(withTitle: "Удалить")
+        alert.addButton(withTitle: "Отмена")
+        alert.buttons.first?.hasDestructiveAction = true
+        if alert.runModal() == .alertFirstButtonReturn {
+            library.delete(playlist)
+            if sidebarSelection == .playlist(playlist.id) {
+                sidebarSelection = .allTracks
+            }
+        }
     }
 
     private func exportTracks(_ format: PlaylistFile.Format) {
@@ -525,12 +653,10 @@ struct ContentView: View {
     }
 
     private func handleDrop(_ providers: [NSItemProvider]) -> Bool {
-        for provider in providers {
-            _ = provider.loadObject(ofClass: URL.self) { url, _ in
-                guard let url else { return }
-                Task { @MainActor in
-                    library.importURLs([url], into: selectedPlaylistID)
-                }
+        loadDroppedURLs(providers) { urls in
+            guard !urls.isEmpty else { return }
+            Task { @MainActor in
+                await importDropped(urls, into: selectedPlaylistID)
             }
         }
         return true

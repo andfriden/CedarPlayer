@@ -689,14 +689,105 @@ final class Library: ObservableObject {
         stations.removeAll { $0.id == id }
     }
 
-    func createPlaylist(named name: String) -> Playlist {
-        let playlist = Playlist(name: name)
+    func createPlaylist(named name: String, unique: Bool = false) -> Playlist {
+        let finalName = unique ? uniquePlaylistName(name) : name
+        let playlist = Playlist(name: finalName)
         playlists.append(playlist)
         return playlist
     }
 
     func delete(_ playlist: Playlist) {
         playlists.removeAll { $0.id == playlist.id }
+    }
+
+    /// Имя, которое ставится плейлисту до того, как он получил содержимое.
+    static func isPlaceholderName(_ name: String) -> Bool {
+        let trimmed = name.trimmingCharacters(in: .whitespaces)
+        return trimmed.isEmpty || ["Новый плейлист", "Без названия", "New Playlist"].contains(trimmed)
+    }
+
+    /// «Папка», «Папка 2», «Папка 3» — без совпадений с другими плейлистами.
+    func uniquePlaylistName(_ base: String, excluding id: UUID? = nil) -> String {
+        let trimmed = base.trimmingCharacters(in: .whitespaces)
+        let candidate = trimmed.isEmpty ? "Плейлист" : trimmed
+        var name = candidate
+        var index = 2
+        while playlists.contains(where: { $0.id != id && $0.name.caseInsensitiveCompare(name) == .orderedSame }) {
+            name = "\(candidate) \(index)"
+            index += 1
+        }
+        return name
+    }
+
+    func renamePlaylist(_ id: UUID, to name: String) {
+        let trimmed = name.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty, let index = playlists.firstIndex(where: { $0.id == id }) else { return }
+        playlists[index].name = trimmed
+    }
+
+    /// Убирает треки из плейлиста; сами файлы и записи библиотеки остаются.
+    func clearPlaylist(_ id: UUID) {
+        guard let index = playlists.firstIndex(where: { $0.id == id }) else { return }
+        playlists[index].trackIDs.removeAll()
+    }
+
+    private func tracksUnder(_ folder: URL) -> [Track] {
+        let base = folder.standardizedFileURL.path
+        return tracks.filter { track in
+            let path = track.url.standardizedFileURL.path
+            return path == base || path.hasPrefix(base + "/")
+        }
+    }
+
+    private func playlistIDs(imported: [Track], folder: URL) -> [UUID] {
+        var seen = Set<UUID>()
+        return (imported + tracksUnder(folder)).map(\.id).filter { seen.insert($0).inserted }
+    }
+
+    /// Импортирует папку и создаёт плейлист с её именем. Возвращает nil, если аудио нет.
+    @discardableResult
+    func importFolderAsPlaylist(_ folder: URL) async -> Playlist? {
+        var isDirectory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: folder.path, isDirectory: &isDirectory),
+              isDirectory.boolValue else { return nil }
+        let imported = await importFiles([folder])
+        let ids = playlistIDs(imported: imported, folder: folder)
+        guard !ids.isEmpty else {
+            statusMessage = "В папке «\(folder.lastPathComponent)» нет аудиофайлов"
+            return nil
+        }
+        let created = createPlaylist(named: uniquePlaylistName(folder.lastPathComponent))
+        add(Set(ids), to: created.id)
+        statusMessage = "Плейлист «\(created.name)»: \(ids.count) трек(ов)"
+        return playlist(with: created.id)
+    }
+
+    /// Добавляет папку в существующий плейлист; пустой плейлист с именем-заглушкой
+    /// переименовывается по папке. Возвращает false, если аудио не нашлось.
+    @discardableResult
+    func importFolder(_ folder: URL, into playlistID: UUID, renamePlaceholder: Bool = true) async -> Bool {
+        var isDirectory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: folder.path, isDirectory: &isDirectory),
+              isDirectory.boolValue,
+              let existing = playlist(with: playlistID) else { return false }
+        let shouldRename = renamePlaceholder
+            && existing.trackIDs.isEmpty
+            && Self.isPlaceholderName(existing.name)
+
+        let imported = await importFiles([folder])
+        let ids = playlistIDs(imported: imported, folder: folder)
+        guard !ids.isEmpty else {
+            statusMessage = "В папке «\(folder.lastPathComponent)» нет аудиофайлов"
+            return false
+        }
+        add(Set(ids), to: playlistID)
+        if shouldRename {
+            renamePlaylist(playlistID, to: uniquePlaylistName(folder.lastPathComponent, excluding: playlistID))
+        }
+        let count = playlist(with: playlistID)?.trackIDs.count ?? ids.count
+        let name = playlist(with: playlistID)?.name ?? existing.name
+        statusMessage = "Добавлено в «\(name)»: \(ids.count) · всего \(count)"
+        return true
     }
 
     func add(_ ids: Set<UUID>, to playlistID: UUID) {

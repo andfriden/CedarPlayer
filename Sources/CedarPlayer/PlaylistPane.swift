@@ -86,11 +86,9 @@ struct PlaylistPane: View {
                 .environmentObject(engine)
         }
         .onDrop(of: [.fileURL], isTargeted: $isDropping) { providers in
-            for provider in providers {
-                _ = provider.loadObject(ofClass: URL.self) { url, _ in
-                    guard let url else { return }
-                    Task { @MainActor in library.importURLs([url], into: selectedPlaylist?.id) }
-                }
+            loadDroppedURLs(providers) { urls in
+                guard !urls.isEmpty else { return }
+                Task { @MainActor in await importDropped(urls) }
             }
             return true
         }
@@ -153,6 +151,14 @@ struct PlaylistPane: View {
                         let playlist = library.createPlaylist(named: name)
                         filterID = playlist.id.uuidString
                     }
+                }
+                Button("Импортировать папку как плейлист…") { chooseFolderAsPlaylist() }
+                if let playlist = selectedPlaylist {
+                    Divider()
+                    Button("Переименовать…") { renamePlaylist(playlist) }
+                    Button("Очистить плейлист…", role: .destructive) { clearPlaylist(playlist) }
+                        .disabled(playlist.trackIDs.isEmpty)
+                    Button("Удалить плейлист…", role: .destructive) { deletePlaylist(playlist) }
                 }
             } label: {
                 HStack(spacing: 4) {
@@ -438,18 +444,127 @@ struct PlaylistPane: View {
         engine.setQueue(tracks, startAt: index)
     }
 
-    private func promptForName() -> String? {
+    private func loadDroppedURLs(_ providers: [NSItemProvider], completion: @escaping ([URL]) -> Void) {
+        let group = DispatchGroup()
+        var urls: [URL] = []
+        let lock = NSLock()
+        for provider in providers where provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
+            group.enter()
+            _ = provider.loadObject(ofClass: URL.self) { url, _ in
+                if let url {
+                    lock.lock()
+                    urls.append(url)
+                    lock.unlock()
+                }
+                group.leave()
+            }
+        }
+        group.notify(queue: .main) { completion(urls) }
+    }
+
+    private func isDirectory(_ url: URL) -> Bool {
+        (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? url.hasDirectoryPath
+    }
+
+    private func importDropped(_ urls: [URL]) async {
+        let folders = urls.filter(isDirectory)
+        let files = urls.filter { !isDirectory($0) }
+
+        if let playlist = selectedPlaylist {
+            for folder in folders {
+                _ = await library.importFolder(folder, into: playlist.id)
+            }
+            if !files.isEmpty {
+                await library.importFiles(files, into: playlist.id)
+            }
+            return
+        }
+
+        var created: Playlist?
+        for folder in folders {
+            if let playlist = await library.importFolderAsPlaylist(folder) {
+                created = playlist
+            }
+        }
+        if !files.isEmpty {
+            await library.importFiles(files)
+        }
+        if let created {
+            filterID = created.id.uuidString
+        }
+    }
+
+    private func chooseFolderAsPlaylist() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = true
+        panel.message = "Плейлист получит имя папки"
+        panel.prompt = "Импортировать"
+        guard panel.runModal() == .OK else { return }
+        let folders = panel.urls
+        Task { @MainActor in
+            var last: Playlist?
+            for folder in folders {
+                if let playlist = await library.importFolderAsPlaylist(folder) {
+                    last = playlist
+                }
+            }
+            if let last {
+                filterID = last.id.uuidString
+            }
+        }
+    }
+
+    private func promptForName(title: String = "Новый плейлист",
+                               message: String = "Введите название",
+                               value: String = "",
+                               button: String = "Создать") -> String? {
         let alert = NSAlert()
-        alert.messageText = "Новый плейлист"
-        alert.informativeText = "Введите название"
-        alert.addButton(withTitle: "Создать")
+        alert.messageText = title
+        alert.informativeText = message
+        alert.addButton(withTitle: button)
         alert.addButton(withTitle: "Отмена")
         let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 240, height: 24))
         field.placeholderString = "Название"
+        field.stringValue = value
         alert.accessoryView = field
         guard alert.runModal() == .alertFirstButtonReturn else { return nil }
         let name = field.stringValue.trimmingCharacters(in: .whitespaces)
         return name.isEmpty ? nil : name
+    }
+
+    private func renamePlaylist(_ playlist: Playlist) {
+        guard let name = promptForName(title: "Переименовать плейлист",
+                                       message: "Новое название",
+                                       value: playlist.name,
+                                       button: "Переименовать") else { return }
+        library.renamePlaylist(playlist.id, to: name)
+    }
+
+    private func clearPlaylist(_ playlist: Playlist) {
+        let alert = NSAlert()
+        alert.messageText = "Очистить плейлист «\(playlist.name)»?"
+        alert.informativeText = "Треки останутся в библиотеке."
+        alert.addButton(withTitle: "Очистить")
+        alert.addButton(withTitle: "Отмена")
+        alert.buttons.first?.hasDestructiveAction = true
+        if alert.runModal() == .alertFirstButtonReturn {
+            library.clearPlaylist(playlist.id)
+        }
+    }
+
+    private func deletePlaylist(_ playlist: Playlist) {
+        let alert = NSAlert()
+        alert.messageText = "Удалить плейлист «\(playlist.name)»?"
+        alert.informativeText = "Треки останутся в библиотеке."
+        alert.addButton(withTitle: "Удалить")
+        alert.addButton(withTitle: "Отмена")
+        alert.buttons.first?.hasDestructiveAction = true
+        if alert.runModal() == .alertFirstButtonReturn {
+            library.delete(playlist)
+            filterID = "all"
+        }
     }
 }
 
