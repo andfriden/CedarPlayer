@@ -336,7 +336,7 @@ final class Library: ObservableObject {
         panel.canChooseDirectories = true
         panel.canChooseFiles = true
         var types: [UTType] = [.audio, .mp3, .mpeg4Audio, .wav, .aiff]
-        for ext in PlaylistFile.extensions {
+        for ext in Track.audioExtensions.union(PlaylistFile.extensions) {
             if let type = UTType(filenameExtension: ext) { types.append(type) }
         }
         panel.allowedContentTypes = types
