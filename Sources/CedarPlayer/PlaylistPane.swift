@@ -58,6 +58,7 @@ struct PlaylistPane: View {
                     }
                     .focusable()
                     .focused($listFocused)
+                    .modifier(PlaylistFocusRing())
                     .onMoveCommand { direction in
                         moveSelection(direction, proxy: proxy)
                     }
@@ -568,6 +569,36 @@ struct PlaylistPane: View {
     }
 }
 
+
+/// Keeps keyboard focus on the list without the blue system focus ring.
+private struct PlaylistFocusRing: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(macOS 14.0, *) {
+            content.focusEffectDisabled()
+        } else {
+            content.background(FocusRingDisabler())
+        }
+    }
+}
+
+private struct FocusRingDisabler: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView(frame: .zero)
+        DispatchQueue.main.async {
+            var candidate = view.superview
+            while let current = candidate {
+                if let scroll = current as? NSScrollView {
+                    scroll.focusRingType = .none
+                    break
+                }
+                candidate = current.superview
+            }
+        }
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {}
+}
 
 /// Enter in the list: intercept the key on macOS 14+, leave it alone on 13.
 private struct EnterKeyModifier: ViewModifier {
