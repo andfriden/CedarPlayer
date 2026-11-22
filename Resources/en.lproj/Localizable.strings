@@ -274,3 +274,9 @@
 "Deezer вернул %ld" = "Deezer returned %ld";
 "Исправлено обложек: %ld" = "Repaired artwork: %ld";
 "Обновить обложки" = "Refresh Artwork";
+"Доступна версия %@" = "Version %@ is available";
+"Открыть страницу загрузки?" = "Open the download page?";
+"Открыть" = "Open";
+"Позже" = "Later";
+"Обновления" = "Updates";
+"Проверять обновления при запуске" = "Check for updates on launch";

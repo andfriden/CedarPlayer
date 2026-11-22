@@ -98,6 +98,8 @@ resources are not used.
   “Open player” and “Quit”.
 - Dock menu: play/pause, next and previous track, show player.
 - Interface language: system, Russian or English (“Settings → Language”).
+- Update check on launch through the public GitHub Releases feed; can be
+  disabled in Settings.
 - Artwork, lyrics (`.lrc`) and Settings windows; opening files from Finder.
 - Online radio: stations (name + URL) are stored in the library and played
   through `AVPlayer`; play/pause works from the remote and media keys, and Now

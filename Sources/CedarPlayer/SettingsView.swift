@@ -6,6 +6,7 @@ struct SettingsView: View {
     @AppStorage("resumeLastTrack") private var resumeLastTrack = true
     @AppStorage("showFormatColumn") private var showFormatColumn = true
     @AppStorage("autoCoverSearch") private var autoCoverSearch = true
+    @AppStorage("checkForUpdates") private var checkForUpdates = true
     @AppStorage("appearanceMode") private var appearanceMode = AppearanceMode.system.rawValue
     @AppStorage("appLanguage") private var appLanguage = AppLanguage.system.rawValue
     @EnvironmentObject private var engine: PlayerEngine
@@ -109,6 +110,10 @@ struct SettingsView: View {
                 Text("Новые аудиофайлы в этих папках добавляются в библиотеку автоматически.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+            }
+
+            Section("Обновления") {
+                Toggle("Проверять обновления при запуске", isOn: $checkForUpdates)
             }
 
             Section("Окна") {

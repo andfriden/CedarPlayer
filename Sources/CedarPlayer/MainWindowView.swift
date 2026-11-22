@@ -10,6 +10,7 @@ struct MainWindowView: View {
     @AppStorage("resumeLastTrack") private var resumeLastTrack = true
     @State private var window: NSWindow?
     @State private var editingTrack: Track?
+    @ObservedObject private var updates = UpdateChecker.shared
 
     private let width: CGFloat = 425
     private let playerHeight: CGFloat = 300
@@ -54,6 +55,17 @@ struct MainWindowView: View {
         .tint(Theme.accent)
         .onReceive(NotificationCenter.default.publisher(for: .editTags)) { _ in
             editingTrack = player?.currentTrack
+        }
+        .task { await updates.checkAtLaunch() }
+        .alert(item: $updates.available) { update in
+            Alert(title: Text(L10n.format("Доступна версия %@", update.version)),
+                  message: Text(L10n.string("Открыть страницу загрузки?")),
+                  primaryButton: .default(Text(L10n.string("Открыть"))) {
+                      NSWorkspace.shared.open(update.url)
+                  },
+                  secondaryButton: .cancel(Text(L10n.string("Позже"))) {
+                      UserDefaults.standard.set(update.version, forKey: "skippedUpdateVersion")
+                  })
         }
         .sheet(item: $editingTrack) { track in
             if let player {
