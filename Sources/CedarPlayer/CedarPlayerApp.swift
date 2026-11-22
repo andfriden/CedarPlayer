@@ -879,6 +879,7 @@ struct CedarPlayerApp: App {
                 Button(L10n.string("Добавить файлы…")) { library.presentImportPanel() }
                     .keyboardShortcut("o", modifiers: .command)
                 Button(L10n.string("Проверить файлы библиотеки")) { library.refreshAvailability() }
+                Button(L10n.string("Обновить обложки")) { library.repairArtwork() }
                 Button(L10n.string("Окно обложки")) { openWindow(id: "albumart") }
                     .keyboardShortcut("p", modifiers: [.command, .shift])
             }

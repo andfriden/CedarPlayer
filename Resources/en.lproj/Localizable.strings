@@ -272,3 +272,5 @@
 "Ошибка сети: %@" = "Network error: %@";
 "iTunes вернул %ld" = "iTunes returned %ld";
 "Deezer вернул %ld" = "Deezer returned %ld";
+"Исправлено обложек: %ld" = "Repaired artwork: %ld";
+"Обновить обложки" = "Refresh Artwork";

@@ -3,6 +3,7 @@ import AppKit
 import UniformTypeIdentifiers
 import Combine
 import AVFoundation
+import ImageIO
 
 /// Library: tracks, playlists, search, sorting and state persistence.
 @MainActor
@@ -65,6 +66,7 @@ final class Library: ObservableObject {
     private var saveWorkItem: DispatchWorkItem?
     private let watcher = FolderWatcher()
     private var importTask: Task<Void, Never>?
+    private var isRepairingArtwork = false
 
     private static let supportDirectory: URL = {
         if let custom = ProcessInfo.processInfo.environment["CEDAR_LIBRARY_DIR"], !custom.isEmpty {
@@ -109,6 +111,7 @@ final class Library: ObservableObject {
             }
         }
         watcher.watch(watchFolders)
+        repairArtwork()
     }
 
     // MARK: Storage
@@ -285,6 +288,47 @@ final class Library: ObservableObject {
     }
 
     // MARK: Import
+
+    /// Repairs artwork cached by older versions (for example, a stray null byte
+    /// before the JPEG/PNG payload) by reading the picture again from the file.
+    func repairArtwork() {
+        guard !isTestInstance, !isRepairingArtwork else { return }
+        let candidates = tracks.filter { track in
+            guard track.artworkID != nil else { return false }
+            guard let data = track.artwork else { return true }
+            return !Self.isValidImage(data)
+        }
+        guard !candidates.isEmpty else { return }
+
+        isRepairingArtwork = true
+        Task { @MainActor in
+            var updated = tracks
+            var repaired = 0
+            for candidate in candidates {
+                guard let index = updated.firstIndex(where: { $0.id == candidate.id }) else { continue }
+                let url = updated[index].url
+                guard FileManager.default.fileExists(atPath: url.path) else { continue }
+                let tags = await Task.detached(priority: .utility) { TagReader.read(url: url) }.value
+                guard let art = tags.artwork,
+                      Self.isValidImage(art),
+                      let key = ArtworkCache.shared.store(art) else { continue }
+                updated[index].artwork = art
+                updated[index].artworkID = key
+                repaired += 1
+            }
+            if repaired > 0 {
+                tracks = updated
+                statusMessage = L10n.format("Исправлено обложек: %ld", repaired)
+            }
+            isRepairingArtwork = false
+        }
+    }
+
+    private static func isValidImage(_ data: Data) -> Bool {
+        guard !data.isEmpty,
+              let source = CGImageSourceCreateWithData(data as CFData, nil) else { return false }
+        return CGImageSourceGetType(source) != nil
+    }
 
     func presentImportPanel(into playlistID: UUID? = nil) {
         let panel = NSOpenPanel()
