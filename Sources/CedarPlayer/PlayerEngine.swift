@@ -374,7 +374,7 @@ final class PlayerEngine: ObservableObject {
         isDSD = false
         stopRadioPlayback()
         do {
-            let newFile = try AVAudioFile(forReading: track.url)
+            let newFile = try AVAudioFile(forReading: AudioTranscoder.playbackURL(for: track))
             let format = newFile.processingFormat
 
             generation += 1
@@ -869,7 +869,7 @@ final class PlayerEngine: ObservableObject {
               let index = upcomingIndex(),
               queue.indices.contains(index) else { return }
         let track = queue[index]
-        guard let nextFile = try? AVAudioFile(forReading: track.url) else { return }
+        guard let nextFile = try? AVAudioFile(forReading: AudioTranscoder.playbackURL(for: track)) else { return }
 
         let nextRate = nextFile.processingFormat.sampleRate
         guard nextRate > 0 else { return }

@@ -13,6 +13,9 @@
 
 **Воспроизведение**
 - MP3, AAC/M4A, ALAC, WAV, AIFF, FLAC, CAF — всё, что декодирует Core Audio.
+- Ogg Vorbis, Opus и WavPack: собственные декодеры и теги; при первом
+  воспроизведении трек кэшируется в ALAC. WavPack с CUE играется как один
+  файл с сегментами.
 - DSF (DSD64–256) через DoP и отдельный bit-perfect вывод CoreAudio: hog mode,
   integer format, без громкости, EQ и кроссфейда. Нужен DAC с поддержкой
   нужной частоты DoP; поддерживается стерео DSF. DFF без DST поддерживается; DST-сжатие пока нет.
@@ -286,6 +289,10 @@ CedarPlayer/
     ├── CedarPlayerApp.swift      точка входа, окна, меню, CLI-режимы
     ├── Theme.swift               палитра, шкалы отступов и скруглений
     ├── Track.swift               модель трека, метаданные, качество
+    ├── AudioTranscoder.swift     Ogg/Opus/WavPack → ALAC-кэш
+    ├── OggMetadata.swift         Ogg Vorbis-теги
+    ├── OpusMetadata.swift        Opus-теги
+    ├── WavPackMetadata.swift     WavPack-теги и параметры
     ├── Tags.swift                FLAC/ID3v2, обложки из папки
     ├── TagWriter.swift           запись тегов FLAC и MP3
     ├── ReplayGain.swift          разбор значений и безопасное усиление
@@ -361,12 +368,16 @@ CedarPlayer/
 
 ## Ограничения
 
-- Нет Ogg/Opus/WavPack/MPC/TTA/DSD: в Core Audio нет декодеров.
+- Нет MPC, TTA, DST-сжатия и bit-perfect WavPack DSD: WavPack DSD декодируется
+  в PCM. Нет встроенного декодера Ogg Opus для старых macOS, где Core Audio
+  не поддерживает Opus.
 - Нет DLNA/UPnP, AirPlay-мультирум, CD-рипинга, ShazamKit, Last.fm, конвертации
   аудио и видео, синхронизации с Apple Music.
 - Oversampling и bit-perfect вывод для эквалайзера не реализованы.
 - Обложки, найденные в базах, сохраняются в библиотеке, но не встраиваются в файл.
 - Запись тегов поддерживается только для FLAC и MP3.
+- Ogg Vorbis/Opus/WavPack при первом запуске декодируются целиком в кэш;
+  для длинных WavPack-альбомов это заметная пауза и место на диске.
 
 ## Лицензия
 

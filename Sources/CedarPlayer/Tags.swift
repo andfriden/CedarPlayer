@@ -111,10 +111,19 @@ enum TagReader {
             let length = Int(reader.readUInt32LE())
             guard length > 0, length <= reader.remaining else { break }
             guard let entry = reader.readString(length) else { break }
-            guard let separator = entry.firstIndex(of: "=") else { continue }
-            let key = entry[..<separator].uppercased()
-            let value = String(entry[entry.index(after: separator)...])
-            switch key {
+            applyCommentEntry(entry, to: &tags)
+        }
+    }
+
+    static func applyCommentEntries(_ entries: [String], to tags: inout AudioTags) {
+        for entry in entries { applyCommentEntry(entry, to: &tags) }
+    }
+
+    private static func applyCommentEntry(_ entry: String, to tags: inout AudioTags) {
+        guard let separator = entry.firstIndex(of: "=") else { return }
+        let key = entry[..<separator].uppercased()
+        let value = String(entry[entry.index(after: separator)...])
+        switch key {
             case "TITLE": tags.title = value
             case "ARTIST": tags.artist = value
             case "ALBUM": tags.album = value
@@ -128,8 +137,11 @@ enum TagReader {
             case "REPLAYGAIN_ALBUM_GAIN":
                 if tags.replayGainDB == nil { tags.replayGainDB = ReplayGain.parseGain(value) }
             case "REPLAYGAIN_TRACK_PEAK": tags.replayGainPeak = ReplayGain.parsePeak(value)
-            default: break
+        case "METADATA_BLOCK_PICTURE":
+            if let data = Data(base64Encoded: value), let picture = parsePicture(data) {
+                tags.artwork = picture
             }
+        default: break
         }
     }
 
@@ -347,7 +359,13 @@ enum TagReader {
             let value = items.subdata(in: offset..<offset+valueSize)
             offset += valueSize
 
-            if flags & 0x2 != 0 { continue }             // binary frame
+            if flags & 0x2 != 0 {                       // binary frame
+                if key.hasPrefix("cover art"), tags.artwork == nil,
+                   let zero = value.firstIndex(of: 0) {
+                    tags.artwork = value.subdata(in: value.index(after: zero)..<value.endIndex)
+                }
+                continue
+            }
             guard let text = String(data: value, encoding: .utf8) ??
                     String(data: value, encoding: .isoLatin1) else { continue }
             switch key {
@@ -360,10 +378,7 @@ enum TagReader {
             case "genre": if tags.genre == nil { tags.genre = text }
             case "year", "date": if tags.year?.isEmpty ?? true { tags.year = text }
             case "composer": if tags.composer?.isEmpty ?? true { tags.composer = text }
-            default:
-                if key.hasPrefix("cover art"), tags.artwork == nil, let zero = value.firstIndex(of: 0) {
-                    tags.artwork = value.subdata(in: value.index(after: zero)..<value.endIndex)
-                }
+            default: break
             }
         }
     }

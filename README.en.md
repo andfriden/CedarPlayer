@@ -13,6 +13,9 @@ resources are not used.
 
 **Playback**
 - MP3, AAC/M4A, ALAC, WAV, AIFF, FLAC, CAF — anything Core Audio can decode.
+- Ogg Vorbis, Opus and WavPack via built-in decoders and tag readers; the
+  first playback caches the track as ALAC. WavPack with CUE plays as one file
+  with cue segments.
 - DSF (DSD64–256) through DoP and a separate bit-perfect CoreAudio output:
   hog mode, integer format, no volume, EQ or crossfade. Requires a DAC that
   supports the DoP carrier rate; stereo DSF only. Uncompressed DFF is supported; DST compression is not.
@@ -289,6 +292,10 @@ CedarPlayer/
     ├── CedarPlayerApp.swift      entry point, windows, menus, CLI modes
     ├── Theme.swift               palette, spacing and corner-radius scales
     ├── Track.swift               track model, metadata, quality
+    ├── AudioTranscoder.swift     Ogg/Opus/WavPack → ALAC cache
+    ├── OggMetadata.swift         Ogg Vorbis tags
+    ├── OpusMetadata.swift        Opus tags
+    ├── WavPackMetadata.swift     WavPack tags and stream info
     ├── Tags.swift                FLAC/ID3v2, folder artwork
     ├── TagWriter.swift           FLAC and MP3 tag writing
     ├── ReplayGain.swift          value parsing and safe gain
@@ -365,13 +372,16 @@ remains expensive (about 155 ms), which the input delay hides.
 
 ## Limitations
 
-- No Ogg/Opus/WavPack/MPC/TTA/DSD: Core Audio has no decoders for them.
+- No MPC, TTA, DST compression or bit-perfect WavPack DSD: WavPack DSD is
+  decoded to PCM. Ogg Opus needs a macOS version whose Core Audio supports Opus.
 - No DLNA/UPnP, AirPlay multi-room, CD ripping, ShazamKit, Last.fm, audio/video
   conversion or Apple Music sync.
 - Oversampling and bit-perfect output for the equalizer are not implemented.
 - Artwork found in online databases is stored in the library but is not embedded
   into the file.
 - Tag writing is supported only for FLAC and MP3.
+- Ogg Vorbis/Opus/WavPack are fully decoded into the cache on first playback;
+  long WavPack albums mean a noticeable delay and disk usage.
 
 ## License
 

@@ -116,7 +116,7 @@ struct Track: Identifiable, Hashable, Codable {
     }
 
     static let audioExtensions: Set<String> = [
-        "mp3", "m4a", "aac", "aif", "aiff", "aifc", "wav", "wave",
+        "mp3", "m4a", "aac", "aif", "aiff", "aifc", "wav", "wave", "ogg", "oga", "opus",
         "flac", "caf", "mp4", "m4b", "au", "sd2", "cue", "wv", "ape", "dsf", "dff"
     ]
 
@@ -195,6 +195,62 @@ enum MetadataReader {
             if tags.replayGainDB == nil { tags.replayGainDB = embedded.replayGainDB }
             if tags.replayGainPeak == nil { tags.replayGainPeak = embedded.replayGainPeak }
         }
+        if ["ogg", "oga"].contains(url.pathExtension.lowercased()),
+           let ogg = OggMetadata.read(url: url) {
+            if let value = ogg.title, !value.isEmpty { tags.title = value }
+            if let value = ogg.artist, !value.isEmpty { tags.artist = value }
+            if let value = ogg.album, !value.isEmpty { tags.album = value }
+            if let value = ogg.albumArtist, !value.isEmpty { tags.albumArtist = value }
+            if tags.trackNumber == nil { tags.trackNumber = ogg.trackNumber }
+            if tags.discNumber == nil { tags.discNumber = ogg.discNumber }
+            if tags.genre == nil { tags.genre = ogg.genre }
+            if tags.year == nil { tags.year = ogg.year }
+            if tags.composer == nil { tags.composer = ogg.composer }
+            if tags.artwork == nil { tags.artwork = ogg.artwork }
+            if tags.replayGainDB == nil { tags.replayGainDB = ogg.replayGainDB }
+            if tags.replayGainPeak == nil { tags.replayGainPeak = ogg.replayGainPeak }
+            if tags.sampleRate == nil { tags.sampleRate = ogg.sampleRate }
+            if tags.channels == nil { tags.channels = ogg.channels }
+            if tags.duration == nil { tags.duration = ogg.duration }
+        }
+
+        if url.pathExtension.lowercased() == "opus", let opus = OpusMetadata.read(url: url) {
+            if tags.title?.isEmpty ?? true { tags.title = opus.title }
+            if tags.artist?.isEmpty ?? true { tags.artist = opus.artist }
+            if tags.album?.isEmpty ?? true { tags.album = opus.album }
+            if tags.albumArtist?.isEmpty ?? true { tags.albumArtist = opus.albumArtist }
+            if tags.trackNumber == nil { tags.trackNumber = opus.trackNumber }
+            if tags.discNumber == nil { tags.discNumber = opus.discNumber }
+            if tags.genre == nil { tags.genre = opus.genre }
+            if tags.year?.isEmpty ?? true { tags.year = opus.year }
+            if tags.composer?.isEmpty ?? true { tags.composer = opus.composer }
+            if tags.artwork == nil { tags.artwork = opus.artwork }
+            if tags.replayGainDB == nil { tags.replayGainDB = opus.replayGainDB }
+            if tags.replayGainPeak == nil { tags.replayGainPeak = opus.replayGainPeak }
+            if tags.sampleRate == nil || tags.sampleRate == 0 { tags.sampleRate = opus.sampleRate }
+            if tags.channels == nil || tags.channels == 0 { tags.channels = opus.channels }
+            if tags.duration == nil || tags.duration == 0 { tags.duration = opus.duration }
+        }
+
+        if url.pathExtension.lowercased() == "wv", let wavPack = WavPackMetadata.read(url: url) {
+            if tags.title?.isEmpty ?? true { tags.title = wavPack.title }
+            if tags.artist?.isEmpty ?? true { tags.artist = wavPack.artist }
+            if tags.album?.isEmpty ?? true { tags.album = wavPack.album }
+            if tags.albumArtist?.isEmpty ?? true { tags.albumArtist = wavPack.albumArtist }
+            if tags.trackNumber == nil { tags.trackNumber = wavPack.trackNumber }
+            if tags.discNumber == nil { tags.discNumber = wavPack.discNumber }
+            if tags.genre == nil { tags.genre = wavPack.genre }
+            if tags.year?.isEmpty ?? true { tags.year = wavPack.year }
+            if tags.composer?.isEmpty ?? true { tags.composer = wavPack.composer }
+            if tags.artwork == nil { tags.artwork = wavPack.artwork }
+            if tags.replayGainDB == nil { tags.replayGainDB = wavPack.replayGainDB }
+            if tags.replayGainPeak == nil { tags.replayGainPeak = wavPack.replayGainPeak }
+            if tags.sampleRate == nil || tags.sampleRate == 0 { tags.sampleRate = wavPack.sampleRate }
+            if tags.channels == nil || tags.channels == 0 { tags.channels = wavPack.channels }
+            if tags.bitDepth == nil || tags.bitDepth == 0 { tags.bitDepth = wavPack.bitDepth }
+            if tags.duration == nil || tags.duration == 0 { tags.duration = wavPack.duration }
+        }
+
         if let value = tags.title, !value.isEmpty { track.title = value }
         if let value = tags.artist, !value.isEmpty { track.artist = value }
         if let value = tags.album, !value.isEmpty { track.album = value }
