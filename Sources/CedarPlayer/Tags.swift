@@ -163,6 +163,22 @@ enum TagReader {
         return tags
     }
 
+    /// Reads an ID3v2 tag stored at an absolute file offset (for example, DSF metadata).
+    static func readID3(url: URL, offset: UInt64) -> AudioTags {
+        var tags = AudioTags()
+        guard let handle = try? FileHandle(forReadingFrom: url) else { return tags }
+        defer { try? handle.close() }
+        handle.seek(toFileOffset: offset)
+        let head = handle.readData(ofLength: 10)
+        guard head.count == 10, head.prefix(3) == Data("ID3".utf8) else { return tags }
+        let major = Int(head[3])
+        let flags = head[5]
+        let size = syncSafe(head[6..<10])
+        let payload = handle.readData(ofLength: size)
+        parseID3v2(payload, major: major, flags: flags, into: &tags)
+        return tags
+    }
+
     private static func parseID3v2(_ rawPayload: Data, major: Int, flags: UInt8, into tags: inout AudioTags) {
         let payload = major == 2 ? convertID3v22(rawPayload) : rawPayload
         var offset = 0

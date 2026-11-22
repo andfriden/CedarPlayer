@@ -365,7 +365,7 @@ final class PlayerEngine: ObservableObject {
     }
 
     func load(_ track: Track, autoplay: Bool) {
-        if track.url.pathExtension.lowercased() == "dsf" {
+        if ["dsf", "dff"].contains(track.url.pathExtension.lowercased()) {
             loadDSD(track, autoplay: autoplay)
             return
         }

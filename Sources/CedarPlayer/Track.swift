@@ -179,7 +179,22 @@ enum MetadataReader {
         var track = Track(url: url)
 
         // 1. Built-in parsers: FLAC (Vorbis + PICTURE) and ID3v2.
-        let tags = TagReader.read(url: url)
+        var tags = TagReader.read(url: url)
+        if url.pathExtension.lowercased() == "dsf", let offset = MetadataReader.dsfMetadataOffset(url) {
+            let embedded = TagReader.readID3(url: url, offset: offset)
+            if tags.title?.isEmpty ?? true { tags.title = embedded.title }
+            if tags.artist?.isEmpty ?? true { tags.artist = embedded.artist }
+            if tags.album?.isEmpty ?? true { tags.album = embedded.album }
+            if tags.albumArtist?.isEmpty ?? true { tags.albumArtist = embedded.albumArtist }
+            if tags.trackNumber == nil { tags.trackNumber = embedded.trackNumber }
+            if tags.discNumber == nil { tags.discNumber = embedded.discNumber }
+            if tags.genre == nil { tags.genre = embedded.genre }
+            if tags.year?.isEmpty ?? true { tags.year = embedded.year }
+            if tags.composer?.isEmpty ?? true { tags.composer = embedded.composer }
+            if tags.artwork == nil { tags.artwork = embedded.artwork }
+            if tags.replayGainDB == nil { tags.replayGainDB = embedded.replayGainDB }
+            if tags.replayGainPeak == nil { tags.replayGainPeak = embedded.replayGainPeak }
+        }
         if let value = tags.title, !value.isEmpty { track.title = value }
         if let value = tags.artist, !value.isEmpty { track.artist = value }
         if let value = tags.album, !value.isEmpty { track.album = value }
@@ -237,7 +252,26 @@ enum MetadataReader {
             track.artwork = TagReader.folderArtwork(for: url)
         }
 
+        let ext = url.pathExtension.lowercased()
+        if ["dsf", "dff"].contains(ext), let probe = DoPTrack.probe(url: url) {
+            track.duration = probe.duration
+            track.sampleRate = probe.rate
+            track.channels = probe.channels
+        }
+
         return track
+    }
+
+    private static func dsfMetadataOffset(_ url: URL) -> UInt64? {
+        guard let handle = try? FileHandle(forReadingFrom: url) else { return nil }
+        defer { try? handle.close() }
+        handle.seek(toFileOffset: 20)
+        let data = handle.readData(ofLength: 8)
+        guard data.count == 8 else { return nil }
+        var value: UInt64 = 0
+        for index in 0..<8 { value |= UInt64(data[index]) << UInt64(index * 8) }
+        let size = (try? handle.seekToEnd()) ?? 0
+        return value > 0 && value < size ? value : nil
     }
 }
 
