@@ -130,7 +130,7 @@ struct MainWindowView: View {
         let tracks = library.visibleTracks
         guard let index = tracks.firstIndex(where: { $0.id == id }) else { return }
 
-        player.setQueue(tracks, startAt: index, autoplay: false)
+        player.setQueue(tracks, startAt: index, autoplay: false, clearUpNext: false)
         let position = defaults.double(forKey: "lastPosition")
         if position > 0.5 {
             player.seek(to: position)

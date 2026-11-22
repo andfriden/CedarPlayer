@@ -973,8 +973,18 @@ struct CedarPlayerApp: App {
                     .keyboardShortcut("p", modifiers: [.command, .option])
                 Button(L10n.string("Библиотека")) { openWindow(id: "library") }
                     .keyboardShortcut("b", modifiers: .command)
+                Button(L10n.string("Очередь")) { openWindow(id: "queue") }
+                    .keyboardShortcut("q", modifiers: [.command, .option])
             }
         }
+
+        Window(L10n.string("Очередь"), id: "queue") {
+            QueueView()
+                .environmentObject(engine)
+                .environment(\.locale, interfaceLocale)
+                .preferredColorScheme(colorScheme)
+        }
+        .defaultSize(width: 360, height: 420)
 
         Window(L10n.string("Библиотека"), id: "library") {
             ContentView()

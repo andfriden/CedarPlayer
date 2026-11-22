@@ -160,6 +160,10 @@ final class PlayerEngine: ObservableObject {
 
     private(set) var queue: [Track] = []
     private(set) var queueIndex: Int = -1
+    @Published private(set) var upNext: [Track] = [] {
+        didSet { persistUpNext() }
+    }
+    private var playingFromQueue = false
 
     // MARK: Audio graph
 
@@ -203,6 +207,7 @@ final class PlayerEngine: ObservableObject {
         configureGraph()
         restoreOutputDevice()
         startTimer()
+        loadUpNext()
         levelMeter.onUpdate = { [weak self] reading in
             guard let self else { return }
             Task { @MainActor in
@@ -333,7 +338,9 @@ final class PlayerEngine: ObservableObject {
 
     // MARK: Loading
 
-    func setQueue(_ tracks: [Track], startAt index: Int, autoplay: Bool = true) {
+    func setQueue(_ tracks: [Track], startAt index: Int, autoplay: Bool = true, clearUpNext: Bool = true) {
+        if clearUpNext { upNext.removeAll() }
+        playingFromQueue = false
         var checked = tracks
         // A restored file stops being missing without a full library scan.
         for position in checked.indices where checked[position].isMissing {
@@ -717,12 +724,19 @@ final class PlayerEngine: ObservableObject {
             if queue.indices.contains(queueIndex) { play(at: queueIndex) }
             return
         }
-        guard !queue.isEmpty else { return }
         if repeatMode == .one && !manual {
             seek(to: 0)
             play()
             return
         }
+        if !upNext.isEmpty {
+            let track = upNext.removeFirst()
+            playingFromQueue = true
+            load(track, autoplay: true)
+            return
+        }
+        playingFromQueue = false
+        guard !queue.isEmpty else { return }
         var nextIndex = queueIndex + 1
         if isShuffle {
             if queue.count > 1 {
@@ -743,11 +757,18 @@ final class PlayerEngine: ObservableObject {
     }
 
     func previous() {
-        guard !queue.isEmpty else { return }
         if position > 3.0 {
             seek(to: 0)
             return
         }
+        if playingFromQueue {
+            playingFromQueue = false
+            if queue.indices.contains(queueIndex) {
+                load(queue[queueIndex], autoplay: true)
+            }
+            return
+        }
+        guard !queue.isEmpty else { return }
         var previousIndex = queueIndex - 1
         if previousIndex < 0 { previousIndex = repeatMode == .all ? queue.count - 1 : 0 }
         queueIndex = previousIndex
@@ -756,8 +777,44 @@ final class PlayerEngine: ObservableObject {
 
     func play(at index: Int) {
         guard queue.indices.contains(index) else { return }
+        playingFromQueue = false
         queueIndex = index
         load(queue[index], autoplay: true)
+    }
+
+    // MARK: Up next
+
+    func playNext(_ track: Track) {
+        upNext.removeAll { $0.id == track.id }
+        upNext.insert(track, at: 0)
+    }
+
+    func addToQueue(_ tracks: [Track]) {
+        let existing = Set(upNext.map(\.id))
+        upNext.append(contentsOf: tracks.filter { !existing.contains($0.id) && $0.id != currentTrack?.id })
+    }
+
+    func removeFromQueue(_ id: UUID) {
+        upNext.removeAll { $0.id == id }
+    }
+
+    func clearQueue() {
+        upNext.removeAll()
+    }
+
+    private func persistUpNext() {
+        let defaults = UserDefaults.standard
+        if upNext.isEmpty {
+            defaults.removeObject(forKey: "upNextTracks")
+        } else if let data = try? JSONEncoder().encode(upNext) {
+            defaults.set(data, forKey: "upNextTracks")
+        }
+    }
+
+    private func loadUpNext() {
+        guard let data = UserDefaults.standard.data(forKey: "upNextTracks"),
+              let tracks = try? JSONDecoder().decode([Track].self, from: data) else { return }
+        upNext = tracks.filter { FileManager.default.fileExists(atPath: $0.url.path) }
     }
 
     func currentIndex() -> Int? { queueIndex >= 0 ? queueIndex : nil }

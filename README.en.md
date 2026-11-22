@@ -55,6 +55,8 @@ resources are not used.
 
 **Library**
 - File and folder import, drag & drop, search, sorting, playlists.
+- “Play Next” and “Add to Queue” with a separate queue window, removal and
+  persistence between launches.
 - A folder dropped on “New playlist”, or into the window with no playlist
   selected, creates a playlist named after the folder; dropping it on an empty
   playlist with a placeholder name renames that playlist. The playlist menu

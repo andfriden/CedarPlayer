@@ -61,6 +61,7 @@ struct MoreMenuButton: View {
         menu.addItem(item(L10n.string("Текст песни")) { openWindow(id: "lyrics") })
         menu.addItem(item(L10n.string("Окно обложки")) { openWindow(id: "albumart") })
         menu.addItem(item(L10n.string("Библиотека")) { openWindow(id: "library") })
+        menu.addItem(item(L10n.string("Очередь")) { openWindow(id: "queue") })
 
         menu.addItem(.separator())
 

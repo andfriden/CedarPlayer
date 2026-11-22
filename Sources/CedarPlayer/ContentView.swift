@@ -380,6 +380,8 @@ struct ContentView: View {
                                 }
                                 Button("Воспроизвести") { startPlayback(from: index) }
                                     .disabled(track.isMissing)
+                                Button("Играть следующим") { player?.playNext(track) }
+                                Button("Добавить в очередь") { player?.addToQueue([track]) }
                                 Divider()
                                 Menu("Добавить в плейлист") {
                                     ForEach(library.playlists) { playlist in

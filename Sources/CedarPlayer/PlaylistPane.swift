@@ -378,6 +378,8 @@ struct PlaylistPane: View {
                 }
             }
             .disabled(track.isMissing)
+            Button("Играть следующим") { engine.playNext(track) }
+            Button("Добавить в очередь") { engine.addToQueue([track]) }
             Menu("Добавить в плейлист") {
                 ForEach(library.playlists) { playlist in
                     Button(playlist.name) { library.add([track.id], to: playlist.id) }
