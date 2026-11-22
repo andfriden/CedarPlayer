@@ -24,11 +24,12 @@ struct MainWindowView: View {
             if showPlaylist {
                 Divider().overlay(Theme.separator)
                 PlaylistPane()
-                    .frame(height: playlistHeight)
+                    .frame(maxHeight: .infinity)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
         .frame(width: width)
+        .frame(maxHeight: .infinity, alignment: .top)
         .background(Theme.background)
         .background(WindowAccessor { candidate in
             if window !== candidate { window = candidate }
@@ -126,7 +127,11 @@ struct MainWindowView: View {
 
     /// Resizes the window to its design size: fixed width, height depends on the pane.
     private func forceDesignSize(_ window: NSWindow) {
-        let targetHeight = showPlaylist ? playerHeight + playlistHeight : playerHeight
+        var targetHeight = showPlaylist ? playerHeight + playlistHeight : playerHeight
+        if let raw = ProcessInfo.processInfo.environment["CEDAR_SHOT_HEIGHT"],
+           let requested = Double(raw), requested >= playerHeight {
+            targetHeight = requested
+        }
         let frame = window.frame
         let top = frame.maxY
         var target = frame
