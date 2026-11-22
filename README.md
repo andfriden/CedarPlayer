@@ -115,16 +115,19 @@
 ### Готовый архив
 
 Собранные версии — в [Releases](https://github.com/andfriden/CedarPlayer/releases).
-Скачайте `CedarPlayer-<версия>.zip`, распакуйте и перенесите `Cedar Player.app`
-в «Программы». Если релиз собран без сертификата Developer ID, macOS покажет
+Скачайте `CedarPlayer-<версия>.dmg`, откройте образ и перетащите
+`Cedar Player.app` на ярлык «Applications» — приложение сразу окажется
+в «Программах». Если релиз собран без сертификата Developer ID, macOS покажет
 предупреждение: откройте приложение через правый клик → «Открыть» либо снимите
-карантин командой `xattr -dr com.apple.quarantine "Cedar Player.app"`.
+карантин командой `xattr -dr com.apple.quarantine "/Applications/Cedar Player.app"`.
 
-Рядом с архивом лежит `.sha256`; проверка:
+Рядом с DMG лежит `.sha256`; проверка:
 
 ```bash
-shasum -a 256 -c CedarPlayer-1.0.0.zip.sha256
+shasum -a 256 -c CedarPlayer-1.0.1.dmg.sha256
 ```
+
+В релизе также остаётся zip-архив для тех, кому удобнее распаковать вручную.
 
 ### Из исходников
 
@@ -152,10 +155,10 @@ iconutil -c icns Resources/AppIcon.iconset -o Resources/AppIcon.icns
 ## Релиз
 
 ```bash
-Scripts/package-release.sh 1.0.0   # сборка, dist/CedarPlayer-1.0.0.zip и .sha256
+Scripts/package-release.sh 1.0.1   # сборка, dist/CedarPlayer-1.0.1.dmg/.zip и .sha256
 ```
 
-Тег `v1.0.0` запускает `.github/workflows/release.yml`: сборка, упаковка и
+Тег `v*` (например, `v1.0.1`) запускает `.github/workflows/release.yml`: сборка, упаковка и
 публикация GitHub Release. Если в секретах репозитория заданы
 `MACOS_CERTIFICATE`, `MACOS_CERTIFICATE_PASSWORD`, `KEYCHAIN_PASSWORD`,
 `CEDAR_SIGN_IDENTITY`, `APPLE_ID`, `APPLE_TEAM_ID` и `APPLE_APP_PASSWORD`,

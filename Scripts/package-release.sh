@@ -5,7 +5,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-VERSION="${1:-${CEDAR_VERSION:-1.0.0}}"
+VERSION="${1:-${CEDAR_VERSION:-1.0.1}}"
 APP="build/Cedar Player.app"
 if [ "${SKIP_BUILD:-0}" != "1" ]; then
     CEDAR_VERSION="$VERSION" CEDAR_UNIVERSAL="${CEDAR_UNIVERSAL:-1}" ./build.sh release
@@ -29,3 +29,4 @@ ditto -c -k --sequesterRsrc --keepParent "$APP" "$ZIP"
 (cd dist && shasum -a 256 "$(basename "$ZIP")" > "$(basename "$ZIP").sha256")
 echo "PACKAGE $ZIP"
 echo "SHA256 $(cut -d' ' -f1 "$ZIP.sha256")"
+Scripts/make-dmg.sh "$VERSION" "$APP"
