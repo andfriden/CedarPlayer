@@ -280,3 +280,10 @@
 "Позже" = "Later";
 "Обновления" = "Updates";
 "Проверять обновления при запуске" = "Check for updates on launch";
+"Некорректный DSF-файл" = "Invalid DSF file";
+"Поддерживается только стерео DSF" = "Only stereo DSF is supported";
+"DSD-файл слишком велик для загрузки в память" = "The DSD file is too large to load into memory";
+"Устройство вывода недоступно" = "Output device is unavailable";
+"DAC не поддерживает DoP в нужном формате" = "The DAC does not support DoP at the required format";
+"Не удалось запустить вывод DoP" = "Could not start DoP output";
+"Не удалось воспроизвести DSD: %@" = "Could not play DSD: %@";

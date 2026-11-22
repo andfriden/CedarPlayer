@@ -22,6 +22,46 @@ final class PlayerEngine: ObservableObject {
     @Published private(set) var radioBuffering = false
     @Published private(set) var radioNowPlaying: String?
 
+    private func loadDSD(_ track: Track, autoplay: Bool) {
+        stopRadioPlayback()
+        cancelCrossfade()
+        player.stop()
+        fadePlayer.stop()
+        engine.stop()
+        dsd?.stop()
+        dsd = nil
+        file = nil
+        generation += 1
+        isDSD = true
+        do {
+            let player = try DSDPlayer(url: track.url, deviceUID: selectedOutputUID)
+            dsd = player
+            currentTrack = track
+            sampleRate = player.carrierRate
+            duration = player.duration
+            totalFrames = 0
+            startFrame = 0
+            endFrame = 0
+            seekFrame = 0
+            position = 0
+            spectrumAnalyzer.reset()
+            levelMeter.reset()
+            errorMessage = nil
+            if autoplay {
+                try player.play()
+                isPlaying = true
+            } else {
+                isPlaying = false
+            }
+        } catch {
+            isDSD = false
+            isPlaying = false
+            currentTrack = track
+            duration = track.duration
+            errorMessage = L10n.format("Не удалось воспроизвести DSD: %@", error.localizedDescription)
+        }
+    }
+
     // MARK: Output device
 
     @Published private(set) var outputDevices: [AudioOutputDevice] = []
@@ -101,6 +141,7 @@ final class PlayerEngine: ObservableObject {
     }
     @Published var errorMessage: String?
     @Published private(set) var usesDSPEqualizer = false
+    @Published private(set) var isDSD = false
 
     @Published private(set) var spectrum = [Float](repeating: 0, count: SpectrumAnalyzer.bandCount)
     @Published private(set) var spectrumPeaks = [Float](repeating: 0, count: SpectrumAnalyzer.bandCount)
@@ -143,6 +184,7 @@ final class PlayerEngine: ObservableObject {
     }()
     private let timePitch = AVAudioUnitTimePitch()
 
+    private var dsd: DSDPlayer?
     private var file: AVAudioFile?
     private var sampleRate: Double = 44100
     private var totalFrames: AVAudioFramePosition = 0
@@ -316,6 +358,13 @@ final class PlayerEngine: ObservableObject {
     }
 
     func load(_ track: Track, autoplay: Bool) {
+        if track.url.pathExtension.lowercased() == "dsf" {
+            loadDSD(track, autoplay: autoplay)
+            return
+        }
+        dsd?.stop()
+        dsd = nil
+        isDSD = false
         stopRadioPlayback()
         do {
             let newFile = try AVAudioFile(forReading: track.url)
@@ -395,6 +444,13 @@ final class PlayerEngine: ObservableObject {
     }
 
     private func applyOutput(uid: String, persist: Bool) {
+        if dsd != nil {
+            let wasPlaying = isPlaying
+            selectedOutputUID = uid
+            if persist { UserDefaults.standard.set(uid, forKey: "outputDeviceUID") }
+            if let track = currentTrack { load(track, autoplay: wasPlaying) }
+            return
+        }
         guard let deviceID = AudioDevices.deviceID(forUID: uid),
               let audioUnit = engine.outputNode.audioUnit else { return }
 
@@ -561,6 +617,16 @@ final class PlayerEngine: ObservableObject {
             isPlaying = true
             return
         }
+        if let dsd {
+            do {
+                try dsd.play()
+                isPlaying = true
+                errorMessage = nil
+            } catch {
+                errorMessage = L10n.format("Не удалось воспроизвести DSD: %@", error.localizedDescription)
+            }
+            return
+        }
         guard file != nil else { return }
         if activeNode.isPlaying { return }
         if !engine.isRunning {
@@ -582,6 +648,11 @@ final class PlayerEngine: ObservableObject {
             radioBuffering = false
             return
         }
+        if let dsd {
+            dsd.pause()
+            isPlaying = false
+            return
+        }
         cancelCrossfade()
         guard activeNode.isPlaying else { return }
         seekFrame = currentFrame()
@@ -599,6 +670,13 @@ final class PlayerEngine: ObservableObject {
             isPlaying = false
             return
         }
+        if let dsd {
+            dsd.pause()
+            dsd.seek(to: 0)
+            isPlaying = false
+            position = 0
+            return
+        }
         cancelCrossfade()
         activeNode.stop()
         isPlaying = false
@@ -609,6 +687,12 @@ final class PlayerEngine: ObservableObject {
     func seek(to seconds: TimeInterval) {
         autoTransition = false
         transitionStartedAt = nil
+        if let dsd {
+            let clamped = max(0, min(seconds, duration))
+            dsd.seek(to: clamped)
+            position = clamped
+            return
+        }
         guard currentStation == nil, file != nil, sampleRate > 0 else { return }
         let clamped = max(0, min(seconds, duration))
         let frame = min(endFrame, startFrame + AVAudioFramePosition((clamped * sampleRate).rounded()))
@@ -902,6 +986,22 @@ final class PlayerEngine: ObservableObject {
         timer = Timer.scheduledTimer(withTimeInterval: 0.2, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
                 guard let self, self.isPlaying, self.currentStation == nil, self.sampleRate > 0 else { return }
+                if let dsd = self.dsd {
+                    self.position = min(self.duration, dsd.position)
+                    if dsd.finished {
+                        if self.repeatMode == .one {
+                            dsd.seek(to: 0)
+                            try? dsd.play()
+                            self.position = 0
+                        } else {
+                            self.isPlaying = false
+                            self.next()
+                        }
+                    }
+                    self.tick += 1
+                    if self.tick % 10 == 0 { self.persistPlaybackState() }
+                    return
+                }
                 let played = Double(self.currentFrame() - self.startFrame) / self.sampleRate
                 self.position = min(self.duration, max(0, played))
                 if self.position > 1.0 { self.autoTransition = false }

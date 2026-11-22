@@ -13,6 +13,9 @@ resources are not used.
 
 **Playback**
 - MP3, AAC/M4A, ALAC, WAV, AIFF, FLAC, CAF — anything Core Audio can decode.
+- DSF (DSD64–256) through DoP and a separate bit-perfect CoreAudio output:
+  hog mode, integer format, no volume, EQ or crossfade. Requires a DAC that
+  supports the DoP carrier rate; stereo DSF only. DFF/DST are not supported yet.
 - Speed 0.5×–2×, shuffle, repeat (off / list / one track), mute.
 - Restores the last track and position on launch.
 - Smooth transitions: fade-out at the end and fade-in at the start of a track (0 / 0.5 / 1 / 2 s).
