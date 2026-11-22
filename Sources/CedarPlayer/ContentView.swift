@@ -7,6 +7,8 @@ struct ContentView: View {
     @Environment(\.player) private var player
 
     @State private var selection: Set<UUID> = []
+    @State private var filter = LibraryFilter()
+    @State private var lastSelectedIndex: Int?
     @State private var sidebarSelection: SidebarItem? = .allTracks
     @State private var newPlaylistName = ""
     @State private var isNamingPlaylist = false
@@ -37,7 +39,7 @@ struct ContentView: View {
         }
     }
 
-    private var displayedTracks: [Track] {
+    private var baseTracks: [Track] {
         switch sidebarSelection {
         case .smart(let rule):
             return rule.filter(library.visibleTracks)
@@ -54,6 +56,18 @@ struct ContentView: View {
         default:
             return library.visibleTracks
         }
+    }
+
+    private var displayedTracks: [Track] { filter.apply(to: baseTracks) }
+
+    private var filterGenres: [String] {
+        Array(Set(library.tracks.map(\.genre).filter { !$0.isEmpty })).sorted()
+    }
+    private var filterYears: [String] {
+        Array(Set(library.tracks.map(\.year).filter { !$0.isEmpty })).sorted().reversed().map { $0 }
+    }
+    private var filterFormats: [String] {
+        Array(Set(library.tracks.map { $0.url.pathExtension.uppercased() }.filter { !$0.isEmpty })).sorted()
     }
 
     private var selectedPlaylistID: UUID? {
@@ -129,6 +143,63 @@ struct ContentView: View {
                 }
                 .help("Экспорт видимого списка в плейлист-файл")
                 .disabled(detailTracks.isEmpty)
+
+                Menu {
+                    Picker("Жанр", selection: $filter.genre) {
+                        Text("Все").tag(String?.none)
+                        ForEach(filterGenres, id: \.self) { genre in
+                            Text(genre).tag(Optional(genre))
+                        }
+                    }
+                    Picker("Год", selection: $filter.year) {
+                        Text("Все").tag(String?.none)
+                        ForEach(filterYears, id: \.self) { year in
+                            Text(year).tag(Optional(year))
+                        }
+                    }
+                    Picker("Формат", selection: $filter.format) {
+                        Text("Все").tag(String?.none)
+                        ForEach(filterFormats, id: \.self) { format in
+                            Text(format).tag(Optional(format))
+                        }
+                    }
+                    Picker("Качество", selection: $filter.quality) {
+                        Text("Все").tag(LibraryQuality?.none)
+                        ForEach(LibraryQuality.allCases) { quality in
+                            Text(quality.title).tag(Optional(quality))
+                        }
+                    }
+                    Toggle("Только с обложкой", isOn: $filter.onlyWithArtwork)
+                    Toggle("Только пропавшие файлы", isOn: $filter.onlyMissing)
+                    Divider()
+                    Button("Сбросить фильтры") { filter = LibraryFilter() }
+                        .disabled(!filter.isActive)
+                } label: {
+                    Label("Фильтр", systemImage: filter.isActive ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
+                }
+
+                if !selection.isEmpty {
+                    Menu(L10n.format("Действия (%ld)", selection.count)) {
+                        Menu("Оценка") {
+                            ForEach(0...5, id: \.self) { value in
+                                Button(value == 0 ? L10n.string("Без оценки") : String(repeating: "★", count: value)) {
+                                    library.setRating(value, for: selection)
+                                }
+                            }
+                        }
+                        Menu("Добавить в плейлист") {
+                            ForEach(library.playlists) { playlist in
+                                Button(playlist.name) { library.add(selection, to: playlist.id) }
+                            }
+                            if library.playlists.isEmpty { Text("Нет плейлистов") }
+                        }
+                        Divider()
+                        Button("Удалить из библиотеки", role: .destructive) {
+                            library.remove(selection)
+                            selection.removeAll()
+                        }
+                    }
+                }
 
                 Menu {
                     Picker("Сортировка", selection: $library.sortKey) {
@@ -365,7 +436,7 @@ struct ContentView: View {
                             )
                             .contentShape(Rectangle())
                             .onTapGesture {
-                                selection = [track.id]
+                                select(track, index: index)
                             }
                             .onTapGesture(count: 2) {
                                 startPlayback(from: index)
@@ -386,7 +457,7 @@ struct ContentView: View {
                                 Menu("Добавить в плейлист") {
                                     ForEach(library.playlists) { playlist in
                                         Button(playlist.name) {
-                                            library.add([track.id], to: playlist.id)
+                                            library.add(actionIDs(containing: track), to: playlist.id)
                                         }
                                     }
                                     if library.playlists.isEmpty {
@@ -396,7 +467,7 @@ struct ContentView: View {
                                 Menu("Оценка") {
                                     ForEach(0...5, id: \.self) { value in
                                         Button(value == 0 ? L10n.string("Без оценки") : String(repeating: "★", count: value)) {
-                                            library.setRating(value, for: [track.id])
+                                            library.setRating(value, for: actionIDs(containing: track))
                                         }
                                     }
                                 }
@@ -406,7 +477,7 @@ struct ContentView: View {
                                 .disabled(track.isMissing)
                                 Divider()
                                 Button("Удалить из библиотеки", role: .destructive) {
-                                    library.remove([track.id])
+                                    library.remove(actionIDs(containing: track))
                                 }
                             }
                         }
@@ -489,6 +560,26 @@ struct ContentView: View {
     private func playAll() {
         guard !detailTracks.isEmpty else { return }
         startPlayback(from: 0)
+    }
+
+    private func select(_ track: Track, index: Int) {
+        let flags = NSEvent.modifierFlags
+        if flags.contains(.command) {
+            if selection.contains(track.id) { selection.remove(track.id) } else { selection.insert(track.id) }
+        } else if flags.contains(.shift), let start = lastSelectedIndex {
+            let lower = min(start, index)
+            let upper = max(start, index)
+            if detailTracks.indices.contains(lower), detailTracks.indices.contains(upper) {
+                selection = Set(detailTracks[lower...upper].map(\.id))
+            }
+        } else {
+            selection = [track.id]
+        }
+        lastSelectedIndex = index
+    }
+
+    private func actionIDs(containing track: Track) -> Set<UUID> {
+        selection.contains(track.id) ? selection : [track.id]
     }
 
     private func startPlayback(from index: Int) {

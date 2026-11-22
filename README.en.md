@@ -55,6 +55,8 @@ resources are not used.
 
 **Library**
 - File and folder import, drag & drop, search, sorting, playlists.
+- Library filters by genre, year, format and quality, plus bulk actions for
+  selected tracks.
 - “Play Next” and “Add to Queue” with a separate queue window, removal and
   persistence between launches.
 - A folder dropped on “New playlist”, or into the window with no playlist
