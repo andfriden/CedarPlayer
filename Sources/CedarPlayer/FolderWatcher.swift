@@ -1,7 +1,7 @@
 import Foundation
 
-/// Следит за каталогами через DispatchSource и сообщает об изменениях с задержкой,
-/// чтобы не реагировать на каждый временный файл.
+/// Watches directories through DispatchSource and reports changes after a delay,
+/// to avoid reacting to every temporary file.
 final class FolderWatcher {
     private var sources: [String: DispatchSourceFileSystemObject] = [:]
     private var pending: [String: DispatchWorkItem] = [:]

@@ -1,6 +1,6 @@
 import Foundation
 
-/// Альбом как группа треков с общей обложкой — для сетки в окне библиотеки.
+/// An album as a group of tracks with shared artwork, for the library grid.
 struct AlbumGroup: Identifiable, Hashable {
     struct Key: Hashable {
         let album: String
@@ -27,7 +27,7 @@ struct AlbumGroup: Identifiable, Hashable {
         tracks.reduce(0) { $0 + ($1.duration.isFinite ? $1.duration : 0) }
     }
 
-    /// Группирует треки по альбому и исполнителю альбома, сортирует альбомы по названию.
+    /// Groups tracks by album and album artist, sorts albums by title.
     static func group(_ tracks: [Track]) -> [AlbumGroup] {
         var order: [Key] = []
         var buckets: [Key: [Track]] = [:]

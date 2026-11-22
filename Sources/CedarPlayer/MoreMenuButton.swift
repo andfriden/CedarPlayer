@@ -1,8 +1,8 @@
 import SwiftUI
 import AppKit
 
-/// Меню «Ещё» на AppKit: не пересоздаётся от частых обновлений индикаторов,
-/// поэтому подменю (например, «Повтор») не схлопывается при наведении.
+/// AppKit "More" menu: not recreated by frequent meter updates,
+/// so submenus (for example, "Repeat") do not collapse on hover.
 struct MoreMenuButton: View {
     @EnvironmentObject private var engine: PlayerEngine
     @Environment(\.openWindow) private var openWindow
@@ -111,7 +111,7 @@ struct MoreMenuButton: View {
     }
 }
 
-/// Пункт меню, выполняющий замыкание и удерживающий его до закрытия меню.
+/// Menu item that runs a closure and retains it until the menu closes.
 private final class ClosureMenuItem: NSMenuItem {
     private let handler: () -> Void
 

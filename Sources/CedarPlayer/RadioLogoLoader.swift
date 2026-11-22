@@ -1,7 +1,7 @@
 import Foundation
 import AppKit
 
-/// Ищет логотип станции: указанный URL, затем favicon и типовые иконки хоста.
+/// Looks for a station logo: the given URL, then favicon and common host icons.
 enum RadioLogoLoader {
     static func candidates(for station: RadioStation) -> [URL] {
         var urls: [URL] = []

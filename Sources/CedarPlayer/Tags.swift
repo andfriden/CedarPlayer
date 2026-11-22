@@ -1,6 +1,6 @@
 import Foundation
 
-/// Теги, которые удаётся прочитать из файла без AVFoundation.
+/// Tags that can be read from a file without AVFoundation.
 struct AudioTags {
     var title: String?
     var artist: String?
@@ -20,8 +20,8 @@ struct AudioTags {
     var duration: TimeInterval?
 }
 
-/// Читает теги FLAC (Vorbis comments + PICTURE), ID3v2/v1, APE, RIFF INFO
-/// (WAV/AIFF) и обложку из папки.
+/// Reads FLAC (Vorbis comments + PICTURE), ID3v2/v1, APE, RIFF INFO
+/// tags (WAV/AIFF) and folder artwork.
 enum TagReader {
 
     static func read(url: URL) -> AudioTags {
@@ -301,7 +301,7 @@ enum TagReader {
             let value = items.subdata(in: offset..<offset+valueSize)
             offset += valueSize
 
-            if flags & 0x2 != 0 { continue }             // бинарный элемент
+            if flags & 0x2 != 0 { continue }             // binary frame
             guard let text = String(data: value, encoding: .utf8) ??
                     String(data: value, encoding: .isoLatin1) else { continue }
             switch key {
@@ -400,7 +400,7 @@ enum TagReader {
         }
     }
 
-    // MARK: Общие декодеры
+    // MARK: Shared decoders
 
     private static func decodeTextFrame(_ frame: Data) -> String? {
         guard let encoding = frame.first else { return nil }
@@ -484,7 +484,7 @@ enum TagReader {
         "Acid Punk", "Acid Jazz", "Polka", "Retro", "Musical", "Rock & Roll", "Hard Rock"
     ]
 
-    // MARK: Обложка из папки
+    // MARK: Folder artwork
 
     private static let coverNames = ["cover.jpg", "cover.jpeg", "cover.png",
                                      "folder.jpg", "folder.jpeg", "folder.png",
@@ -503,7 +503,7 @@ enum TagReader {
     }
 }
 
-/// Простой читатель бинарных данных с порядком байтов big-endian по умолчанию.
+/// Simple binary reader with big-endian byte order by default.
 struct ByteReader {
     let data: Data
     private(set) var offset: Int = 0

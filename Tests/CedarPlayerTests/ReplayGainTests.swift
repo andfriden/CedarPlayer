@@ -15,7 +15,7 @@ final class ReplayGainMathTests: XCTestCase {
         XCTAssertEqual(ReplayGain.effectiveDB(trackGainDB: 20, peak: nil), ReplayGain.maxBoostDB, accuracy: 0.001)
         XCTAssertEqual(ReplayGain.effectiveDB(trackGainDB: -100, peak: nil), ReplayGain.minGainDB, accuracy: 0.001)
         XCTAssertEqual(ReplayGain.effectiveDB(trackGainDB: nil, peak: 0.9), 0, accuracy: 0.001)
-        // Пик 0.5 не даёт поднять больше +6 дБ, пик 0.9 — больше +0.9 дБ.
+        // A peak of 0.5 allows at most +6 dB; a peak of 0.9 at most +0.9 dB.
         XCTAssertEqual(ReplayGain.effectiveDB(trackGainDB: 6, peak: 0.9), 20 * log10(1 / 0.9), accuracy: 0.001)
     }
 
@@ -157,13 +157,13 @@ final class LibraryPlaylistTests: XCTestCase {
         XCTAssertEqual(imported.count, 1)
         XCTAssertEqual(library.playlists.first { $0.id == playlist.id }?.trackIDs.count, 1)
 
-        // Добавление выделения не должно зависеть от строки поиска.
+        // Adding a selection must not depend on the search field.
         library.searchText = "ничего-не-найдётся"
         let second = library.createPlaylist(named: "Второй")
         library.add(Set(library.tracks.map(\.id)), to: second.id)
         XCTAssertEqual(library.playlists.first { $0.id == second.id }?.trackIDs.count, 1)
 
-        // Удаление можно отменить одним действием.
+        // Removal can be undone in one action.
         library.searchText = ""
         let removedID = try XCTUnwrap(library.tracks.first?.id)
         library.remove([removedID])

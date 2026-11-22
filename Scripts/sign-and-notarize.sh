@@ -1,6 +1,6 @@
 #!/bin/bash
-# Подпись Developer ID и нотаризация; без секретов молча пропускает шаг.
-# Переменные: MACOS_CERTIFICATE (base64 p12), MACOS_CERTIFICATE_PASSWORD,
+# Developer ID signing and notarization; silently skips the step without secrets.
+# Variables: MACOS_CERTIFICATE (base64 p12), MACOS_CERTIFICATE_PASSWORD,
 # KEYCHAIN_PASSWORD, CEDAR_SIGN_IDENTITY, APPLE_ID, APPLE_TEAM_ID, APPLE_APP_PASSWORD.
 set -euo pipefail
 cd "$(dirname "$0")/.."

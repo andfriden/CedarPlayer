@@ -3,7 +3,7 @@ import AppKit
 import Combine
 import MediaPlayer
 
-/// Отдаёт состояние плеера системе: Now Playing в Пункте управления и медиа-клавиши.
+/// Publishes player state to the system: Now Playing in Control Center and media keys.
 @MainActor
 final class NowPlayingService {
 
@@ -17,7 +17,7 @@ final class NowPlayingService {
 
     private init() {}
 
-    /// Подписывается на движок один раз и настраивает обработчики пульта.
+    /// Subscribes to the engine once and configures remote handlers.
     func attach(_ engine: PlayerEngine) {
         guard self.engine !== engine else { return }
         self.engine = engine
@@ -57,7 +57,7 @@ final class NowPlayingService {
         refreshNow()
     }
 
-    /// Полностью пересобирает словарь Now Playing (трек, очередь, обложка).
+    /// Rebuilds the entire Now Playing dictionary (track, queue, artwork).
     func refreshNow() {
         let center = MPNowPlayingInfoCenter.default()
         if let engine, let station = engine.currentStation {
@@ -98,7 +98,7 @@ final class NowPlayingService {
         center.playbackState = engine.isPlaying ? .playing : .paused
     }
 
-    // MARK: Обновления по частям
+    // MARK: Partial updates
 
     private func refreshRate() {
         guard let engine else { return }
@@ -142,7 +142,7 @@ final class NowPlayingService {
         return value
     }
 
-    // MARK: Пульт и медиа-клавиши
+    // MARK: Remote and media keys
 
     private func configureCommands() {
         guard !commandsConfigured else { return }

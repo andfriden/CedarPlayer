@@ -1,12 +1,12 @@
 import Foundation
 
-/// ReplayGain: значение из тегов и безопасный коэффициент усиления.
+/// ReplayGain: the tag value and a safe gain factor.
 enum ReplayGain {
-    /// Верхняя граница буста, чтобы не выкручивать тихие записи в клиппинг.
+    /// Upper boost limit to keep quiet recordings from clipping.
     static let maxBoostDB: Double = 6
     static let minGainDB: Double = -24
 
-    /// "-7.23 dB" → -7.23. Понимает запятую и знак плюс.
+    /// "-7.23 dB" → -7.23. Accepts a comma and a plus sign.
     static func parseGain(_ value: String) -> Double? {
         let trimmed = value
             .replacingOccurrences(of: ",", with: ".")
@@ -20,7 +20,7 @@ enum ReplayGain {
             .trimmingCharacters(in: .whitespaces))
     }
 
-    /// Итоговое усиление в дБ с учётом пика.
+    /// Final gain in dB taking the peak into account.
     static func effectiveDB(trackGainDB: Double?, peak: Double?) -> Double {
         guard let gain = trackGainDB, gain.isFinite else { return 0 }
         var db = min(max(gain, minGainDB), maxBoostDB)
@@ -30,7 +30,7 @@ enum ReplayGain {
         return db
     }
 
-    /// Коэффициент усиления (для проверок и отображения).
+    /// Gain factor (for checks and display).
     static func factor(trackGainDB: Double?, peak: Double?) -> Float {
         Float(pow(10, effectiveDB(trackGainDB: trackGainDB, peak: peak) / 20))
     }

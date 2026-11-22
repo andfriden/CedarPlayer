@@ -2,8 +2,8 @@ import Foundation
 import Accelerate
 import AVFoundation
 
-/// FFT-анализатор спектра: 1024-точечное преобразование, 48 логарифмических полос,
-/// сглаживание атаки/спада и удержание пиков. Реализация собственная.
+/// FFT spectrum analyzer: 1024-point transform, 48 logarithmic bands,
+/// attack/decay smoothing and peak hold. Implemented in-house.
 final class SpectrumAnalyzer {
 
     static let bandCount = 48
@@ -19,7 +19,7 @@ final class SpectrumAnalyzer {
     private var peaks = [Float](repeating: 0, count: SpectrumAnalyzer.bandCount)
     private let lock = NSLock()
 
-    /// Вызывается с готовыми значениями (0…1) для полос и пиков.
+    /// Called with ready values (0…1) for bars and peaks.
     var onUpdate: (([Float], [Float]) -> Void)?
 
     init(fftSize: Int = 1024) {
@@ -71,7 +71,7 @@ final class SpectrumAnalyzer {
         binRanges = ranges
     }
 
-    /// Обрабатывает буфер с аудиопотока. Держите метод лёгким.
+    /// Processes an audio buffer. Keep this method light.
     func process(_ buffer: AVAudioPCMBuffer) {
         guard let setup = fftSetup,
               let channels = buffer.floatChannelData,
@@ -87,7 +87,7 @@ final class SpectrumAnalyzer {
         let channelCount = Int(buffer.format.channelCount)
         var samples = [Float](repeating: 0, count: fftSize)
 
-        // Моно-микс первых каналов.
+        // Mono mix of the first channels.
         for frame in 0..<min(frames, fftSize) {
             var sum: Float = 0
             for channel in 0..<channelCount {
@@ -131,7 +131,7 @@ final class SpectrumAnalyzer {
                     newBands[index] = pow(max(0, min(1, normalized)), 0.72)
                 }
 
-                // Баллистика по времени: атака ~5 мс, спад ~90 мс, пики держатся дольше.
+                // Time-based ballistics: ~5 ms attack, ~90 ms decay, peaks hold longer.
                 let dt = Float(buffer.frameLength) / max(1, Float(buffer.format.sampleRate))
                 let attack = 1 - exp(-dt / 0.005)
                 let release = 1 - exp(-dt / 0.09)

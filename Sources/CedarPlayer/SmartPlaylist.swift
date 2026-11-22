@@ -1,6 +1,6 @@
 import Foundation
 
-/// Динамические подборки, которые считаются из библиотеки на лету.
+/// Dynamic smart collections computed from the library on the fly.
 enum SmartRule: String, CaseIterable, Identifiable {
     case favorites
     case recent

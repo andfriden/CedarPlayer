@@ -1,7 +1,7 @@
 import SwiftUI
 import AppKit
 
-/// Палитра и шкалы интерфейса с адаптацией под светлую и тёмную тему.
+/// UI palette and scales adapted to light and dark themes.
 enum Theme {
     static let background = adaptive(light: 0xF2F3F5, dark: 0x181A1E)
     static let panel = adaptive(light: 0xFFFFFF, dark: 0x22252B)
@@ -58,7 +58,7 @@ enum Theme {
     }
 }
 
-/// Выбор оформления: системное, тёмное или светлое.
+/// Appearance choice: system, dark or light.
 enum AppearanceMode: String, CaseIterable, Identifiable {
     case system
     case dark

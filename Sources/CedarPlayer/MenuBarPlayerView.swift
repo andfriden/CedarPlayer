@@ -1,7 +1,7 @@
 import SwiftUI
 import AppKit
 
-/// Компактный плеер в строке меню: трек, транспорт и возврат к основному окну.
+/// Compact menu bar player: track, transport and a way back to the main window.
 struct MenuBarPlayerView: View {
     @EnvironmentObject private var engine: PlayerEngine
     @EnvironmentObject private var library: Library

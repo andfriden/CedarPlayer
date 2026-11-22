@@ -1,8 +1,8 @@
 import AVFoundation
 import Accelerate
 
-/// Собственный DSP-эквалайзер: каскад peaking-biquad на канал,
-/// обработка через vDSP_biquadm внутри AUAudioUnit.
+/// Built-in DSP equalizer: a peaking-biquad cascade per channel,
+/// processing through vDSP_biquadm inside an AUAudioUnit.
 final class BiquadEQAudioUnit: AUAudioUnit {
 
     static let bandCount = 10
@@ -50,7 +50,7 @@ final class BiquadEQAudioUnit: AUAudioUnit {
     override var outputBusses: AUAudioUnitBusArray { outputBusArray }
     override var canProcessInPlace: Bool { true }
 
-    // MARK: Настройки
+    // MARK: Settings
 
     func setBands(_ values: [Double], frequencies: [Double]) {
         coefficientQueue.sync {
@@ -68,7 +68,7 @@ final class BiquadEQAudioUnit: AUAudioUnit {
         isEnabled = enabled
     }
 
-    // MARK: Ресурсы
+    // MARK: Resources
 
     override func allocateRenderResources() throws {
         try super.allocateRenderResources()
@@ -105,7 +105,7 @@ final class BiquadEQAudioUnit: AUAudioUnit {
         }
     }
 
-    /// Коэффициенты в порядке: секция → канал → (b0, b1, b2, a1, a2), a0 = 1.
+    /// Coefficients in order: section → channel → (b0, b1, b2, a1, a2), a0 = 1.
     private func makeCoefficients(sampleRate: Double, channels: Int) -> [Double] {
         let count = BiquadEQAudioUnit.bandCount * channels * 5
         var result = [Double](repeating: 0, count: count)
@@ -145,7 +145,7 @@ final class BiquadEQAudioUnit: AUAudioUnit {
         return (b0 / a0, b1 / a0, b2 / a0, a1 / a0, a2 / a0)
     }
 
-    // MARK: Рендер
+    // MARK: Rendering
 
     override var internalRenderBlock: AUInternalRenderBlock {
         let state = self
@@ -190,7 +190,7 @@ final class BiquadEQAudioUnit: AUAudioUnit {
         }
     }
 
-    // MARK: Создание узла
+    // MARK: Node creation
 
     static func registerOnce() {
         _ = registerLock

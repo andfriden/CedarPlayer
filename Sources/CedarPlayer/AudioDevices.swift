@@ -2,12 +2,12 @@ import Foundation
 import CoreAudio
 
 struct AudioOutputDevice: Identifiable, Hashable {
-    let id: String          // UID устройства
+    let id: String          // device UID
     let name: String
     let channels: Int
 }
 
-/// Перечисление и переключение устройств вывода через CoreAudio.
+/// Enumerates and switches output devices through CoreAudio.
 enum AudioDevices {
     static func outputs() -> [AudioOutputDevice] {
         deviceIDs().compactMap { id in
@@ -40,7 +40,7 @@ enum AudioDevices {
         return uid(for: deviceID)
     }
 
-    /// Физический формат потока устройства: частота, битность, каналы.
+    /// Physical device stream format: rate, bit depth, channels.
     static func streamFormat(uid: String) -> (rate: Double, bits: Int, channels: Int)? {
         guard let id = deviceID(forUID: uid) else { return nil }
         var address = AudioObjectPropertyAddress(
@@ -53,7 +53,7 @@ enum AudioDevices {
         return (format.mSampleRate, Int(format.mBitsPerChannel), Int(format.mChannelsPerFrame))
     }
 
-    /// «48 кГц · 24 бит · 2 кан.» — вынесено для тестов.
+    /// "48 kHz · 24 bit · 2 ch." — extracted for tests.
     static func describe(rate: Double, bits: Int, channels: Int) -> String {
         guard rate > 0 else { return "—" }
         let khz = rate / 1000

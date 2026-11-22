@@ -1,7 +1,7 @@
 import SwiftUI
 import AppKit
 
-/// Окно «Обложка» 430×560: крупная обложка 380×380, подпись и минимальное управление.
+/// Artwork window 430×560: large 380×380 artwork, caption and minimal controls.
 struct ArtworkWindowView: View {
     @EnvironmentObject private var engine: PlayerEngine
 

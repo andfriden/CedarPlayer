@@ -1,7 +1,7 @@
 #!/bin/bash
-# Собирает zip с приложением и контрольной суммой.
-# Использование: Scripts/package-release.sh [версия]
-# SKIP_BUILD=1 — упаковать уже собранное и подписанное приложение.
+# Builds a zip with the app and a checksum.
+# Usage: Scripts/package-release.sh [version]
+# SKIP_BUILD=1 — package the already built and signed app.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 

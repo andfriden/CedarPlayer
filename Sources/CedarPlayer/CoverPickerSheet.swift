@@ -1,7 +1,7 @@
 import SwiftUI
 import AppKit
 
-/// Поиск и выбор обложки из внешних баз (iTunes, Cover Art Archive).
+/// Search and choose artwork from external databases (iTunes, Cover Art Archive).
 struct CoverPickerSheet: View {
     @EnvironmentObject private var library: Library
     @EnvironmentObject private var engine: PlayerEngine

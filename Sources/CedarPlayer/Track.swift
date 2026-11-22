@@ -27,7 +27,7 @@ struct Track: Identifiable, Hashable, Codable {
     var replayGainPeak: Double?
     var cueStart: TimeInterval?
     var cueEnd: TimeInterval?
-    /// Файл не найден при последней проверке; в JSON не пишется.
+    /// File was missing on the last check; not written to JSON.
     var isMissing: Bool = false
 
     init(url: URL) {
@@ -74,7 +74,7 @@ struct Track: Identifiable, Hashable, Codable {
         return "ReplayGain \(ReplayGain.text(gain))"
     }
 
-    /// Подсказка: формат, жанр, год, композитор, ReplayGain.
+    /// Tooltip: format, genre, year, composer, ReplayGain.
     var extendedInfoText: String {
         var parts: [String] = [qualityText]
         if !genre.isEmpty { parts.append(genre) }
@@ -96,7 +96,7 @@ struct Track: Identifiable, Hashable, Codable {
         return ext.isEmpty ? "AUDIO" : ext
     }
 
-    /// Строка качества для прогресс-бара и списков.
+    /// Quality string for the progress bar and lists.
     var qualityText: String {
         var parts: [String] = [url.pathExtension.uppercased()]
         if bitDepth > 0, sampleRate > 0 {
@@ -178,7 +178,7 @@ enum MetadataReader {
     static func read(url: URL) async -> Track {
         var track = Track(url: url)
 
-        // 1. Собственные парсеры: FLAC (Vorbis + PICTURE) и ID3v2.
+        // 1. Built-in parsers: FLAC (Vorbis + PICTURE) and ID3v2.
         let tags = TagReader.read(url: url)
         if let value = tags.title, !value.isEmpty { track.title = value }
         if let value = tags.artist, !value.isEmpty { track.artist = value }
@@ -197,7 +197,7 @@ enum MetadataReader {
         track.replayGainDB = tags.replayGainDB
         track.replayGainPeak = tags.replayGainPeak
 
-        // 2. AVFoundation — то, что не удалось прочитать самим (m4a/aac и прочее).
+        // 2. AVFoundation for what our parsers could not read (m4a/aac and others).
         let asset = AVURLAsset(url: url)
         if let items = try? await asset.load(.commonMetadata) {
             for item in items {
@@ -242,7 +242,7 @@ enum MetadataReader {
 }
 
 
-// MARK: - Кодирование с кэшем обложек
+// MARK: - Encoding with artwork cache
 
 extension Track {
     enum CodingKeys: String, CodingKey {
@@ -315,7 +315,7 @@ extension Track {
         try container.encodeIfPresent(cueStart, forKey: .cueStart)
         try container.encodeIfPresent(cueEnd, forKey: .cueEnd)
 
-        // В JSON пишем только ключ, сами байты лежат в ArtworkCache.
+        // Only the key goes into JSON; the bytes live in ArtworkCache.
         let identifier = artworkID ?? ArtworkCache.shared.store(artwork)
         try container.encodeIfPresent(identifier, forKey: .artworkID)
     }

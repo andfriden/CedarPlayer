@@ -1,6 +1,6 @@
 import Foundation
 
-/// Интернет-станция: имя и адрес потока.
+/// Internet station: name and stream URL.
 struct RadioStation: Identifiable, Codable, Hashable {
     let id: UUID
     var name: String

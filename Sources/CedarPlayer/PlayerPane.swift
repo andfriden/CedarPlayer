@@ -1,8 +1,8 @@
 import SwiftUI
 import AppKit
 
-/// Панель плеера 425×300: обложка и метаданные в одной строке, компактный
-/// индикатор, громкость, прогресс и основные кнопки. Редкие действия — в меню «Ещё».
+/// Player pane 425×300: artwork and metadata in one row, a compact
+/// meter, volume, progress and main buttons. Rare actions live in the "More" menu.
 struct PlayerPane: View {
     @EnvironmentObject private var engine: PlayerEngine
     @EnvironmentObject private var library: Library
@@ -35,7 +35,7 @@ struct PlayerPane: View {
         }
     }
 
-    // MARK: Обложка и метаданные
+    // MARK: Artwork and metadata
 
     private var topRow: some View {
         HStack(alignment: .top, spacing: Theme.Space.m) {
@@ -138,9 +138,9 @@ struct PlayerPane: View {
         }
     }
 
-    // MARK: Индикатор
+    // MARK: Meter
 
-    /// Визуализатор: уровень L/R или спектр. Клик по нему меняет стиль.
+    /// Visualizer: L/R level or spectrum. Clicking it changes the style.
     private var meter: some View {
         LevelMeterStrip(style: currentStyle,
                         levelLeft: engine.levelL,
@@ -168,7 +168,7 @@ struct PlayerPane: View {
         meterStyleRaw = all[(index + 1) % all.count].rawValue
     }
 
-    // MARK: Громкость
+    // MARK: Volume
 
     private var volumeRow: some View {
         HStack(spacing: Theme.Space.s) {
@@ -210,7 +210,7 @@ struct PlayerPane: View {
         .frame(height: 34)
     }
 
-    // MARK: Позиция
+    // MARK: Position
 
     private var seekBlock: some View {
         VStack(spacing: Theme.Space.xs) {
@@ -244,7 +244,7 @@ struct PlayerPane: View {
         return parts.isEmpty ? "\(left) из \(total)" : "\(left) из \(total) · \(parts.joined(separator: " · "))"
     }
 
-    // MARK: Транспорт
+    // MARK: Transport
 
     private var transportRow: some View {
         ZStack {

@@ -1,14 +1,14 @@
 import Foundation
 import AVFoundation
 
-/// Измеритель уровня: RMS и пик по каналам, сглаживание и удержание пиков.
-/// Нормировка — от −60 дБ до 0 дБ в 0…1.
+/// Level meter: RMS and peak per channel, smoothing and peak hold.
+/// Normalization maps −60…0 dB to 0…1.
 final class LevelMeter {
 
     struct Reading {
-        var rms: [Float]     // сглаженные значения, 0…1
+        var rms: [Float]     // smoothed values, 0…1
         var peaks: [Float]
-        var raw: [Float]     // без сглаживания — для VU-баллистики
+        var raw: [Float]     // unsmoothed, for VU ballistics
     }
 
     private var rmsL: Float = 0
@@ -50,7 +50,7 @@ final class LevelMeter {
             peaks[1] = peaks[0]
         }
 
-        // Баллистика по времени, а не по числу буферов: быстрая атака, упругий спад.
+        // Time-based ballistics rather than buffer-count based: fast attack, springy decay.
         let dt = Float(Double(frames) / buffer.format.sampleRate)
         let attack = 1 - exp(-dt / 0.004)
         let release = 1 - exp(-dt / 0.09)
@@ -70,7 +70,7 @@ final class LevelMeter {
         DispatchQueue.main.async { handler?(reading) }
     }
 
-    /// Небольшое расширение тихих участков, чтобы движения было видно.
+    /// Slight expansion of quiet passages so movement stays visible.
     private func display(_ value: Float) -> Float {
         pow(max(0, min(1, value)), 0.85)
     }

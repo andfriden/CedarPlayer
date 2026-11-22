@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Лист правки тегов выбранного трека.
+/// Tag editor sheet for the selected track.
 struct TagEditorSheet: View {
     @EnvironmentObject private var library: Library
     @EnvironmentObject private var engine: PlayerEngine

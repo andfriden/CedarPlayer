@@ -2,7 +2,7 @@ import SwiftUI
 import AppKit
 import UniformTypeIdentifiers
 
-/// Нижняя панель плейлиста: компактный список внутри окна плеера.
+/// Bottom playlist pane: a compact list inside the player window.
 struct PlaylistPane: View {
     @EnvironmentObject private var library: Library
     @EnvironmentObject private var engine: PlayerEngine
@@ -18,7 +18,7 @@ struct PlaylistPane: View {
     @State private var coverTrack: Track?
     @State private var keyboardTrackID: UUID?
     @FocusState private var listFocused: Bool
-    /// Для офскрин-отрисовки: ImageRenderer не показывает содержимое ScrollView.
+    /// For offscreen rendering: ImageRenderer does not show ScrollView content.
     var scrolling = true
 
     private var isShot: Bool {
@@ -112,7 +112,7 @@ struct PlaylistPane: View {
         .padding(.vertical, 6)
     }
 
-    // MARK: Заголовок панели
+    // MARK: Pane header
 
     private var header: some View {
         HStack(spacing: 8) {
@@ -180,7 +180,7 @@ struct PlaylistPane: View {
                     .font(.system(size: 9))
                     .foregroundStyle(.secondary)
                 if isShot {
-                    // Для снимка окна поле поиска не должно перехватывать ввод.
+                    // For window snapshots the search field must not intercept input.
                     Text("Поиск")
                         .font(.system(size: 12))
                         .foregroundStyle(Theme.secondaryText)
@@ -254,7 +254,7 @@ struct PlaylistPane: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    // MARK: Строка
+    // MARK: Row
 
     private func row(_ track: Track, index: Int) -> some View {
         let isCurrent = engine.currentTrack?.id == track.id
@@ -569,7 +569,7 @@ struct PlaylistPane: View {
 }
 
 
-/// Enter в списке: на macOS 14+ перехватываем клавишу, на 13 просто не мешаем.
+/// Enter in the list: intercept the key on macOS 14+, leave it alone on 13.
 private struct EnterKeyModifier: ViewModifier {
     let action: () -> Void
 

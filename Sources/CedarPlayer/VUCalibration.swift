@@ -1,13 +1,13 @@
 import Foundation
 
-/// Калибровка стрелочного VU: 0 VU = −12 dBFS, шкала −20…+3 VU.
-/// −12 dBFS выбран как компромисс для музыки: −20 dBFS «вешало» стрелку вправо
-/// на современных мастерингах.
-/// Позиция 0 — левый край шкалы, 1 — правый.
+/// Analog VU calibration: 0 VU = −12 dBFS, scale −20…+3 VU.
+/// −12 dBFS is a compromise for music: −20 dBFS pinned the needle to the right
+/// on modern masters.
+/// Position 0 is the left edge of the scale, 1 is the right.
 enum VUCalibration {
     static let zeroVUdBFS: Double = -12
 
-    /// Пары «значение VU, подпись» в порядке шкалы.
+    /// Pairs of "VU value, label" in scale order.
     static let marks: [(vu: Double, label: String)] = [
         (-20, "-20"), (-10, "-10"), (-7, "-7"), (-5, "-5"),
         (-3, "-3"), (-1, "-1"), (0, "0"), (3, "+3")
@@ -16,7 +16,7 @@ enum VUCalibration {
     static var minVU: Double { marks.first?.vu ?? -20 }
     static var maxVU: Double { marks.last?.vu ?? 3 }
 
-    /// Нормированный уровень движка (0 = −60 dBFS, 1 = 0 dBFS) в dBFS.
+    /// Normalized engine level (0 = −60 dBFS, 1 = 0 dBFS) in dBFS.
     static func dBFS(fromLevel level: Double) -> Double {
         level * 60 - 60
     }
@@ -25,7 +25,7 @@ enum VUCalibration {
         db - zeroVUdBFS
     }
 
-    /// dBFS → положение стрелки на шкале.
+    /// dBFS → needle position on the scale.
     static func position(forDBFS db: Double) -> Double {
         position(forVU: vu(fromDBFS: db))
     }
@@ -34,7 +34,7 @@ enum VUCalibration {
         position(forDBFS: dBFS(fromLevel: level))
     }
 
-    /// Положение по значению VU; между рисками — линейная интерполяция.
+    /// Position for a VU value; linear interpolation between marks.
     static func position(forVU vu: Double) -> Double {
         let clamped = min(max(vu, minVU), maxVU)
         for index in 0..<(marks.count - 1) {
@@ -50,7 +50,7 @@ enum VUCalibration {
         return clamped <= minVU ? 0 : 1
     }
 
-    /// Обратное преобразование для подписи под прибором.
+    /// Inverse transform for the caption under the meter.
     static func vu(fromPosition position: Double) -> Double {
         let clamped = min(max(position, 0), 1)
         let scaled = clamped * Double(marks.count - 1)

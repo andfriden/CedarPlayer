@@ -1,5 +1,5 @@
-// Генерация иконки Cedar Player: 1024 px PNG + .iconset + .icns.
-// Запуск: swift Scripts/make-icon.swift Resources/AppIcon
+// Cedar Player icon generation: 1024 px PNG + .iconset + .icns.
+// Run: swift Scripts/make-icon.swift Resources/AppIcon
 import AppKit
 import Foundation
 
@@ -25,13 +25,13 @@ NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
 NSGraphicsContext.current?.imageInterpolation = .high
 NSGraphicsContext.current?.shouldAntialias = true
 
-// Фон: скруглённый квадрат с мягким градиентом.
+// Background: a rounded square with a soft gradient.
 let background = NSBezierPath(roundedRect: canvas, xRadius: 228, yRadius: 228)
 NSGradient(colors: [NSColor(srgbRed: 0.11, green: 0.15, blue: 0.21, alpha: 1),
                     NSColor(srgbRed: 0.06, green: 0.08, blue: 0.11, alpha: 1)])?
     .draw(in: background, angle: -90)
 
-// Свечение под кроной.
+// Glow under the crown.
 NSGraphicsContext.saveGraphicsState()
 NSBezierPath(ovalIn: NSRect(x: 192, y: 300, width: 640, height: 640)).addClip()
 NSGradient(colors: [NSColor(srgbRed: 0.48, green: 0.65, blue: 1.0, alpha: 0.20),
@@ -70,14 +70,14 @@ treeLayer(apexY: 676, baseY: 330, halfWidth: 262,
           top: NSColor(srgbRed: 0.57, green: 0.72, blue: 1.0, alpha: 1),
           bottom: NSColor(srgbRed: 0.32, green: 0.47, blue: 0.80, alpha: 1))
 
-// Ствол.
+// Trunk.
 let trunk = NSBezierPath(roundedRect: NSRect(x: side / 2 - 40, y: 236, width: 80, height: 118),
                          xRadius: 22, yRadius: 22)
 NSGradient(starting: NSColor(srgbRed: 0.66, green: 0.73, blue: 0.85, alpha: 1),
            ending: NSColor(srgbRed: 0.40, green: 0.48, blue: 0.62, alpha: 1))?
     .draw(in: trunk, angle: -90)
 
-// Значок воспроизведения.
+// Play glyph.
 let badge = NSRect(x: side - 330, y: 190, width: 236, height: 236)
 let badgePath = NSBezierPath(ovalIn: badge)
 NSColor(srgbRed: 0.95, green: 0.96, blue: 0.98, alpha: 1).setFill()
@@ -94,7 +94,7 @@ play.lineWidth = 16
 NSColor(srgbRed: 0.09, green: 0.12, blue: 0.17, alpha: 1).setFill()
 play.fill()
 
-// Тонкая внутренняя рамка.
+// Thin inner border.
 NSColor.white.withAlphaComponent(0.07).setStroke()
 background.lineWidth = 4
 background.stroke()

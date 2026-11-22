@@ -26,7 +26,7 @@ enum CoverArtError: LocalizedError {
     }
 }
 
-/// Поиск обложек: iTunes Search API, резерв — MusicBrainz + Cover Art Archive.
+/// Artwork search: iTunes Search API, fallback — MusicBrainz + Cover Art Archive.
 actor CoverArtService {
     static let shared = CoverArtService()
 
@@ -105,7 +105,7 @@ actor CoverArtService {
         return candidates
     }
 
-    // MARK: Deezer (резерв)
+    // MARK: Deezer (fallback)
 
     private struct DeezerResponse: Decodable {
         struct Album: Decodable {

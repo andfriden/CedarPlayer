@@ -245,7 +245,7 @@ struct CedarPlayerApp: App {
         return args[index + 1]
     }
 
-    /// Проверка движка без интерфейса: `CedarPlayer --selftest /путь/файл.wav`
+    /// Headless engine check: `CedarPlayer --selftest /path/file.wav`
     private static func selfTestPath() -> String? {
         let args = CommandLine.arguments
         guard let index = args.firstIndex(of: "--selftest"), args.count > index + 1 else { return nil }
@@ -272,13 +272,13 @@ struct CedarPlayerApp: App {
         while semaphore.wait(timeout: .now()) == .timedOut {
             RunLoop.main.run(until: Date().addingTimeInterval(0.1))
         }
-        // Дать библиотеке сохранить состояние и дождаться автопоиска обложек.
+        // Let the library persist state and wait for automatic artwork search.
         let wait: TimeInterval = ProcessInfo.processInfo.environment["CEDAR_WAIT_IMPORT"] != nil ? 8 : 1.0
         RunLoop.main.run(until: Date().addingTimeInterval(wait))
         exit(0)
     }
 
-    // MARK: Замер больших библиотек
+    // MARK: Large library benchmark
 
     private static func runBench() -> Never {
         let count = Int(Self.argumentValue("--tracks") ?? "") ?? 10000
@@ -328,7 +328,7 @@ struct CedarPlayerApp: App {
         exit(0)
     }
 
-    // MARK: Снимки интерфейса
+    // MARK: UI snapshots
 
     private static func snapshotView(_ name: String, scheme: ColorScheme) -> AnyView {
         let engine = PlayerEngine()
@@ -435,7 +435,7 @@ struct CedarPlayerApp: App {
         exit(failures == 0 ? 0 : 1)
     }
 
-    /// Средняя разница яркости после приведения к 64×64; допускает сглаживание шрифтов.
+    /// Mean brightness difference after scaling to 64×64; tolerates font smoothing.
     private static func imageDifference(_ lhs: URL, _ rhs: URL) -> Double? {
         guard let left = graySamples(lhs), let right = graySamples(rhs) else { return nil }
         var sum = 0
@@ -462,7 +462,7 @@ struct CedarPlayerApp: App {
         return data
     }
 
-    /// Диагностика: библиотека, файлы, кэш обложек, настройки.
+    /// Diagnostics: library, files, artwork cache and settings.
     private static func runDoctor() -> Never {
         let fm = FileManager.default
         let support = ProcessInfo.processInfo.environment["CEDAR_LIBRARY_DIR"].map { URL(fileURLWithPath: $0) }
@@ -530,8 +530,8 @@ struct CedarPlayerApp: App {
         exit(problems == 0 ? 0 : 1)
     }
 
-    /// Проверка импорта в конкретный плейлист: `--playlist-import <папка> <имя>`.
-    /// Требует CEDAR_LIBRARY_DIR, чтобы не трогать рабочую библиотеку.
+    /// Playlist import check: `--playlist-import <folder> <name>`.
+    /// Requires CEDAR_LIBRARY_DIR to avoid touching the working library.
     private static func runPlaylistImportTest(path: String, name: String) -> Never {
         guard ProcessInfo.processInfo.environment["CEDAR_LIBRARY_DIR"] != nil else {
             print("playlist-import: задайте CEDAR_LIBRARY_DIR")
@@ -544,7 +544,7 @@ struct CedarPlayerApp: App {
             let imported = await library.importFiles([URL(fileURLWithPath: path)], into: playlist.id)
             let inPlaylist = library.playlists.first { $0.id == playlist.id }?.trackIDs.count ?? -1
 
-            // Добавление выделения не должно зависеть от поиска.
+            // Adding a selection must not depend on search.
             library.searchText = "zzz"
             let second = library.createPlaylist(named: "Второй")
             library.add(Set(library.tracks.map(\.id)), to: second.id)
@@ -561,7 +561,7 @@ struct CedarPlayerApp: App {
         exit(0)
     }
 
-    /// Проверка поиска обложек: `--cover "Исполнитель" "Альбом"`.
+    /// Artwork search check: `--cover "Artist" "Album"`.
     private static func runCoverTest(artist: String, album: String) -> Never {
         let semaphore = DispatchSemaphore(value: 0)
         Task {
@@ -582,8 +582,8 @@ struct CedarPlayerApp: App {
         exit(0)
     }
 
-    /// Отрисовка интерфейса в PNG без экрана (для проверки вёрстки).
-    /// Требует CEDAR_LIBRARY_DIR, чтобы не тронуть рабочую библиотеку.
+    /// Renders the UI to PNG offscreen (for layout checks).
+    /// Requires CEDAR_LIBRARY_DIR to avoid touching the working library.
     private static func runRenderUITest(path: String) -> Never {
         guard ProcessInfo.processInfo.environment["CEDAR_LIBRARY_DIR"] != nil else {
             print("render-ui: задайте CEDAR_LIBRARY_DIR, чтобы не затронуть рабочую библиотеку")
@@ -731,7 +731,7 @@ struct CedarPlayerApp: App {
         exit(0)
     }
 
-    /// Проверка группировки по альбомам: импорт папки и печать групп.
+    /// Album grouping check: import a folder and print the groups.
     private static func runAlbumsTest(path: String) -> Never {
         let library = Library()
         let url = URL(fileURLWithPath: path)
@@ -752,7 +752,7 @@ struct CedarPlayerApp: App {
         exit(0)
     }
 
-    /// Проверка интеграции с Now Playing и медиа-клавишами без интерфейса.
+    /// Headless check of Now Playing and media key integration.
     private static func runNowPlayingTest(path: String) -> Never {
         let url = URL(fileURLWithPath: path)
         let engine = PlayerEngine()

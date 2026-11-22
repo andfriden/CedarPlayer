@@ -2,7 +2,7 @@ import Foundation
 import AppKit
 import CryptoKit
 
-/// Кэш обложек на диске: файлы по SHA-256, в библиотеке хранится только ключ.
+/// On-disk artwork cache: SHA-256 files; the library stores only the key.
 final class ArtworkCache {
 
     static let shared = ArtworkCache()
@@ -17,7 +17,7 @@ final class ArtworkCache {
         directory = base
     }
 
-    /// Отдельный кэш в заданном каталоге — для тестов.
+    /// Separate cache in a given directory, for tests.
     init(directory: URL) {
         self.directory = directory
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
@@ -31,7 +31,7 @@ final class ArtworkCache {
             .appendingPathComponent("CedarPlayer", isDirectory: true)
     }
 
-    /// Сохраняет изображение и возвращает ключ (nil, если данных нет).
+    /// Stores an image and returns the key (nil if there is no data).
     @discardableResult
     func store(_ data: Data?) -> String? {
         guard let data, !data.isEmpty else { return nil }
@@ -50,7 +50,7 @@ final class ArtworkCache {
         return try? Data(contentsOf: url)
     }
 
-    /// Декодированная обложка для списков: повторные перерисовки не декодируют PNG заново.
+    /// Decoded artwork for lists: repeated redraws do not decode the PNG again.
     func image(for key: String) -> NSImage? {
         let cacheKey = key as NSString
         if let cached = images.object(forKey: cacheKey) {
@@ -61,7 +61,7 @@ final class ArtworkCache {
         return image
     }
 
-    /// Удаляет файлы, на которые больше не ссылается библиотека.
+    /// Deletes files no longer referenced by the library.
     func prune(keeping keys: Set<String>) {
         queue.sync {
             guard let files = try? FileManager.default.contentsOfDirectory(at: directory,

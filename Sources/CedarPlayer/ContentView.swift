@@ -167,7 +167,7 @@ struct ContentView: View {
         }
     }
 
-    // MARK: Сайдбар
+    // MARK: Sidebar
 
     private var sidebar: some View {
         List(selection: $sidebarSelection) {
@@ -298,7 +298,7 @@ struct ContentView: View {
         }
     }
 
-    // MARK: Заголовок
+    // MARK: Header
 
     private var header: some View {
         HStack(alignment: .firstTextBaseline) {
@@ -348,7 +348,7 @@ struct ContentView: View {
         return "\(tracks.count) трек(ов) · \(minutes) мин"
     }
 
-    // MARK: Список
+    // MARK: List
 
     private var trackList: some View {
         Group {
@@ -416,7 +416,7 @@ struct ContentView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    // MARK: Сетка альбомов
+    // MARK: Album grid
 
     private var albumGrid: some View {
         Group {
@@ -482,7 +482,7 @@ struct ContentView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    // MARK: Действия
+    // MARK: Actions
 
     private func playAll() {
         guard !detailTracks.isEmpty else { return }
@@ -663,7 +663,7 @@ struct ContentView: View {
     }
 }
 
-/// Строка сама следит за текущим треком, чтобы список не перерисовывался целиком.
+/// The row observes the current track itself so the whole list does not redraw.
 private struct LiveTrackRow: View {
     @EnvironmentObject private var engine: PlayerEngine
     let index: Int

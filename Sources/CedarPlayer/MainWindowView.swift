@@ -1,8 +1,8 @@
 import SwiftUI
 import AppKit
 
-/// Главное окно: панель плеера сверху, плейлист снизу. Панель плейлиста
-/// сворачивается кнопкой в плеере, пунктом меню и ⌥⌘P, окно подстраивает высоту.
+/// Main window: player pane on top, playlist below. The playlist pane
+/// collapses via a button in the player, a menu item and ⌥⌘P; the window adjusts its height.
 struct MainWindowView: View {
     @EnvironmentObject private var library: Library
     @Environment(\.player) private var player
@@ -63,7 +63,7 @@ struct MainWindowView: View {
         }
     }
 
-    /// Снимок окна для README: рисует собственный слой окна, без записи экрана.
+    /// README window snapshot: draws the window's own layer without screen recording.
     private func prepareScreenshot(path: String) {
         let trackPath = ProcessInfo.processInfo.environment["CEDAR_SHOT_TRACK"] ?? ""
         Task { @MainActor in
@@ -108,7 +108,7 @@ struct MainWindowView: View {
         }
     }
 
-    /// Восстанавливает последний трек и позицию (настройка «Запоминать последний трек»).
+    /// Restores the last track and position ("Remember last track" setting).
     private func restoreLastPlayback() {
         guard resumeLastTrack, let player, player.currentTrack == nil else { return }
         let defaults = UserDefaults.standard
@@ -124,7 +124,7 @@ struct MainWindowView: View {
         }
     }
 
-    /// Приводит окно к проектным размерам: ширина фиксирована, высота зависит от панели.
+    /// Resizes the window to its design size: fixed width, height depends on the pane.
     private func forceDesignSize(_ window: NSWindow) {
         let targetHeight = showPlaylist ? playerHeight + playlistHeight : playerHeight
         let frame = window.frame
@@ -151,7 +151,7 @@ struct MainWindowView: View {
     }
 }
 
-/// Достаёт NSWindow, в котором размещено SwiftUI-представление.
+/// Finds the NSWindow hosting a SwiftUI view.
 struct WindowAccessor: NSViewRepresentable {
     var onWindow: (NSWindow?) -> Void
 
@@ -167,8 +167,8 @@ struct WindowAccessor: NSViewRepresentable {
 }
 
 
-/// Пункт меню с живым состоянием текущего трека: сам подписан на движок,
-/// чтобы главное окно не перерисовывалось на каждом обновлении позиции.
+/// Menu item with live current-track state: subscribes to the engine itself,
+/// so the main window does not redraw on every position update.
 private struct EditTagsMenuItem: View {
     @EnvironmentObject private var engine: PlayerEngine
     let action: (Track?) -> Void

@@ -1,7 +1,7 @@
 import Foundation
 import ImageIO
 
-/// Поля, которые плеер умеет записывать обратно в файл.
+/// Fields the player can write back to a file.
 struct TagEdit {
     var title: String
     var artist: String
@@ -27,10 +27,10 @@ enum TagWriteError: LocalizedError {
     }
 }
 
-/// Перезаписывает теги FLAC (Vorbis comments) и MP3 (ID3v2.4), не трогая аудиоданные.
+/// Rewrites FLAC (Vorbis comments) and MP3 (ID3v2.4) tags without touching audio data.
 enum TagWriter {
 
-    /// Встраивает обложку в файл, сохраняя текущие теги и аудиоданные.
+    /// Embeds artwork into the file while preserving existing tags and audio data.
     static func embedArtwork(_ image: Data, in url: URL) throws {
         guard let handle = try? FileHandle(forReadingFrom: url) else {
             throw TagWriteError.corrupt("не удалось открыть файл")
@@ -91,7 +91,7 @@ enum TagWriter {
 
             switch type {
             case 1:
-                break                                   // старый padding выбрасываем
+                break                                   // drop old padding
             case 4:
                 let comments = parseVorbisComment(body)
                 blocks.append((4, buildVorbisComment(update(comments, with: edit))))
@@ -215,7 +215,7 @@ enum TagWriter {
         } else if let existingArtwork {
             appendFrame("APIC", body: existingArtwork, to: &frames)
         }
-        frames.append(Data(count: 2048))                // запас под будущие правки
+        frames.append(Data(count: 2048))                // reserve for future edits
 
         var tag = Data("ID3".utf8)
         tag.append(contentsOf: [4, 0, 0])
@@ -236,7 +236,7 @@ enum TagWriter {
         output.append(body)
     }
 
-    /// Возвращает тело кадра APIC как есть, чтобы не терять обложку при сохранении.
+    /// Returns the APIC frame body as is, so artwork is not lost on save.
     private static func findAPIC(in payload: Data, major: Int) -> Data? {
         guard major != 2 else { return nil }
         var offset = 0
@@ -255,9 +255,9 @@ enum TagWriter {
         return nil
     }
 
-    // MARK: - Общее
+    // MARK: - General
 
-    /// Пишет новый файл во временный путь и атомарно подменяет исходный.
+    /// Writes a new file to a temporary path and atomically replaces the original.
     private static func replaceFile(at url: URL, build: (FileHandle) throws -> Void) throws {
         let directory = url.deletingLastPathComponent()
         let temp = directory.appendingPathComponent(".cedar-\(UUID().uuidString).tmp")
@@ -284,14 +284,14 @@ enum TagWriter {
         }
     }
 
-    // MARK: Обложки
+    // MARK: Artwork
 
     private static func buildAPIC(_ image: Data) -> Data {
-        var body = Data([0x00])                         // latin1 для описания
+        var body = Data([0x00])                         // latin1 description
         body.append(Data(mime(for: image).utf8))
         body.append(0)
         body.append(3)                                  // front cover
-        body.append(0)                                  // пустое описание
+        body.append(0)                                  // empty description
         body.append(image)
         return body
     }
@@ -303,7 +303,7 @@ enum TagWriter {
         body.append(bigEndian(UInt32(3)))               // front cover
         body.append(bigEndian(UInt32(mime.count)))
         body.append(mime)
-        body.append(bigEndian(0))                       // пустое описание
+        body.append(bigEndian(0))                       // empty description
         body.append(bigEndian(UInt32(size.width)))
         body.append(bigEndian(UInt32(size.height)))
         body.append(bigEndian(24))

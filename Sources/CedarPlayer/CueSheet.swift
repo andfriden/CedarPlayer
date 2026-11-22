@@ -1,6 +1,6 @@
 import Foundation
 
-/// Разбор CUE-листа: один аудиофайл делится на треки по INDEX 01.
+/// CUE parsing: one audio file is split into tracks by INDEX 01.
 struct CueSheet {
     var title: String = ""
     var performer: String = ""
@@ -85,7 +85,7 @@ enum CueParser {
         result.performer = globalPerformer
         if result.album.isEmpty { result.album = globalTitle }
 
-        // Длительность каждого трека — до начала следующего.
+        // Each track lasts until the next one starts.
         for index in result.tracks.indices {
             if index + 1 < result.tracks.count {
                 result.tracks[index].end = result.tracks[index + 1].start
@@ -95,7 +95,7 @@ enum CueParser {
         return result
     }
 
-    /// mm:ss:ff, где ff — кадры по 1/75 секунды.
+    /// mm:ss:ff, where ff is frames at 1/75 second.
     static func parseTime(_ value: String) -> TimeInterval? {
         let parts = value.split(separator: ":").map(String.init)
         guard parts.count >= 2,

@@ -1,6 +1,6 @@
 #!/bin/bash
-# Собирает DMG с приложением и ярлыком Applications для перетаскивания.
-# Использование: Scripts/make-dmg.sh [версия] [путь к .app]
+# Builds a DMG with the app and an Applications shortcut for drag-and-drop.
+# Usage: Scripts/make-dmg.sh [version] [path to .app]
 set -euo pipefail
 cd "$(dirname "$0")/.."
 

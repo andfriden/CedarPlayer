@@ -1,6 +1,6 @@
 import Foundation
 
-/// Читает StreamTitle из ICY-метаданных потока (второе соединение с Icy-MetaData: 1).
+/// Reads StreamTitle from ICY stream metadata (second connection with Icy-MetaData: 1).
 final class IcyMetadataReader: NSObject {
     private var session: URLSession?
     private var task: URLSessionDataTask?
@@ -40,8 +40,8 @@ final class IcyMetadataReader: NSObject {
         onTitle = nil
     }
 
-    /// "Artist - Song" → ("Artist", "Song"); дефисы внутри имени не трогаем,
-    /// потому что разделитель — только дефис с пробелами вокруг.
+    /// "Artist - Song" → ("Artist", "Song"); hyphens inside a name are kept,
+    /// because the separator is only a hyphen surrounded by spaces.
     static func splitTitle(_ value: String) -> (artist: String?, title: String) {
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return (nil, value) }

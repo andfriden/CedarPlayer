@@ -19,7 +19,7 @@ final class TagFormatsTests: XCTestCase {
             data.append(Data(count: max(0, length - data.count)))
             return data
         }
-        var file = Data(count: 512)                       // «аудио» без ID3v2
+        var file = Data(count: 512)                       // "audio" without ID3v2
         file.append(Data("TAG".utf8))
         file.append(pad("Old Title", 30))
         file.append(pad("Old Artist", 30))
@@ -87,7 +87,7 @@ final class TagFormatsTests: XCTestCase {
             var data = Data()
             var size = UInt32(valueBytes.count)
             data.append(Data([UInt8(size & 0xFF), UInt8((size >> 8) & 0xFF), UInt8((size >> 16) & 0xFF), UInt8((size >> 24) & 0xFF)]))
-            data.append(Data(count: 4))                    // flags: текстовый элемент
+            data.append(Data(count: 4))                    // flags: text frame
             data.append(Data(key.utf8))
             data.append(0)
             data.append(valueBytes)

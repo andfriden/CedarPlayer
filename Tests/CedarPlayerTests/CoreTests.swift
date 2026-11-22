@@ -20,7 +20,7 @@ final class AlbumGroupTests: XCTestCase {
             track("D", album: "", albumArtist: "", artist: "Solo", number: 1)
         ]
         let albums = AlbumGroup.group(tracks)
-        // Порядок латиницы и кириллицы зависит от локали, поэтому проверяем состав и содержимое.
+        // Latin and Cyrillic ordering depends on the locale, so check composition and contents.
         XCTAssertEqual(Set(albums.map(\.title)), ["Alpha", "Beta", "Без альбома"])
         let beta = try? XCTUnwrap(albums.first { $0.title == "Beta" })
         XCTAssertEqual(beta?.tracks.map(\.title), ["A", "B"])
@@ -311,7 +311,7 @@ final class IcySplitTests: XCTestCase {
 final class MiniRotationTests: XCTestCase {
     func testFullTurnMatchesVinylSpeed() {
         XCTAssertEqual(MiniRotation.degreesPerSecond, 200, accuracy: 0.001)
-        // Полный оборот переходит в 0, а не в 360.
+        // A full turn wraps to 0, not 360.
         XCTAssertEqual(MiniRotation.advance(0, by: 1.8), 0, accuracy: 0.001)
     }
 

@@ -1,7 +1,7 @@
 import SwiftUI
 import AppKit
 
-/// Окно текста песни с чтением и сохранением .lrc рядом с файлом.
+/// Lyrics window that reads and saves .lrc next to the file.
 struct LyricsView: View {
     @EnvironmentObject private var engine: PlayerEngine
     @State private var text = ""
@@ -75,8 +75,8 @@ struct LyricsView: View {
     }
 }
 
-/// Скорость вращения «пластинки»: 33⅓ об/мин, как у винила и в мини-плеере
-/// Яндекс.Музыки.
+/// Vinyl rotation speed: 33⅓ rpm, as on a record.
+/// The mini player uses the same speed.
 enum MiniRotation {
     static let degreesPerSecond: Double = 200
 
@@ -86,8 +86,8 @@ enum MiniRotation {
     }
 }
 
-/// Компактный мини-плеер: вращающаяся «пластинка» с обложкой, две строки
-/// текста, тонкий прогресс и кнопки. Окно тянется за угол.
+/// Compact mini player: a spinning vinyl with artwork, two lines
+/// of text, a thin progress bar and buttons. The window resizes from the corner.
 struct MiniPlayerView: View {
     @EnvironmentObject private var engine: PlayerEngine
     @EnvironmentObject private var library: Library
@@ -181,7 +181,7 @@ struct MiniPlayerView: View {
         }
     }
 
-    /// Закрывает мини-плеер; главное окно вернёт onDisappear.
+    /// Closes the mini player; the main window is restored in onDisappear.
     private func returnToMain() {
         if let miniWindow {
             miniWindow.close()
@@ -193,9 +193,9 @@ struct MiniPlayerView: View {
         }
     }
 
-    /// Пока открыт мини-плеер, основное окно убрано; после закрытия возвращается.
+    /// While the mini player is open the main window is hidden; it returns after closing.
     private func setMainWindowHidden(_ hidden: Bool) {
-        // В CLI-рендере AppKit ещё не запущен: не трогаем окна.
+        // AppKit is not running yet in CLI rendering: leave windows alone.
         guard ProcessInfo.processInfo.environment["CEDAR_RENDER_MINI"] == nil,
               NSApp != nil else { return }
         for window in NSApp.windows where window.identifier?.rawValue.contains("main-AppWindow") == true {
@@ -207,7 +207,7 @@ struct MiniPlayerView: View {
         }
     }
 
-    // MARK: Пластинка
+    // MARK: Vinyl
 
     private var vinyl: some View {
         ZStack {
@@ -264,7 +264,7 @@ struct MiniPlayerView: View {
         }
     }
 
-    // MARK: Прогресс
+    // MARK: Progress
 
     private var progress: some View {
         VStack(alignment: .leading, spacing: 3) {

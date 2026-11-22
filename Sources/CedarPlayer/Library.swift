@@ -4,7 +4,7 @@ import UniformTypeIdentifiers
 import Combine
 import AVFoundation
 
-/// Библиотека: треки, плейлисты, поиск, сортировка, сохранение состояния.
+/// Library: tracks, playlists, search, sorting and state persistence.
 @MainActor
 final class Library: ObservableObject {
 
@@ -39,10 +39,10 @@ final class Library: ObservableObject {
     @Published private(set) var canUndoRemove = false
     private var lastRemoval: (tracks: [Track], playlists: [Playlist])?
 
-    /// Растёт при любом изменении треков или плейлистов; ключ кэша запросов.
+    /// Grows on any track or playlist change; key for the query cache.
     private var revision = 0
 
-    /// Результат выборки для списка: треки и признак смешанных обложек.
+    /// List query result: tracks and a mixed-artwork flag.
     struct TrackListResult {
         let tracks: [Track]
         let mixedArtwork: Bool
@@ -89,7 +89,7 @@ final class Library: ObservableObject {
 
     private var isTestInstance = false
 
-    /// Экземпляр для тестов: без чтения и записи рабочей библиотеки.
+    /// Test instance: does not read or write the working library.
     init(testTracks: [Track] = []) {
         isTestInstance = true
         tracks = testTracks
@@ -111,7 +111,7 @@ final class Library: ObservableObject {
         watcher.watch(watchFolders)
     }
 
-    // MARK: Хранилище
+    // MARK: Storage
 
     private func load() {
         guard let data = try? Data(contentsOf: Self.storeURL) else { return }
@@ -149,7 +149,7 @@ final class Library: ObservableObject {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.6, execute: work)
     }
 
-    // MARK: Список
+    // MARK: List
 
     var visibleTracks: [Track] {
         query(filterID: "all", search: searchText, sortKey: sortKey, ascending: sortAscending).tracks
@@ -169,8 +169,8 @@ final class Library: ObservableObject {
         return tracksByID
     }
 
-    /// Единая выборка для панели плейлиста и окна библиотеки.
-    /// Кэш живёт до изменения библиотеки, поиска, сортировки или фильтра.
+    /// Shared query for the playlist pane and library window.
+    /// The cache is valid until the library, search, sorting or filter changes.
     func query(filterID: String, search: String, sortKey: SortKey, ascending: Bool) -> TrackListResult {
         let key = QueryKey(filterID: filterID,
                            search: search,
@@ -227,7 +227,7 @@ final class Library: ObservableObject {
         return result
     }
 
-    /// Перепроверяет наличие файлов и показывает счётчик в статусе.
+    /// Rechecks file availability and shows the count in the status line.
     func refreshAvailability() {
         var updated = tracks
         var changed = false
@@ -244,7 +244,7 @@ final class Library: ObservableObject {
         statusMessage = missing == 0 ? "Все файлы на месте" : "Недоступно файлов: \(missing)"
     }
 
-    /// Диалог выбора нового пути для пропавшего файла.
+    /// Dialog for choosing a new path for a missing file.
     func presentReplacePanel(for track: Track) {
         let panel = NSOpenPanel()
         panel.canChooseFiles = true
@@ -261,7 +261,7 @@ final class Library: ObservableObject {
         }
     }
 
-    /// Привязывает существующий файл к записи, сохраняя оценки и обложку.
+    /// Links an existing file to the entry while keeping ratings and artwork.
     func replaceFile(for id: UUID, with url: URL) {
         guard let index = tracks.firstIndex(where: { $0.id == id }) else { return }
         let target = url.standardizedFileURL
@@ -284,7 +284,7 @@ final class Library: ObservableObject {
         return playlist.trackIDs.compactMap { byID[$0] }
     }
 
-    // MARK: Импорт
+    // MARK: Import
 
     func presentImportPanel(into playlistID: UUID? = nil) {
         let panel = NSOpenPanel()
@@ -308,13 +308,13 @@ final class Library: ObservableObject {
         importTask = Task { await importFiles(urls, into: playlistID) }
     }
 
-    /// Прерывает текущий импорт: уже прочитанные треки остаются в библиотеке.
+    /// Cancels the current import: tracks already read stay in the library.
     func cancelImport() {
         importTask?.cancel()
     }
 
-    /// Добавляет файлы и папки, возвращает только что добавленные треки.
-    /// Битые, пустые и дублирующиеся файлы пропускаются и попадают в отчёт.
+    /// Adds files and folders and returns only the newly added tracks.
+    /// Broken, empty and duplicate files are skipped and reported.
     @discardableResult
     func importFiles(_ urls: [URL], into playlistID: UUID? = nil) async -> [Track] {
         let fm = FileManager.default
@@ -346,7 +346,7 @@ final class Library: ObservableObject {
             }
         }
 
-        // Плейлисты M3U/PLS раскрываем до обхода папок.
+        // Expand M3U/PLS playlists before walking folders.
         var inputs: [URL] = []
         for url in urls {
             if PlaylistFile.isPlaylist(url) {
@@ -402,7 +402,7 @@ final class Library: ObservableObject {
         var imported: [Track] = []
         var referencedAudio: Set<String> = []
 
-        // CUE-листы: один аудиофайл превращается в несколько треков-сегментов.
+        // CUE sheets: one audio file becomes several segment tracks.
         for cueURL in cueFiles {
             if Task.isCancelled { cancelled = true; break }
             guard let sheet = CueParser.parse(url: cueURL) else {
@@ -435,7 +435,7 @@ final class Library: ObservableObject {
             }
         }
 
-        // Обычные файлы: пропускаем те, что уже описаны CUE-листом.
+        // Regular files: skip those already covered by a CUE sheet.
         files = files.filter { !referencedAudio.contains($0.standardizedFileURL.path) }
 
         let existingKeys = Set(tracks.map { Self.key(for: $0) })
@@ -478,7 +478,7 @@ final class Library: ObservableObject {
 
         tracks.append(contentsOf: imported)
 
-        // Новые треки сразу попадают в выбранный плейлист, а не только в «Все треки».
+        // New tracks go straight into the selected playlist, not only into "All Tracks".
         if let playlistID,
            !imported.isEmpty,
            let index = playlists.firstIndex(where: { $0.id == playlistID }) {
@@ -510,7 +510,7 @@ final class Library: ObservableObject {
         return imported
     }
 
-    /// Фоновый поиск обложек для импортированных треков без картинки.
+    /// Background artwork search for imported tracks without an image.
     private func autoFetchArtwork(for imported: [Track]) {
         guard !imported.isEmpty else { return }
         let defaults = UserDefaults.standard
@@ -548,19 +548,19 @@ final class Library: ObservableObject {
         }
     }
 
-    /// Проверяет, что файл действительно открывается декодером Core Audio.
+    /// Checks that the file really opens with the Core Audio decoder.
     private static func canDecode(url: URL) async -> Bool {
         if (try? AVAudioFile(forReading: url)) != nil { return true }
         let asset = AVURLAsset(url: url)
         return (try? await asset.load(.isPlayable)) ?? false
     }
 
-    /// Ключ уникальности: файл + смещение внутри CUE.
+    /// Identity key: file + offset inside the CUE.
     nonisolated static func key(for track: Track) -> String {
         "\(track.url.standardizedFileURL.path)#\(track.cueStart.map { String(format: "%.3f", $0) } ?? "file")"
     }
 
-    /// Ставит обложку выбранным трекам (хранится в кэше, в JSON — только ключ).
+    /// Sets artwork on the selected tracks (stored in the cache; JSON holds only the key).
     func setArtwork(_ data: Data?, for trackIDs: Set<UUID>) {
         let key = data.flatMap { ArtworkCache.shared.store($0) }
         for index in tracks.indices where trackIDs.contains(tracks[index].id) {
@@ -569,7 +569,7 @@ final class Library: ObservableObject {
         }
     }
 
-    /// Треки того же альбома и исполнителя альбома.
+    /// Tracks with the same album and album artist.
     func albumTrackIDs(for track: Track) -> Set<UUID> {
         guard !track.album.isEmpty else { return [] }
         let albumArtist = track.albumArtist.isEmpty ? track.artist : track.albumArtist
@@ -579,7 +579,7 @@ final class Library: ObservableObject {
         }.map(\.id))
     }
 
-    /// Записывает теги в файл и обновляет запись в библиотеке.
+    /// Writes tags to the file and updates the library entry.
     @discardableResult
     func applyTags(_ edit: TagEdit, to trackID: UUID) throws -> Track? {
         guard let index = tracks.firstIndex(where: { $0.id == trackID }) else { return nil }
@@ -595,7 +595,7 @@ final class Library: ObservableObject {
         return tracks[index]
     }
 
-    /// Оценка трека 0…5.
+    /// Track rating 0…5.
     func setRating(_ rating: Int, for ids: Set<UUID>) {
         let clamped = min(max(rating, 0), 5)
         for index in tracks.indices where ids.contains(tracks[index].id) {
@@ -614,7 +614,7 @@ final class Library: ObservableObject {
         statusMessage = "Удалено треков: \(ids.count) · ⌥⌘Z вернёт"
     }
 
-    /// Возвращает последнее удаление (одно действие, пока его не перезаписали).
+    /// Returns the last removal (one action until overwritten).
     func undoRemove() {
         guard let snapshot = lastRemoval else { return }
         tracks = snapshot.tracks
@@ -624,9 +624,7 @@ final class Library: ObservableObject {
         statusMessage = "Удаление отменено"
     }
 
-    // MARK: Плейлисты
-
-    // MARK: Папки наблюдения
+    // MARK: Watched folders
 
     func presentWatchFolderPanel() {
         let panel = NSOpenPanel()
@@ -670,7 +668,7 @@ final class Library: ObservableObject {
         return ArtworkCache.shared.data(for: id)
     }
 
-    /// Догружает логотип, если его ещё нет.
+    /// Loads the logo if it is not available yet.
     func ensureStationLogo(_ station: RadioStation) {
         guard station.logoID == nil else { return }
         fetchStationLogo(station)
@@ -689,6 +687,8 @@ final class Library: ObservableObject {
         stations.removeAll { $0.id == id }
     }
 
+    // MARK: Playlists
+
     func createPlaylist(named name: String, unique: Bool = false) -> Playlist {
         let finalName = unique ? uniquePlaylistName(name) : name
         let playlist = Playlist(name: finalName)
@@ -700,13 +700,13 @@ final class Library: ObservableObject {
         playlists.removeAll { $0.id == playlist.id }
     }
 
-    /// Имя, которое ставится плейлисту до того, как он получил содержимое.
+    /// Name assigned to a playlist before it has content.
     static func isPlaceholderName(_ name: String) -> Bool {
         let trimmed = name.trimmingCharacters(in: .whitespaces)
         return trimmed.isEmpty || ["Новый плейлист", "Без названия", "New Playlist"].contains(trimmed)
     }
 
-    /// «Папка», «Папка 2», «Папка 3» — без совпадений с другими плейлистами.
+    /// "Folder", "Folder 2", "Folder 3" — without collisions with other playlists.
     func uniquePlaylistName(_ base: String, excluding id: UUID? = nil) -> String {
         let trimmed = base.trimmingCharacters(in: .whitespaces)
         let candidate = trimmed.isEmpty ? "Плейлист" : trimmed
@@ -725,7 +725,7 @@ final class Library: ObservableObject {
         playlists[index].name = trimmed
     }
 
-    /// Убирает треки из плейлиста; сами файлы и записи библиотеки остаются.
+    /// Removes tracks from a playlist; files and library entries remain.
     func clearPlaylist(_ id: UUID) {
         guard let index = playlists.firstIndex(where: { $0.id == id }) else { return }
         playlists[index].trackIDs.removeAll()
@@ -744,7 +744,7 @@ final class Library: ObservableObject {
         return (imported + tracksUnder(folder)).map(\.id).filter { seen.insert($0).inserted }
     }
 
-    /// Импортирует папку и создаёт плейлист с её именем. Возвращает nil, если аудио нет.
+    /// Imports a folder and creates a playlist named after it. Returns nil if there is no audio.
     @discardableResult
     func importFolderAsPlaylist(_ folder: URL) async -> Playlist? {
         var isDirectory: ObjCBool = false
@@ -762,8 +762,8 @@ final class Library: ObservableObject {
         return playlist(with: created.id)
     }
 
-    /// Добавляет папку в существующий плейлист; пустой плейлист с именем-заглушкой
-    /// переименовывается по папке. Возвращает false, если аудио не нашлось.
+    /// Adds a folder to an existing playlist; an empty playlist with a placeholder name
+    /// is renamed after the folder. Returns false if no audio was found.
     @discardableResult
     func importFolder(_ folder: URL, into playlistID: UUID, renamePlaceholder: Bool = true) async -> Bool {
         var isDirectory: ObjCBool = false
@@ -792,7 +792,7 @@ final class Library: ObservableObject {
 
     func add(_ ids: Set<UUID>, to playlistID: UUID) {
         guard let index = playlists.firstIndex(where: { $0.id == playlistID }) else { return }
-        // Порядок — как в библиотеке: поиск и сортировка не должны мешать добавлению.
+        // Order follows the library: search and sorting must not affect adding.
         let ordered = tracks.map(\.id).filter { ids.contains($0) }
         playlists[index].trackIDs.append(contentsOf: ordered.filter { !playlists[index].trackIDs.contains($0) })
     }

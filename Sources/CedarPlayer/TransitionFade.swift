@@ -1,8 +1,8 @@
 import Foundation
 
-/// Плавное затухание в конце трека и нарастание в начале.
+/// Smooth fade-out at the end of a track and fade-in at the start.
 enum TransitionFade {
-    /// Коэффициент громкости 0…1 для текущей позиции.
+    /// Volume factor 0…1 for the current position.
     static func factor(position: TimeInterval,
                        duration: TimeInterval,
                        fadeIn: TimeInterval,
@@ -22,7 +22,7 @@ enum TransitionFade {
     }
 }
 
-/// Рампа кроссфейда: старый трек уходит, новый приходит линейно.
+/// Crossfade ramp: the old track leaves and the new one enters linearly.
 enum Crossfade {
     static func outgoing(_ progress: Double) -> Float {
         Float(min(max(1 - progress, 0), 1))

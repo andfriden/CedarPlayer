@@ -3,12 +3,12 @@ import AVFoundation
 import AudioToolbox
 import Combine
 
-/// Движок воспроизведения: AVAudioEngine + узел эквалайзера + регулировка скорости.
-/// Реализация собственная, сторонние плееры не используются.
+/// Playback engine: AVAudioEngine + equalizer node + rate adjustment.
+/// Implemented in-house; no third-party players are used.
 @MainActor
 final class PlayerEngine: ObservableObject {
 
-    // MARK: Состояние
+    // MARK: State
 
     @Published private(set) var isPlaying = false
     @Published private(set) var currentTrack: Track?
@@ -22,32 +22,32 @@ final class PlayerEngine: ObservableObject {
     @Published private(set) var radioBuffering = false
     @Published private(set) var radioNowPlaying: String?
 
-    // MARK: Устройство вывода
+    // MARK: Output device
 
     @Published private(set) var outputDevices: [AudioOutputDevice] = []
     @Published private(set) var selectedOutputUID: String?
     @Published private(set) var outputFormatDescription = "—"
 
-    /// Разрыв между сменой трека и стартом следующего (для проверки gapless).
+    /// Gap between track switch and the next start (for gapless checks).
     @Published private(set) var lastTransitionGap: TimeInterval?
     private var transitionStartedAt: Date?
     private var autoTransition = false
 
-    /// Истинный кроссфейд: наложение следующего трека на последние секунды текущего.
+    /// True crossfade: the next track overlaps the last seconds of the current one.
     @Published var crossfadeSeconds: Double = 0 {
         didSet { UserDefaults.standard.set(crossfadeSeconds, forKey: "crossfadeSeconds") }
     }
     @Published private(set) var radioArtist: String?
     @Published private(set) var radioTrack: String?
 
-    /// Подменяет метаданные играющего трека после правки тегов.
+    /// Replaces the playing track metadata after a tag edit.
     func syncCurrentTrack(with track: Track) {
         guard let current = currentTrack, current.id == track.id else { return }
         currentTrack = track
         applyReplayGain()
     }
 
-    /// Выравнивание громкости по ReplayGain: отдельный EQ-узел в 0 полос.
+    /// ReplayGain volume leveling: a separate EQ node with zero bands.
     private func applyReplayGain() {
         guard isReplayGainEnabled, let track = currentTrack else {
             replayGainNode.globalGain = 0
@@ -85,7 +85,7 @@ final class PlayerEngine: ObservableObject {
     @Published var bands: [Double] = Array(repeating: 0, count: 10) {
         didSet { applyBands(); persistEQ() }
     }
-    /// Плавное затухание в конце и нарастание в начале трека.
+    /// Smooth fade-out at the end and fade-in at the start of a track.
     @Published var transitionFadeSeconds: Double = 1.0 {
         didSet {
             UserDefaults.standard.set(transitionFadeSeconds, forKey: "transitionFadeSeconds")
@@ -115,12 +115,12 @@ final class PlayerEngine: ObservableObject {
 
     let frequencies: [Double] = [32, 64, 125, 250, 500, 1000, 2000, 4000, 8000, 16000]
 
-    // MARK: Очередь
+    // MARK: Queue
 
     private(set) var queue: [Track] = []
     private(set) var queueIndex: Int = -1
 
-    // MARK: Аудиограф
+    // MARK: Audio graph
 
     private let engine = AVAudioEngine()
     private let player = AVAudioPlayerNode()
@@ -131,8 +131,8 @@ final class PlayerEngine: ObservableObject {
     private var equalizer: AVAudioUnit!
     private var biquad: BiquadEQAudioUnit?
     private let replayGainNode: AVAudioUnitEQ = {
-        // Ноль полос у AVAudioUnitEQ не обрабатывает globalGain, поэтому одна
-        // выключенная полоса — узел остаётся активным и усиливает сигнал.
+        // AVAudioUnitEQ with zero bands does not apply globalGain, so one disabled
+        // band keeps the node active and amplifies the signal.
         let node = AVAudioUnitEQ(numberOfBands: 1)
         node.bands[0].filterType = .parametric
         node.bands[0].frequency = 1000
@@ -211,7 +211,7 @@ final class PlayerEngine: ObservableObject {
         applyEQState()
         applyBands()
 
-        // Оба плеера входят в общий микшер, дальше одна цепочка обработки.
+        // Both players feed a shared mixer; one processing chain follows.
         engine.connect(player, to: blendMixer, format: nil)
         engine.connect(fadePlayer, to: blendMixer, format: nil)
         engine.connect(blendMixer, to: timePitch, format: nil)
@@ -289,11 +289,11 @@ final class PlayerEngine: ObservableObject {
         }
     }
 
-    // MARK: Загрузка
+    // MARK: Loading
 
     func setQueue(_ tracks: [Track], startAt index: Int, autoplay: Bool = true) {
         var checked = tracks
-        // Восстановленный файл перестаёт считаться пропавшим без полной проверки библиотеки.
+        // A restored file stops being missing without a full library scan.
         for position in checked.indices where checked[position].isMissing {
             if FileManager.default.fileExists(atPath: checked[position].url.path) {
                 checked[position].isMissing = false
@@ -302,7 +302,7 @@ final class PlayerEngine: ObservableObject {
         let requested = checked.indices.contains(index) ? checked[index] : nil
         let playable = checked.enumerated().filter { !$0.element.isMissing }
         guard !playable.isEmpty else {
-            // Не трогаем текущее воспроизведение: показываем причину и выходим.
+            // Leave current playback untouched: report the reason and return.
             errorMessage = "Файлы не найдены"
             return
         }
@@ -365,9 +365,9 @@ final class PlayerEngine: ObservableObject {
         }
     }
 
-    // MARK: Устройство вывода
+    // MARK: Output device
 
-    /// Перечитывает список устройств; выбранное сохраняется, если ещё доступно.
+    /// Reloads the device list; the selection is kept if still available.
     func refreshOutputDevices() {
         outputDevices = AudioDevices.outputs()
         if let uid = selectedOutputUID, outputDevices.contains(where: { $0.id == uid }) {
@@ -435,9 +435,9 @@ final class PlayerEngine: ObservableObject {
         }
     }
 
-    // MARK: Радио
+    // MARK: Radio
 
-    /// Запускает интернет-станцию через AVPlayer; локальная очередь останавливается.
+    /// Starts an internet station through AVPlayer; the local queue stops.
     func playRadio(_ station: RadioStation) {
         guard let url = station.url, url.scheme != nil else {
             errorMessage = "Некорректный адрес станции"
@@ -553,7 +553,7 @@ final class PlayerEngine: ObservableObject {
         radioTrack = nil
     }
 
-    // MARK: Управление
+    // MARK: Controls
 
     func play() {
         if let radioPlayer {
@@ -678,7 +678,7 @@ final class PlayerEngine: ObservableObject {
 
     func currentIndex() -> Int? { queueIndex >= 0 ? queueIndex : nil }
 
-    // MARK: Кроссфейд
+    // MARK: Crossfade
 
     private struct CrossfadeState {
         let node: AVAudioPlayerNode
@@ -697,7 +697,7 @@ final class PlayerEngine: ObservableObject {
     private var crossfadeState: CrossfadeState?
     private var crossfadeTimer: Timer?
 
-    /// Следующий индекс очереди с учётом перемешивания и повтора.
+    /// Next queue index taking shuffle and repeat into account.
     private func upcomingIndex() -> Int? {
         guard !queue.isEmpty, repeatMode != .one else { return nil }
         var next = queueIndex + 1
@@ -830,7 +830,7 @@ final class PlayerEngine: ObservableObject {
         generation += 1
     }
 
-    // MARK: Планирование сегмента
+    // MARK: Segment scheduling
 
     private func scheduleFromCurrentFrame() {
         guard let file else { return }
@@ -870,7 +870,7 @@ final class PlayerEngine: ObservableObject {
         }
     }
 
-    /// Пересчитывает громкость по позиции: мягкий вход и выход без щелчков.
+    /// Recomputes volume from position: soft fade-in and fade-out without clicks.
     private func applyFade() {
         guard file != nil, isPlaying, activeNode.isPlaying, crossfadeState == nil else { return }
         let fade = max(0, transitionFadeSeconds)
@@ -886,7 +886,7 @@ final class PlayerEngine: ObservableObject {
         return min(endFrame, seekFrame + playerTime.sampleTime)
     }
 
-    // MARK: Таймер позиции
+    // MARK: Position timer
 
     private var tick = 0
 
@@ -914,7 +914,7 @@ final class PlayerEngine: ObservableObject {
         RunLoop.main.add(timer!, forMode: .common)
     }
 
-    // MARK: Эквалайзер
+    // MARK: Equalizer
 
     struct EQPreset: Identifiable, Hashable {
         let name: String

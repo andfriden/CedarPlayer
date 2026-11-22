@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Стили индикатора уровня и отдельное окно аналогового VU-метра.
+/// Level meter styles and the separate analog VU meter window.
 enum MeterStyle: String, CaseIterable, Identifiable {
     case segments
     case bar
@@ -19,7 +19,7 @@ enum MeterStyle: String, CaseIterable, Identifiable {
     }
 }
 
-/// Индикатор уровня 250×44: L/R, пики, разметка в дБ.
+/// Level indicator 250×44: L/R, peaks, dB markings.
 struct LevelMeterStrip: View {
     var style: MeterStyle = .segments
     var levelLeft: Float
@@ -53,7 +53,7 @@ struct LevelMeterStrip: View {
         .accessibilityHidden(true)
     }
 
-    // MARK: Сегменты
+    // MARK: Segments
 
     private func drawSegments(context: GraphicsContext, size: CGSize) {
         let gap: CGFloat = 1.6
@@ -86,7 +86,7 @@ struct LevelMeterStrip: View {
         _ = size
     }
 
-    // MARK: Сплошные шкалы
+    // MARK: Solid bars
 
     private func drawBars(context: GraphicsContext, size: CGSize) {
         let barHeight = rowHeight(size)
@@ -122,7 +122,7 @@ struct LevelMeterStrip: View {
         }
     }
 
-    // MARK: Точка с пиком
+    // MARK: Dots with peak
 
     private func drawDots(context: GraphicsContext, size: CGSize) {
         let barHeight = rowHeight(size)
@@ -154,7 +154,7 @@ struct LevelMeterStrip: View {
         }
     }
 
-    // MARK: Спектр
+    // MARK: Spectrum
 
     private func drawSpectrum(context: GraphicsContext, size: CGSize) {
         guard !bands.isEmpty else { return }
@@ -174,14 +174,14 @@ struct LevelMeterStrip: View {
             let rect = CGRect(x: CGFloat(index) * (width + gap),
                               y: size.height - height,
                               width: width, height: height)
-            // Градиент по высоте, как у спектральных визуализаторов плееров.
+            // Vertical gradient, like player spectrum visualizers.
             context.fill(Path(roundedRect: rect, cornerRadius: width / 2.6),
                          with: .linearGradient(gradient,
                                                startPoint: CGPoint(x: 0, y: size.height),
                                                endPoint: CGPoint(x: 0, y: 0)))
         }
 
-        // Пики: отдельные штрихи над столбиками, медленно сползают вниз.
+        // Peaks: separate marks above the bars, slowly sliding down.
         guard spectrumPeaks.count == bands.count else { return }
         for (index, value) in spectrumPeaks.enumerated() {
             let peak = CGFloat(min(1, max(0, value)))
@@ -194,7 +194,7 @@ struct LevelMeterStrip: View {
         }
     }
 
-    // MARK: Шкала
+    // MARK: Scale
 
     private func drawScale(context: GraphicsContext, size: CGSize) {
         let scaleY = 36.0
@@ -230,7 +230,7 @@ struct LevelMeterStrip: View {
     }
 }
 
-/// Уровни для отрисовки прибора: сырые (0…1) и пики.
+/// Levels for drawing the meter: raw (0…1) and peaks.
 struct VULevels {
     var left: Float
     var right: Float
@@ -238,8 +238,8 @@ struct VULevels {
     var peakRight: Float
 }
 
-/// Окно аналогового VU-метра: два калиброванных прибора L/R.
-/// 0 VU = −20 dBFS, шкала −20…+3 VU, баллистика 300 мс. Громкости здесь нет.
+/// Analog VU meter window: two calibrated L/R meters.
+/// 0 VU = −20 dBFS, scale −20…+3 VU, 300 ms ballistics. No volume here.
 struct AnalogVUMeterView: View {
     @EnvironmentObject private var engine: PlayerEngine
     var preview: VULevels?
@@ -251,7 +251,7 @@ struct AnalogVUMeterView: View {
 
     init(preview: VULevels? = nil) {
         self.preview = preview
-        // Для офскрин-рендера и тестов сразу ставим стрелки по переданным уровням.
+        // For offscreen rendering and tests, set the needles directly from the supplied levels.
         _needleL = State(initialValue: VUCalibration.position(forLevel: Double(preview?.left ?? 0)))
         _needleR = State(initialValue: VUCalibration.position(forLevel: Double(preview?.right ?? 0)))
     }
@@ -287,9 +287,9 @@ struct AnalogVUMeterView: View {
             let dt = now.timeIntervalSince(lastTick ?? now)
             lastTick = now
             guard dt > 0 else { return }
-            // Стандартная баллистика VU: 300 мс.
+            // Standard VU ballistics: 300 ms.
             let alpha = 1 - exp(-dt / 0.3)
-            // На паузе стрелки возвращаются к левому краю, а не висят на последнем уровне.
+            // When paused, needles return to the left edge instead of hanging at the last level.
             let active = preview != nil || engine.isPlaying
             let targetL = active ? VUCalibration.position(forLevel: Double(levels.left)) : 0
             let targetR = active ? VUCalibration.position(forLevel: Double(levels.right)) : 0
@@ -320,7 +320,7 @@ struct AnalogVUMeterView: View {
         context.stroke(arc, with: .color(Theme.separator),
                        style: StrokeStyle(lineWidth: 2, lineCap: .round))
 
-        // Красная зона начинается ровно с риски 0 VU.
+        // The red zone starts exactly at the 0 VU mark.
         let redStart = 225 + 90 * Double(VUCalibration.marks.count - 2) / Double(VUCalibration.marks.count - 1)
         var redZone = Path()
         redZone.addArc(center: pivot, radius: radius,
@@ -367,7 +367,7 @@ struct AnalogVUMeterView: View {
             .foregroundColor(Theme.secondaryText.opacity(0.6))
         context.draw(context.resolve(vu), at: CGPoint(x: size.width / 2, y: 30), anchor: .center)
 
-        // LED загорается вместе со стрелкой в красной зоне, без рассинхрона по пику.
+        // The LED lights together with the needle in the red zone, with no peak desync.
         let peakLit = needle >= VUCalibration.position(forVU: 0)
         let led = CGRect(x: size.width - 22, y: 18, width: 8, height: 8)
         context.fill(Path(ellipseIn: led),

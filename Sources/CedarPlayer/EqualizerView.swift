@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// Окно эквалайзера: крупные подписи полос, контрастная сетка дБ,
-/// отдельный предусилитель, пресеты и сохранение настроек.
+/// Equalizer window: large band labels, a contrasting dB grid,
+/// a separate preamp, presets and persisted settings.
 struct EqualizerView: View {
     @EnvironmentObject private var engine: PlayerEngine
     @Environment(\.dismiss) private var dismiss
@@ -45,7 +45,7 @@ struct EqualizerView: View {
         }
     }
 
-    // MARK: Заголовок
+    // MARK: Header
 
     private var header: some View {
         HStack(alignment: .firstTextBaseline, spacing: Theme.Space.m) {
@@ -75,7 +75,7 @@ struct EqualizerView: View {
         .padding(.vertical, Theme.Space.m)
     }
 
-    // MARK: Полосы
+    // MARK: Bands
 
     private var bandsArea: some View {
         HStack(alignment: .top, spacing: Theme.Space.l) {
@@ -185,7 +185,7 @@ struct EqualizerView: View {
         return faderHeight * CGFloat(ratio) - 8
     }
 
-    // MARK: Низ
+    // MARK: Footer
 
     private var footer: some View {
         HStack(spacing: Theme.Space.m) {
@@ -254,7 +254,7 @@ struct EqualizerView: View {
         value >= 1000 ? String(format: "%.0fK", value / 1000) : String(format: "%.0f", value)
     }
 
-    // MARK: Пресеты
+    // MARK: Presets
 
     private func apply(custom preset: CustomPreset) {
         engine.preamp = preset.preamp
@@ -290,7 +290,7 @@ struct EqualizerView: View {
     }
 }
 
-/// Кнопки нижней панели: заметный фон и рамка вместо системной малозаметной.
+/// Bottom-pane buttons: a visible background and border instead of the subtle system style.
 struct EQActionButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
@@ -307,8 +307,8 @@ struct EQActionButtonStyle: ButtonStyle {
     }
 }
 
-/// Вертикальный фейдер: широкий трек, заливка от нуля, белая ручка.
-/// Двойной клик сбрасывает значение в ноль.
+/// Vertical fader: wide track, fill from zero, white knob.
+/// Double-click resets the value to zero.
 struct VerticalFader: View {
     @Binding var value: Double
     var range: ClosedRange<Double>
@@ -329,7 +329,7 @@ struct VerticalFader: View {
                     .frame(width: 8)
                     .frame(maxWidth: .infinity)
 
-                // Заливка от нуля к текущему значению.
+                // Fill from zero to the current value.
                 Rectangle()
                     .fill(Theme.accent.opacity(0.55))
                     .frame(width: 8,

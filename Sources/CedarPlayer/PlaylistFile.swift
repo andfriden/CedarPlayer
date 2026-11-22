@@ -1,6 +1,6 @@
 import Foundation
 
-/// Импорт и экспорт M3U/M3U8 и PLS.
+/// M3U/M3U8 and PLS import and export.
 enum PlaylistFile {
     enum Format: String, CaseIterable, Identifiable {
         case m3u
@@ -17,7 +17,7 @@ enum PlaylistFile {
         extensions.contains(url.pathExtension.lowercased())
     }
 
-    /// Возвращает файлы плейлиста; относительные пути считаются от его каталога.
+    /// Returns playlist files; relative paths are resolved from its directory.
     static func parse(_ url: URL) -> [URL] {
         guard let data = try? Data(contentsOf: url) else { return [] }
         let text = String(data: data, encoding: .utf8)

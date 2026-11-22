@@ -1,9 +1,9 @@
 import SwiftUI
 
-/// Ссылка на движок без подписки на его изменения.
-/// Нужна видам, которым важны только действия: подписка через
-/// @EnvironmentObject заставляла бы список из тысяч строк перерисовываться
-/// на каждом обновлении позиции.
+/// Engine reference without subscribing to its changes.
+/// For views that only need actions: subscribing through
+/// @EnvironmentObject would make a list of thousands of rows redraw
+/// on every position update.
 private struct PlayerEngineEnvironmentKey: EnvironmentKey {
     static let defaultValue: PlayerEngine? = nil
 }
