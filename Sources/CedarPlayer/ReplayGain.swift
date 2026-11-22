@@ -36,6 +36,6 @@ enum ReplayGain {
     }
 
     static func text(_ gain: Double) -> String {
-        String(format: "%+.1f дБ", gain)
+        L10n.format("%+.1f дБ", gain)
     }
 }

@@ -58,8 +58,8 @@ enum AudioDevices {
         guard rate > 0 else { return "—" }
         let khz = rate / 1000
         let rateText = khz == khz.rounded() ? String(format: "%.0f", khz) : String(format: "%.1f", khz)
-        let depth = bits > 0 ? "\(bits) бит · " : ""
-        return "\(rateText) кГц · \(depth)\(channels) кан."
+        let depth = bits > 0 ? L10n.format("%ld бит · ", bits) : ""
+        return L10n.format("%@ кГц · %@%ld кан.", rateText, depth, channels)
     }
 
     private static func deviceIDs() -> [AudioDeviceID] {

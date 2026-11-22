@@ -30,7 +30,7 @@ struct MoreMenuButton: View {
         let menu = NSMenu()
         menu.autoenablesItems = false
 
-        menu.addItem(item("Перемешивание", checked: engine.isShuffle) {
+        menu.addItem(item(L10n.string("Перемешивание"), checked: engine.isShuffle) {
             engine.isShuffle.toggle()
         })
 
@@ -41,26 +41,26 @@ struct MoreMenuButton: View {
                 engine.repeatMode = mode
             })
         }
-        menu.addItem(submenu("Повтор", submenu: repeatMenu))
+        menu.addItem(submenu(L10n.string("Повтор"), submenu: repeatMenu))
 
         menu.addItem(.separator())
 
-        menu.addItem(item("Найти обложку…", enabled: engine.currentTrack != nil) {
+        menu.addItem(item(L10n.string("Найти обложку…"), enabled: engine.currentTrack != nil) {
             onFindCover()
         })
 
         menu.addItem(.separator())
 
-        menu.addItem(item("Выравнивать громкость (ReplayGain)", checked: engine.isReplayGainEnabled) {
+        menu.addItem(item(L10n.string("Выравнивать громкость (ReplayGain)"), checked: engine.isReplayGainEnabled) {
             engine.isReplayGainEnabled.toggle()
         })
-        menu.addItem(item("Эквалайзер включён", checked: engine.isEQEnabled) {
+        menu.addItem(item(L10n.string("Эквалайзер включён"), checked: engine.isEQEnabled) {
             engine.isEQEnabled.toggle()
         })
-        menu.addItem(item("Открыть эквалайзер") { openWindow(id: "equalizer") })
-        menu.addItem(item("Текст песни") { openWindow(id: "lyrics") })
-        menu.addItem(item("Окно обложки") { openWindow(id: "albumart") })
-        menu.addItem(item("Библиотека") { openWindow(id: "library") })
+        menu.addItem(item(L10n.string("Открыть эквалайзер")) { openWindow(id: "equalizer") })
+        menu.addItem(item(L10n.string("Текст песни")) { openWindow(id: "lyrics") })
+        menu.addItem(item(L10n.string("Окно обложки")) { openWindow(id: "albumart") })
+        menu.addItem(item(L10n.string("Библиотека")) { openWindow(id: "library") })
 
         menu.addItem(.separator())
 
@@ -71,7 +71,7 @@ struct MoreMenuButton: View {
                 meterStyleRaw = style.rawValue
             })
         }
-        menu.addItem(submenu("Индикатор", submenu: meterMenu))
+        menu.addItem(submenu(L10n.string("Индикатор"), submenu: meterMenu))
 
         let speedMenu = NSMenu()
         speedMenu.autoenablesItems = false
@@ -81,16 +81,16 @@ struct MoreMenuButton: View {
                 engine.playbackRate = rate
             })
         }
-        menu.addItem(submenu("Скорость", submenu: speedMenu))
+        menu.addItem(submenu(L10n.string("Скорость"), submenu: speedMenu))
 
         menu.popUp(positioning: nil, at: NSEvent.mouseLocation, in: nil)
     }
 
     private func repeatTitle(_ mode: RepeatMode) -> String {
         switch mode {
-        case .off: return "Выключен"
-        case .all: return "Список"
-        case .one: return "Один трек"
+        case .off: return L10n.string("Выключен")
+        case .all: return L10n.string("Список")
+        case .one: return L10n.string("Один трек")
         }
     }
 

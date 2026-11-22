@@ -20,9 +20,9 @@ enum TagWriteError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .unsupportedFormat:
-            return "Этот формат не поддерживает запись тегов. Доступны FLAC и MP3 с ID3v2."
+            return L10n.string("Этот формат не поддерживает запись тегов. Доступны FLAC и MP3 с ID3v2.")
         case .corrupt(let reason):
-            return "Файл повреждён: \(reason)"
+            return L10n.format("Файл повреждён: %@", reason)
         }
     }
 }
@@ -33,7 +33,7 @@ enum TagWriter {
     /// Embeds artwork into the file while preserving existing tags and audio data.
     static func embedArtwork(_ image: Data, in url: URL) throws {
         guard let handle = try? FileHandle(forReadingFrom: url) else {
-            throw TagWriteError.corrupt("не удалось открыть файл")
+            throw TagWriteError.corrupt(L10n.string("не удалось открыть файл"))
         }
         defer { try? handle.close() }
         let head = handle.readData(ofLength: 12)
@@ -58,7 +58,7 @@ enum TagWriter {
 
     static func write(_ edit: TagEdit, to url: URL) throws {
         guard let handle = try? FileHandle(forReadingFrom: url) else {
-            throw TagWriteError.corrupt("не удалось открыть файл")
+            throw TagWriteError.corrupt(L10n.string("не удалось открыть файл"))
         }
         defer { try? handle.close() }
         let head = handle.readData(ofLength: 12)
@@ -81,12 +81,12 @@ enum TagWriter {
         while true {
             handle.seek(toFileOffset: audioOffset)
             let header = handle.readData(ofLength: 4)
-            guard header.count == 4 else { throw TagWriteError.corrupt("обрыв метаданных") }
+            guard header.count == 4 else { throw TagWriteError.corrupt(L10n.string("обрыв метаданных")) }
             let isLast = (header[0] & 0x80) != 0
             let type = header[0] & 0x7F
             let length = Int(header[1]) << 16 | Int(header[2]) << 8 | Int(header[3])
             let body = handle.readData(ofLength: length)
-            guard body.count == length else { throw TagWriteError.corrupt("короткий блок метаданных") }
+            guard body.count == length else { throw TagWriteError.corrupt(L10n.string("короткий блок метаданных")) }
             audioOffset += UInt64(4 + length)
 
             switch type {
@@ -184,7 +184,7 @@ enum TagWriter {
 
     private static func rewriteID3(_ edit: TagEdit, url: URL, handle: FileHandle, head: Data,
                                    overrideArtwork: Data? = nil) throws {
-        guard head.count >= 10 else { throw TagWriteError.corrupt("короткий заголовок ID3") }
+        guard head.count >= 10 else { throw TagWriteError.corrupt(L10n.string("короткий заголовок ID3")) }
         let major = Int(head[3])
         let flags = head[5]
         let size = syncSafe(head.subdata(in: 6..<10))
@@ -263,7 +263,7 @@ enum TagWriter {
         let temp = directory.appendingPathComponent(".cedar-\(UUID().uuidString).tmp")
         FileManager.default.createFile(atPath: temp.path, contents: nil)
         guard let output = try? FileHandle(forWritingTo: temp) else {
-            throw TagWriteError.corrupt("не удалось создать временный файл")
+            throw TagWriteError.corrupt(L10n.string("не удалось создать временный файл"))
         }
         do {
             try build(output)

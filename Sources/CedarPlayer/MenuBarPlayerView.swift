@@ -11,11 +11,11 @@ struct MenuBarPlayerView: View {
             HStack(spacing: Theme.Space.s) {
                 artwork
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(engine.currentStation?.name ?? engine.currentTrack?.displayTitle ?? "Ничего не играет")
+                    Text(engine.currentStation?.name ?? engine.currentTrack?.displayTitle ?? L10n.string("Ничего не играет"))
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundStyle(Theme.text)
                         .lineLimit(1)
-                    Text(engine.currentStation.map { _ in engine.radioArtist ?? "Онлайн-радио" }
+                    Text(engine.currentStation.map { _ in engine.radioArtist ?? L10n.string("Онлайн-радио") }
                          ?? engine.currentTrack?.displayArtist ?? "—")
                         .font(Theme.Fonts.caption)
                         .foregroundStyle(Theme.secondaryText)

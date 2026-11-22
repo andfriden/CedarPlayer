@@ -43,7 +43,7 @@ struct PlayerPane: View {
 
             VStack(alignment: .leading, spacing: Theme.Space.xs) {
                 Text(engine.currentStation.map { engine.radioTrack ?? $0.name }
-                     ?? engine.currentTrack?.displayTitle ?? "Ничего не играет")
+                     ?? engine.currentTrack?.displayTitle ?? L10n.string("Ничего не играет"))
                     .font(Theme.Fonts.nowPlaying)
                     .foregroundStyle(Theme.text)
                     .lineLimit(1)
@@ -51,7 +51,7 @@ struct PlayerPane: View {
                     .minimumScaleFactor(0.85)
 
                 Text(engine.currentStation != nil
-                     ? (engine.radioArtist ?? "Онлайн-радио")
+                     ? (engine.radioArtist ?? L10n.string("Онлайн-радио"))
                      : engine.currentTrack?.displayArtist ?? "—")
                     .font(Theme.Fonts.artist)
                     .foregroundStyle(Theme.secondaryText)
@@ -155,7 +155,7 @@ struct PlayerPane: View {
             .frame(height: 40)
             .contentShape(Rectangle())
             .onTapGesture { cycleMeterStyle() }
-            .help("Визуализатор: \(currentStyle.title) — нажмите, чтобы сменить")
+            .help(L10n.format("Визуализатор: %@ — нажмите, чтобы сменить", currentStyle.title))
     }
 
     private var currentStyle: MeterStyle {
@@ -183,7 +183,7 @@ struct PlayerPane: View {
             }
             .buttonStyle(.plain)
             .help("Звук (⇧⌘M)")
-            .accessibilityLabel(engine.isMuted ? "Включить звук" : "Заглушить")
+            .accessibilityLabel(engine.isMuted ? L10n.string("Включить звук") : L10n.string("Заглушить"))
 
             Slider(value: $engine.volume, in: 0...1)
                 .controlSize(.mini)
@@ -239,9 +239,9 @@ struct PlayerPane: View {
         let total = timeText(engine.duration)
         var parts = [engine.currentTrack?.extendedInfoText ?? ""].filter { !$0.isEmpty }
         if !engine.outputFormatDescription.isEmpty, engine.outputFormatDescription != "—" {
-            parts.append("выход: \(engine.outputFormatDescription)")
+            parts.append(L10n.format("выход: %@", engine.outputFormatDescription))
         }
-        return parts.isEmpty ? "\(left) из \(total)" : "\(left) из \(total) · \(parts.joined(separator: " · "))"
+        return parts.isEmpty ? L10n.format("%ld из %ld", left, total) : L10n.format("%ld из %ld · %@", left, total, parts.joined(separator: " · "))
     }
 
     // MARK: Transport
@@ -249,7 +249,7 @@ struct PlayerPane: View {
     private var transportRow: some View {
         ZStack {
             HStack(spacing: Theme.Space.s) {
-                transportButton("backward.fill", label: "Предыдущий трек", size: 15) { engine.previous() }
+                transportButton("backward.fill", label: L10n.string("Предыдущий трек"), size: 15) { engine.previous() }
                     .keyboardShortcut(.leftArrow, modifiers: .command)
 
                 Button { engine.toggle() } label: {
@@ -269,9 +269,9 @@ struct PlayerPane: View {
                 .keyboardShortcut(.space, modifiers: [])
                 .disabled(engine.currentTrack == nil && engine.currentStation == nil)
                 .help("Воспроизведение (пробел)")
-                .accessibilityLabel(engine.isPlaying ? "Пауза" : "Воспроизвести")
+                .accessibilityLabel(engine.isPlaying ? L10n.string("Пауза") : L10n.string("Воспроизвести"))
 
-                transportButton("forward.fill", label: "Следующий трек", size: 15) { engine.next(manual: true) }
+                transportButton("forward.fill", label: L10n.string("Следующий трек"), size: 15) { engine.next(manual: true) }
                     .keyboardShortcut(.rightArrow, modifiers: .command)
             }
 
@@ -308,7 +308,7 @@ struct PlayerPane: View {
         }
         .buttonStyle(.plain)
         .help("Показать/скрыть плейлист (⌥⌘P)")
-        .accessibilityLabel(showPlaylist ? "Скрыть плейлист" : "Показать плейлист")
+        .accessibilityLabel(showPlaylist ? L10n.string("Скрыть плейлист") : L10n.string("Показать плейлист"))
     }
 
     private func timeText(_ seconds: TimeInterval) -> String {

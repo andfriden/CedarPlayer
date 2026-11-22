@@ -17,11 +17,11 @@ enum CoverArtError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .noQuery:
-            return "Недостаточно данных: нужны исполнитель и альбом"
+            return L10n.string("Недостаточно данных: нужны исполнитель и альбом")
         case .noResults:
-            return "Обложка не найдена"
+            return L10n.string("Обложка не найдена")
         case .network(let message):
-            return "Ошибка сети: \(message)"
+            return L10n.format("Ошибка сети: %@", message)
         }
     }
 }
@@ -81,7 +81,7 @@ actor CoverArtService {
         guard let url = components.url else { return [] }
         let (data, response) = try await session.data(from: url)
         guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
-            throw CoverArtError.network("iTunes вернул \((response as? HTTPURLResponse)?.statusCode ?? 0)")
+            throw CoverArtError.network(L10n.format("iTunes вернул %ld", (response as? HTTPURLResponse)?.statusCode ?? 0))
         }
         let decoded = try JSONDecoder().decode(ITunesResponse.self, from: data)
 
@@ -128,7 +128,7 @@ actor CoverArtService {
         guard let url = components.url else { return [] }
         let (data, response) = try await session.data(from: url)
         guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
-            throw CoverArtError.network("Deezer вернул \((response as? HTTPURLResponse)?.statusCode ?? 0)")
+            throw CoverArtError.network(L10n.format("Deezer вернул %ld", (response as? HTTPURLResponse)?.statusCode ?? 0))
         }
         let decoded = try JSONDecoder().decode(DeezerResponse.self, from: data)
 

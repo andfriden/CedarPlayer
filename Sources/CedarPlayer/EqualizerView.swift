@@ -157,7 +157,7 @@ struct EqualizerView: View {
                 .frame(height: 18)
         }
         .frame(width: faderColumn)
-        .help("\(frequencyLabel(frequency)) · \(String(format: "%+.1f", gain)) дБ · двойной клик сбрасывает")
+        .help(L10n.format("%@ · %+.1f дБ · двойной клик сбрасывает", frequencyLabel(frequency), gain))
     }
 
     private var preampColumn: some View {
@@ -170,7 +170,7 @@ struct EqualizerView: View {
 
             VerticalFader(value: $engine.preamp, range: -15...15)
                 .frame(width: 26, height: faderHeight)
-                .help("Предусилитель: \(String(format: "%+.1f", engine.preamp)) дБ")
+                .help(L10n.format("Предусилитель: %+.1f дБ", engine.preamp))
 
             Text(String(format: "%+.1f", engine.preamp))
                 .font(.system(size: 12, design: .monospaced))
@@ -234,7 +234,7 @@ struct EqualizerView: View {
             Spacer()
 
             if let rate = engine.currentTrack?.sampleRate, rate > 0 {
-                Text(String(format: "%@ кГц", rate.truncatingRemainder(dividingBy: 1000) == 0
+                Text(L10n.format("%@ кГц", rate.truncatingRemainder(dividingBy: 1000) == 0
                           ? String(format: "%.0f", rate / 1000)
                           : String(format: "%.1f", rate / 1000)))
                     .font(Theme.Fonts.captionMono)

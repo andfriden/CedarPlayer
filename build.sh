@@ -32,6 +32,9 @@ VERSION="${CEDAR_VERSION:-1.1.0}"
 BUILD_NUMBER="${CEDAR_BUILD:-$(git rev-list --count HEAD 2>/dev/null || echo 1)}"
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" "$APP/Contents/Info.plist" >/dev/null
 /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUMBER" "$APP/Contents/Info.plist" >/dev/null
+if [ -d Resources/en.lproj ]; then
+    cp -R Resources/en.lproj "$APP/Contents/Resources/"
+fi
 if [ -f Resources/AppIcon.icns ]; then
     cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
     /usr/libexec/PlistBuddy -c "Add :CFBundleIconFile string AppIcon" "$APP/Contents/Info.plist" >/dev/null

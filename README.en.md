@@ -97,6 +97,7 @@ resources are not used.
 - Menu bar player: track and artist, back/play/forward, output format,
   “Open player” and “Quit”.
 - Dock menu: play/pause, next and previous track, show player.
+- Interface language: system, Russian or English (“Settings → Language”).
 - Artwork, lyrics (`.lrc`) and Settings windows; opening files from Finder.
 - Online radio: stations (name + URL) are stored in the library and played
   through `AVPlayer`; play/pause works from the remote and media keys, and Now

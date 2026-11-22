@@ -11,6 +11,7 @@ struct CedarPlayerApp: App {
     @AppStorage("showPlaylist") private var showPlaylist = true
     @AppStorage("meterStyle") private var meterStyleRaw = MeterStyle.segments.rawValue
     @AppStorage("appearanceMode") private var appearanceMode = AppearanceMode.system.rawValue
+    @AppStorage("appLanguage") private var appLanguage = AppLanguage.system.rawValue
     @Environment(\.openWindow) private var openWindow
 
     init() {
@@ -382,6 +383,7 @@ struct CedarPlayerApp: App {
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let defaults = UserDefaults.standard
         defaults.set("segments", forKey: "meterStyle")
+        defaults.set("ru", forKey: "appLanguage")
         defaults.set("all", forKey: "playlistFilter")
         defaults.set(SortKey.added.rawValue, forKey: "sortKey")
         defaults.set(true, forKey: "playlistSortAscending")
@@ -854,38 +856,45 @@ struct CedarPlayerApp: App {
         AppearanceMode(rawValue: appearanceMode)?.colorScheme
     }
 
+    private var interfaceLocale: Locale {
+        _ = appLanguage
+        return L10n.locale
+    }
+
     var body: some Scene {
         WindowGroup("Cedar Player", id: "main") {
             MainWindowView()
                 .environmentObject(library)
                 .environmentObject(engine)
                 .environment(\.player, engine)
+                .environment(\.locale, interfaceLocale)
                 .onAppear { appDelegate.configure(library: library, engine: engine) }
+                .id(appLanguage)
                 .preferredColorScheme(colorScheme)
         }
         .defaultSize(width: 425, height: 1006)
         .windowResizability(.contentMinSize)
         .commands {
             CommandGroup(replacing: .newItem) {
-                Button("Добавить файлы…") { library.presentImportPanel() }
+                Button(L10n.string("Добавить файлы…")) { library.presentImportPanel() }
                     .keyboardShortcut("o", modifiers: .command)
-                Button("Проверить файлы библиотеки") { library.refreshAvailability() }
-                Button("Окно обложки") { openWindow(id: "albumart") }
+                Button(L10n.string("Проверить файлы библиотеки")) { library.refreshAvailability() }
+                Button(L10n.string("Окно обложки")) { openWindow(id: "albumart") }
                     .keyboardShortcut("p", modifiers: [.command, .shift])
             }
 
-            CommandMenu("Управление") {
-                Button(engine.isPlaying ? "Пауза" : "Воспроизвести") { engine.toggle() }
+            CommandMenu(L10n.string("Управление")) {
+                Button(engine.isPlaying ? L10n.string("Пауза") : L10n.string("Воспроизвести")) { engine.toggle() }
                     .keyboardShortcut(.space, modifiers: [])
                     .disabled(engine.currentTrack == nil)
-                Button("Следующий трек") { engine.next(manual: true) }
+                Button(L10n.string("Следующий трек")) { engine.next(manual: true) }
                     .keyboardShortcut(.rightArrow, modifiers: .command)
-                Button("Предыдущий трек") { engine.previous() }
+                Button(L10n.string("Предыдущий трек")) { engine.previous() }
                     .keyboardShortcut(.leftArrow, modifiers: .command)
                 Divider()
-                Button("Отменить импорт") { library.cancelImport() }
+                Button(L10n.string("Отменить импорт")) { library.cancelImport() }
                     .disabled(!library.isImporting)
-                Menu("Оценка текущего трека") {
+                Menu(L10n.string("Оценка текущего трека")) {
                     ForEach(1...5, id: \.self) { value in
                         Button(String(repeating: "★", count: value)) {
                             if let track = engine.currentTrack {
@@ -895,7 +904,7 @@ struct CedarPlayerApp: App {
                         .keyboardShortcut(KeyEquivalent(Character("\(value)")), modifiers: [.option])
                     }
                     Divider()
-                    Button("Без оценки") {
+                    Button(L10n.string("Без оценки")) {
                         if let track = engine.currentTrack {
                             library.setRating(0, for: [track.id])
                         }
@@ -904,112 +913,124 @@ struct CedarPlayerApp: App {
                 }
                 .disabled(engine.currentTrack == nil)
 
-                Menu("Добавить в плейлист") {
+                Menu(L10n.string("Добавить в плейлист")) {
                     if library.playlists.isEmpty {
-                        Text("Нет плейлистов")
+                        Text(L10n.string("Нет плейлистов"))
                     }
                     ForEach(library.playlists) { playlist in
                         Button(playlist.name) {
                             if let track = engine.currentTrack {
                                 library.add([track.id], to: playlist.id)
-                                library.statusMessage = "Добавлено в «\(playlist.name)»"
+                                library.statusMessage = L10n.format("Добавлено в «%@»", playlist.name)
                             }
                         }
                     }
                 }
                 .disabled(engine.currentTrack == nil)
 
-                Button("Отменить удаление") { library.undoRemove() }
+                Button(L10n.string("Отменить удаление")) { library.undoRemove() }
                     .keyboardShortcut("z", modifiers: [.option, .command])
                     .disabled(!library.canUndoRemove)
-                Button("Изменить теги…") {
+                Button(L10n.string("Изменить теги…")) {
                     NotificationCenter.default.post(name: .editTags, object: nil)
                 }
                 .keyboardShortcut("t", modifiers: .command)
                 .disabled(engine.currentTrack == nil)
                 Divider()
-                Button("Громче") { engine.volume = min(1, engine.volume + 0.1) }
+                Button(L10n.string("Громче")) { engine.volume = min(1, engine.volume + 0.1) }
                     .keyboardShortcut(.upArrow, modifiers: .command)
-                Button("Тише") { engine.volume = max(0, engine.volume - 0.1) }
+                Button(L10n.string("Тише")) { engine.volume = max(0, engine.volume - 0.1) }
                     .keyboardShortcut(.downArrow, modifiers: .command)
-                Button(engine.isMuted ? "Включить звук" : "Заглушить") { engine.isMuted.toggle() }
+                Button(engine.isMuted ? L10n.string("Включить звук") : L10n.string("Заглушить")) { engine.isMuted.toggle() }
                     .keyboardShortcut("m", modifiers: [.command, .shift])
                 Divider()
-                Toggle("Перемешивание", isOn: $engine.isShuffle)
+                Toggle(L10n.string("Перемешивание"), isOn: $engine.isShuffle)
                     .keyboardShortcut("s", modifiers: [.command, .shift])
-                Picker("Повтор", selection: $engine.repeatMode) {
-                    Text("Выключен").tag(RepeatMode.off)
-                    Text("Список").tag(RepeatMode.all)
-                    Text("Один трек").tag(RepeatMode.one)
+                Picker(L10n.string("Повтор"), selection: $engine.repeatMode) {
+                    Text(L10n.string("Выключен")).tag(RepeatMode.off)
+                    Text(L10n.string("Список")).tag(RepeatMode.all)
+                    Text(L10n.string("Один трек")).tag(RepeatMode.one)
                 }
                 Divider()
-                Button("Эквалайзер") { openWindow(id: "equalizer") }
+                Button(L10n.string("Эквалайзер")) { openWindow(id: "equalizer") }
                     .keyboardShortcut("e", modifiers: .command)
-                Button("Текст песни") { openWindow(id: "lyrics") }
+                Button(L10n.string("Текст песни")) { openWindow(id: "lyrics") }
                     .keyboardShortcut("l", modifiers: .command)
-                Button("Мини-плеер") { openWindow(id: "mini") }
+                Button(L10n.string("Мини-плеер")) { openWindow(id: "mini") }
                     .keyboardShortcut("m", modifiers: [.command, .option])
                 Divider()
-                Menu("Индикатор") {
+                Menu(L10n.string("Индикатор")) {
                     ForEach(MeterStyle.allCases) { style in
                         Button(style.title) { meterStyleRaw = style.rawValue }
                     }
                     Divider()
-                    Button("Аналоговый VU-метр") { openWindow(id: "vu") }
+                    Button(L10n.string("Аналоговый VU-метр")) { openWindow(id: "vu") }
                         .keyboardShortcut("u", modifiers: .command)
                 }
 
-                Toggle("Плейлист", isOn: $showPlaylist)
+                Toggle(L10n.string("Плейлист"), isOn: $showPlaylist)
                     .keyboardShortcut("p", modifiers: [.command, .option])
-                Button("Библиотека") { openWindow(id: "library") }
+                Button(L10n.string("Библиотека")) { openWindow(id: "library") }
                     .keyboardShortcut("b", modifiers: .command)
             }
         }
 
-        Window("Библиотека", id: "library") {
+        Window(L10n.string("Библиотека"), id: "library") {
             ContentView()
                 .environmentObject(library)
                 .environmentObject(engine)
                 .environment(\.player, engine)
+                .environment(\.locale, interfaceLocale)
+                .id(appLanguage)
                 .preferredColorScheme(colorScheme)
         }
         .defaultSize(width: 900, height: 560)
 
-        Window("VU-метр", id: "vu") {
+        Window(L10n.string("VU-метр"), id: "vu") {
             AnalogVUMeterView()
                 .environmentObject(engine)
+                .environment(\.locale, interfaceLocale)
+                .id(appLanguage)
                 .preferredColorScheme(colorScheme)
         }
         .defaultSize(width: 520, height: 300)
 
-        Window("Обложка", id: "albumart") {
+        Window(L10n.string("Обложка"), id: "albumart") {
             ArtworkWindowView()
                 .environmentObject(library)
                 .environmentObject(engine)
+                .environment(\.locale, interfaceLocale)
+                .id(appLanguage)
                 .preferredColorScheme(colorScheme)
         }
         .defaultSize(width: 430, height: 560)
         .keyboardShortcut("1", modifiers: [.command])
 
-        Window("Эквалайзер", id: "equalizer") {
+        Window(L10n.string("Эквалайзер"), id: "equalizer") {
             EqualizerView()
                 .environmentObject(engine)
+                .environment(\.locale, interfaceLocale)
+                .id(appLanguage)
                 .preferredColorScheme(colorScheme)
         }
         .defaultSize(width: 760, height: 540)
         .windowResizability(.contentSize)
 
-        Window("Текст песни", id: "lyrics") {
+        Window(L10n.string("Текст песни"), id: "lyrics") {
             LyricsView()
                 .environmentObject(engine)
+                .environment(\.locale, interfaceLocale)
+                .id(appLanguage)
                 .preferredColorScheme(colorScheme)
         }
         .defaultSize(width: 480, height: 460)
 
-        Window("Мини-плеер", id: "mini") {
+        Window(L10n.string("Мини-плеер"), id: "mini") {
             MiniPlayerView()
                 .environmentObject(library)
                 .environmentObject(engine)
+                .environment(\.locale, interfaceLocale)
+                .id(appLanguage)
                 .preferredColorScheme(colorScheme)
         }
         .windowResizability(.contentMinSize)
@@ -1019,6 +1040,8 @@ struct CedarPlayerApp: App {
             MenuBarPlayerView()
                 .environmentObject(library)
                 .environmentObject(engine)
+                .environment(\.locale, interfaceLocale)
+                .id(appLanguage)
                 .preferredColorScheme(colorScheme)
         } label: {
             Image(systemName: "music.note")
@@ -1027,6 +1050,8 @@ struct CedarPlayerApp: App {
 
         Settings {
             SettingsView()
+                .environment(\.locale, interfaceLocale)
+                .id(appLanguage)
                 .preferredColorScheme(colorScheme)
                 .environmentObject(library)
                 .environmentObject(engine)
@@ -1058,11 +1083,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDockMenu(_ sender: NSApplication) -> NSMenu? {
         guard let engine else { return nil }
         let menu = NSMenu()
-        menu.addItem(dockItem(engine.isPlaying ? "Пауза" : "Воспроизвести", action: #selector(dockToggle)))
-        menu.addItem(dockItem("Следующий трек", action: #selector(dockNext)))
-        menu.addItem(dockItem("Предыдущий трек", action: #selector(dockPrevious)))
+        menu.addItem(dockItem(engine.isPlaying ? L10n.string("Пауза") : L10n.string("Воспроизвести"), action: #selector(dockToggle)))
+        menu.addItem(dockItem(L10n.string("Следующий трек"), action: #selector(dockNext)))
+        menu.addItem(dockItem(L10n.string("Предыдущий трек"), action: #selector(dockPrevious)))
         menu.addItem(.separator())
-        menu.addItem(dockItem("Показать плеер", action: #selector(dockShowPlayer)))
+        menu.addItem(dockItem(L10n.string("Показать плеер"), action: #selector(dockShowPlayer)))
         return menu
     }
 

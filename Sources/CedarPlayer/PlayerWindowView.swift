@@ -11,7 +11,7 @@ struct LyricsView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text(engine.currentTrack?.displayTitle ?? "Нет трека")
+                Text(engine.currentTrack?.displayTitle ?? L10n.string("Нет трека"))
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(Theme.text)
                 Spacer()
@@ -60,7 +60,7 @@ struct LyricsView: View {
         panel.allowsMultipleSelection = false
         guard panel.runModal() == .OK, let url = panel.url else { return }
         text = (try? String(contentsOf: url, encoding: .utf8)) ?? ""
-        status = "Загружено: \(url.lastPathComponent)"
+        status = L10n.format("Загружено: %@", url.lastPathComponent)
     }
 
     private func saveLyrics() {
@@ -68,9 +68,9 @@ struct LyricsView: View {
         let sidecar = track.url.deletingPathExtension().appendingPathExtension("lrc")
         do {
             try text.write(to: sidecar, atomically: true, encoding: .utf8)
-            status = "Сохранено: \(sidecar.lastPathComponent)"
+            status = L10n.format("Сохранено: %@", sidecar.lastPathComponent)
         } catch {
-            status = "Ошибка сохранения: \(error.localizedDescription)"
+            status = L10n.format("Ошибка сохранения: %@", error.localizedDescription)
         }
     }
 }
@@ -103,7 +103,7 @@ struct MiniPlayerView: View {
                 .frame(width: 62, height: 62)
 
             VStack(alignment: .leading, spacing: Theme.Space.xs) {
-                Text(engine.currentTrack?.displayTitle ?? "Ничего не играет")
+                Text(engine.currentTrack?.displayTitle ?? L10n.string("Ничего не играет"))
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(Theme.text)
                     .lineLimit(1)
@@ -124,7 +124,7 @@ struct MiniPlayerView: View {
                         .frame(width: 28, height: 28)
                         .contentShape(Rectangle())
                 }
-                .accessibilityLabel("Предыдущий трек")
+                .accessibilityLabel(L10n.string("Предыдущий трек"))
                 Button { engine.toggle() } label: {
                     ZStack {
                         Circle().fill(Theme.text.opacity(0.10))
@@ -136,14 +136,14 @@ struct MiniPlayerView: View {
                     .frame(width: 34, height: 34)
                     .contentShape(Rectangle())
                 }
-                .accessibilityLabel(engine.isPlaying ? "Пауза" : "Воспроизвести")
+                .accessibilityLabel(engine.isPlaying ? L10n.string("Пауза") : L10n.string("Воспроизвести"))
                 Button { engine.next(manual: true) } label: {
                     Image(systemName: "forward.fill")
                         .font(.system(size: 12))
                         .frame(width: 28, height: 28)
                         .contentShape(Rectangle())
                 }
-                .accessibilityLabel("Следующий трек")
+                .accessibilityLabel(L10n.string("Следующий трек"))
             }
             .buttonStyle(.plain)
             .foregroundStyle(Theme.text.opacity(0.9))
@@ -188,7 +188,7 @@ struct MiniPlayerView: View {
             return
         }
         guard NSApp != nil else { return }
-        for window in NSApp.windows where window.title == "Мини-плеер" {
+        for window in NSApp.windows where window.title == L10n.string("Мини-плеер") {
             window.close()
         }
     }

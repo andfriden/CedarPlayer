@@ -58,7 +58,7 @@ struct Track: Identifiable, Hashable, Codable {
     }
 
     var displayTitle: String { title.isEmpty ? url.lastPathComponent : title }
-    var displayArtist: String { artist.isEmpty ? "Неизвестный исполнитель" : artist }
+    var displayArtist: String { artist.isEmpty ? L10n.string("Неизвестный исполнитель") : artist }
     var displayAlbum: String { album.isEmpty ? "—" : album }
 
     var timeText: String {
@@ -81,14 +81,14 @@ struct Track: Identifiable, Hashable, Codable {
         if !year.isEmpty { parts.append(year) }
         if !composer.isEmpty { parts.append(composer) }
         if let replayGainText { parts.append(replayGainText) }
-        if isMissing { parts.append("файл не найден") }
+        if isMissing { parts.append(L10n.string("файл не найден")) }
         return parts.joined(separator: " · ")
     }
 
     var formatText: String {
         let ext = url.pathExtension.uppercased()
         if ext == "FLAC" || ext == "ALAC" {
-            return bitDepth > 0 ? "\(ext) \(bitDepth)/\(sampleRateKHz)" : ext
+            return bitDepth > 0 ? L10n.format("%@ %ld/%@", ext, bitDepth, sampleRateKHz) : ext
         }
         if sampleRate > 0 {
             return "\(ext) \(sampleRateKHz)"
@@ -100,19 +100,19 @@ struct Track: Identifiable, Hashable, Codable {
     var qualityText: String {
         var parts: [String] = [url.pathExtension.uppercased()]
         if bitDepth > 0, sampleRate > 0 {
-            parts.append("\(bitDepth) бит / \(sampleRateKHz)")
+            parts.append(L10n.format("%ld бит / %@", bitDepth, sampleRateKHz))
         } else if sampleRate > 0 {
             parts.append(sampleRateKHz)
         }
         if bitrate > 0 {
-            parts.append("\(bitrate / 1000) кбит/с")
+            parts.append(L10n.format("%ld кбит/с", bitrate / 1000))
         }
         return parts.joined(separator: " · ")
     }
 
     private var sampleRateKHz: String {
         let khz = sampleRate / 1000
-        return khz == khz.rounded() ? String(format: "%.0f кГц", khz) : String(format: "%.1f кГц", khz)
+        return khz == khz.rounded() ? L10n.format("%.0f кГц", khz) : L10n.format("%.1f кГц", khz)
     }
 
     static let audioExtensions: Set<String> = [
@@ -132,11 +132,11 @@ enum SortKey: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .added: return "По дате добавления"
-        case .title: return "По названию"
-        case .artist: return "По исполнителю"
-        case .album: return "По альбому"
-        case .duration: return "По длительности"
+        case .added: return L10n.string("По дате добавления")
+        case .title: return L10n.string("По названию")
+        case .artist: return L10n.string("По исполнителю")
+        case .album: return L10n.string("По альбому")
+        case .duration: return L10n.string("По длительности")
         }
     }
 }

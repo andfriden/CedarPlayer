@@ -223,7 +223,7 @@ final class PlayerEngine: ObservableObject {
         do {
             try engine.start()
         } catch {
-            errorMessage = "Звуковое устройство недоступно: \(error.localizedDescription)"
+            errorMessage = L10n.format("Звуковое устройство недоступно: %@", error.localizedDescription)
         }
 
         let analyzer = spectrumAnalyzer
@@ -303,7 +303,7 @@ final class PlayerEngine: ObservableObject {
         let playable = checked.enumerated().filter { !$0.element.isMissing }
         guard !playable.isEmpty else {
             // Leave current playback untouched: report the reason and return.
-            errorMessage = "Файлы не найдены"
+            errorMessage = L10n.string("Файлы не найдены")
             return
         }
         queue = playable.map(\.element)
@@ -311,7 +311,7 @@ final class PlayerEngine: ObservableObject {
         queueIndex = playable.firstIndex { $0.offset == chosen.offset } ?? 0
         load(chosen.element, autoplay: autoplay)
         if let requested, requested.isMissing {
-            errorMessage = "Файл не найден: \(requested.url.lastPathComponent)"
+            errorMessage = L10n.format("Файл не найден: %@", requested.url.lastPathComponent)
         }
     }
 
@@ -361,7 +361,7 @@ final class PlayerEngine: ObservableObject {
             isPlaying = false
             currentTrack = track
             duration = track.duration
-            errorMessage = "Файл не поддерживается или повреждён: \(track.url.lastPathComponent)"
+            errorMessage = L10n.format("Файл не поддерживается или повреждён: %@", track.url.lastPathComponent)
         }
     }
 
@@ -410,7 +410,7 @@ final class PlayerEngine: ObservableObject {
                                           &identifier,
                                           UInt32(MemoryLayout<AudioDeviceID>.size))
         if status != noErr {
-            errorMessage = "Не удалось переключить устройство вывода"
+            errorMessage = L10n.string("Не удалось переключить устройство вывода")
         }
         try? engine.start()
 
@@ -440,7 +440,7 @@ final class PlayerEngine: ObservableObject {
     /// Starts an internet station through AVPlayer; the local queue stops.
     func playRadio(_ station: RadioStation) {
         guard let url = station.url, url.scheme != nil else {
-            errorMessage = "Некорректный адрес станции"
+            errorMessage = L10n.string("Некорректный адрес станции")
             return
         }
         player.stop()
@@ -492,7 +492,7 @@ final class PlayerEngine: ObservableObject {
                     self.radioRetryAttempts = 0
                     self.radioBuffering = false
                 case .failed:
-                    self.scheduleRadioReconnect(reason: item.error?.localizedDescription ?? "поток недоступен")
+                    self.scheduleRadioReconnect(reason: item.error?.localizedDescription ?? L10n.string("поток недоступен"))
                 default:
                     break
                 }
@@ -518,12 +518,12 @@ final class PlayerEngine: ObservableObject {
         radioRetryWork?.cancel()
 
         guard radioRetryAttempts < 3 else {
-            errorMessage = "Радио недоступно: \(reason)"
+            errorMessage = L10n.format("Радио недоступно: %@", reason)
             radioBuffering = false
             return
         }
         radioRetryAttempts += 1
-        errorMessage = "Переподключаюсь к станции (\(radioRetryAttempts)/3)…"
+        errorMessage = L10n.format("Переподключаюсь к станции (%ld/3)…", radioRetryAttempts)
         let work = DispatchWorkItem { [weak self] in
             Task { @MainActor [weak self] in
                 guard let self, let url = self.currentStation?.url else { return }

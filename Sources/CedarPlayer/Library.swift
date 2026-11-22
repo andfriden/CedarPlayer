@@ -241,7 +241,7 @@ final class Library: ObservableObject {
             }
         }
         if changed { tracks = updated }
-        statusMessage = missing == 0 ? "Все файлы на месте" : "Недоступно файлов: \(missing)"
+        statusMessage = missing == 0 ? L10n.string("Все файлы на месте") : L10n.format("Недоступно файлов: %ld", missing)
     }
 
     /// Dialog for choosing a new path for a missing file.
@@ -250,8 +250,8 @@ final class Library: ObservableObject {
         panel.canChooseFiles = true
         panel.canChooseDirectories = false
         panel.allowsMultipleSelection = false
-        panel.message = "Укажите файл для «\(track.displayTitle)»"
-        panel.prompt = "Привязать"
+        panel.message = L10n.format("Укажите файл для «%@»", track.displayTitle)
+        panel.prompt = L10n.string("Привязать")
         let folder = track.url.deletingLastPathComponent()
         if FileManager.default.fileExists(atPath: folder.path) {
             panel.directoryURL = folder
@@ -268,7 +268,7 @@ final class Library: ObservableObject {
         guard FileManager.default.fileExists(atPath: target.path) else { return }
         tracks[index].url = target
         tracks[index].isMissing = false
-        statusMessage = "Файл привязан: \(target.lastPathComponent)"
+        statusMessage = L10n.format("Файл привязан: %@", target.lastPathComponent)
     }
 
     var missingCount: Int {
@@ -296,8 +296,8 @@ final class Library: ObservableObject {
             if let type = UTType(filenameExtension: ext) { types.append(type) }
         }
         panel.allowedContentTypes = types
-        panel.message = "Выберите аудиофайлы или папку с музыкой"
-        panel.prompt = "Добавить"
+        panel.message = L10n.string("Выберите аудиофайлы или папку с музыкой")
+        panel.prompt = L10n.string("Добавить")
 
         guard panel.runModal() == .OK else { return }
         importURLs(panel.urls, into: playlistID)
@@ -397,7 +397,7 @@ final class Library: ObservableObject {
         }
 
         isImporting = true
-        statusMessage = "Читаю метаданные…"
+        statusMessage = L10n.string("Читаю метаданные…")
 
         var imported: [Track] = []
         var referencedAudio: Set<String> = []
@@ -418,7 +418,7 @@ final class Library: ObservableObject {
 
             for entry in sheet.tracks {
                 var track = Track(url: sheet.fileURL)
-                track.title = entry.title.isEmpty ? "Трек \(entry.number)" : entry.title
+                track.title = entry.title.isEmpty ? L10n.format("Трек %ld", entry.number) : entry.title
                 track.artist = entry.performer.isEmpty ? sheet.performer : entry.performer
                 track.album = sheet.title
                 track.albumArtist = sheet.performer
@@ -472,7 +472,7 @@ final class Library: ObservableObject {
             }
             imported.append(await MetadataReader.read(url: url))
             if index % 8 == 0 || index == files.count - 1 {
-                statusMessage = "Читаю метаданные: \(index + 1) из \(files.count)"
+                statusMessage = L10n.format("Читаю метаданные: %ld из %ld", index + 1, files.count)
             }
         }
 
@@ -490,21 +490,21 @@ final class Library: ObservableObject {
         importTask = nil
 
         var parts: [String] = []
-        if cancelled { parts.append("Импорт отменён") }
+        if cancelled { parts.append(L10n.string("Импорт отменён")) }
         if imported.isEmpty {
-            parts.append("Новых треков не найдено")
+            parts.append(L10n.string("Новых треков не найдено"))
         } else {
-            parts.append(imported.count == 1 ? "Добавлен 1 трек" : "Добавлено: \(imported.count)")
+            parts.append(imported.count == 1 ? L10n.string("Добавлен 1 трек") : L10n.format("Добавлено: %ld", imported.count))
         }
-        if duplicates > 0 { parts.append("дубликатов: \(duplicates)") }
+        if duplicates > 0 { parts.append(L10n.format("дубликатов: %ld", duplicates)) }
         if !unreadableNames.isEmpty {
             let preview = unreadableNames.prefix(3).joined(separator: ", ")
-            parts.append("не читается: \(unreadableNames.count) (\(preview))")
+            parts.append(L10n.format("не читается: %ld (%@)", unreadableNames.count, preview))
         }
-        if cueFailures > 0 { parts.append("CUE с ошибками: \(cueFailures)") }
-        if playlistFailures > 0 { parts.append("плейлистов с ошибками: \(playlistFailures)") }
-        if ignored > 0 { parts.append("пропущено: \(ignored)") }
-        if unreadableDirectories > 0 { parts.append("папок с ошибкой чтения: \(unreadableDirectories)") }
+        if cueFailures > 0 { parts.append(L10n.format("CUE с ошибками: %ld", cueFailures)) }
+        if playlistFailures > 0 { parts.append(L10n.format("плейлистов с ошибками: %ld", playlistFailures)) }
+        if ignored > 0 { parts.append(L10n.format("пропущено: %ld", ignored)) }
+        if unreadableDirectories > 0 { parts.append(L10n.format("папок с ошибкой чтения: %ld", unreadableDirectories)) }
         statusMessage = parts.joined(separator: " · ")
         autoFetchArtwork(for: imported)
         return imported
@@ -537,13 +537,13 @@ final class Library: ObservableObject {
                     .search(artist: artist, album: first.album).first else { continue }
                 self?.setArtwork(candidate.imageData, for: Set(group.map(\.id)))
                 found += 1
-                if found == 1 { self?.statusMessage = "Нашёл обложку: \(first.album)" }
+                if found == 1 { self?.statusMessage = L10n.format("Нашёл обложку: %@", first.album) }
             }
             guard let self else { return }
             if found > 0 {
-                self.statusMessage = "Обложки найдены для \(found) из \(checked) альбомов"
+                self.statusMessage = L10n.format("Обложки найдены для %ld из %ld альбомов", found, checked)
             } else if checked > 0 {
-                self.statusMessage = "Обложки не найдены (\(checked) альбомов)"
+                self.statusMessage = L10n.format("Обложки не найдены (%ld альбомов)", checked)
             }
         }
     }
@@ -611,7 +611,7 @@ final class Library: ObservableObject {
         for index in playlists.indices {
             playlists[index].trackIDs.removeAll { ids.contains($0) }
         }
-        statusMessage = "Удалено треков: \(ids.count) · ⌥⌘Z вернёт"
+        statusMessage = L10n.format("Удалено треков: %ld · ⌥⌘Z вернёт", ids.count)
     }
 
     /// Returns the last removal (one action until overwritten).
@@ -621,7 +621,7 @@ final class Library: ObservableObject {
         playlists = snapshot.playlists
         lastRemoval = nil
         canUndoRemove = false
-        statusMessage = "Удаление отменено"
+        statusMessage = L10n.string("Удаление отменено")
     }
 
     // MARK: Watched folders
@@ -631,8 +631,8 @@ final class Library: ObservableObject {
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
         panel.allowsMultipleSelection = true
-        panel.message = "Выберите папки, за которыми следить"
-        panel.prompt = "Следить"
+        panel.message = L10n.string("Выберите папки, за которыми следить")
+        panel.prompt = L10n.string("Следить")
         guard panel.runModal() == .OK else { return }
         for url in panel.urls {
             addWatchFolder(url)
@@ -655,7 +655,7 @@ final class Library: ObservableObject {
         let urlString = urlString.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !urlString.isEmpty, URL(string: urlString) != nil else { return nil }
         let logo = logoURLString?.trimmingCharacters(in: .whitespacesAndNewlines)
-        let station = RadioStation(name: name.isEmpty ? URL(string: urlString)?.host ?? "Радио" : name,
+        let station = RadioStation(name: name.isEmpty ? URL(string: urlString)?.host ?? L10n.string("Радио") : name,
                                    urlString: urlString,
                                    logoURLString: (logo?.isEmpty ?? true) ? nil : logo)
         stations.append(station)
@@ -703,13 +703,13 @@ final class Library: ObservableObject {
     /// Name assigned to a playlist before it has content.
     static func isPlaceholderName(_ name: String) -> Bool {
         let trimmed = name.trimmingCharacters(in: .whitespaces)
-        return trimmed.isEmpty || ["Новый плейлист", "Без названия", "New Playlist"].contains(trimmed)
+        return trimmed.isEmpty || [L10n.string("Новый плейлист"), L10n.string("Без названия"), "New Playlist"].contains(trimmed)
     }
 
     /// "Folder", "Folder 2", "Folder 3" — without collisions with other playlists.
     func uniquePlaylistName(_ base: String, excluding id: UUID? = nil) -> String {
         let trimmed = base.trimmingCharacters(in: .whitespaces)
-        let candidate = trimmed.isEmpty ? "Плейлист" : trimmed
+        let candidate = trimmed.isEmpty ? L10n.string("Плейлист") : trimmed
         var name = candidate
         var index = 2
         while playlists.contains(where: { $0.id != id && $0.name.caseInsensitiveCompare(name) == .orderedSame }) {
@@ -753,12 +753,12 @@ final class Library: ObservableObject {
         let imported = await importFiles([folder])
         let ids = playlistIDs(imported: imported, folder: folder)
         guard !ids.isEmpty else {
-            statusMessage = "В папке «\(folder.lastPathComponent)» нет аудиофайлов"
+            statusMessage = L10n.format("В папке «%@» нет аудиофайлов", folder.lastPathComponent)
             return nil
         }
         let created = createPlaylist(named: uniquePlaylistName(folder.lastPathComponent))
         add(Set(ids), to: created.id)
-        statusMessage = "Плейлист «\(created.name)»: \(ids.count) трек(ов)"
+        statusMessage = L10n.format("Плейлист «%@»: %ld трек(ов)", created.name, ids.count)
         return playlist(with: created.id)
     }
 
@@ -777,7 +777,7 @@ final class Library: ObservableObject {
         let imported = await importFiles([folder])
         let ids = playlistIDs(imported: imported, folder: folder)
         guard !ids.isEmpty else {
-            statusMessage = "В папке «\(folder.lastPathComponent)» нет аудиофайлов"
+            statusMessage = L10n.format("В папке «%@» нет аудиофайлов", folder.lastPathComponent)
             return false
         }
         add(Set(ids), to: playlistID)
@@ -786,7 +786,7 @@ final class Library: ObservableObject {
         }
         let count = playlist(with: playlistID)?.trackIDs.count ?? ids.count
         let name = playlist(with: playlistID)?.name ?? existing.name
-        statusMessage = "Добавлено в «\(name)»: \(ids.count) · всего \(count)"
+        statusMessage = L10n.format("Добавлено в «%@»: %ld · всего %ld", name, ids.count, count)
         return true
     }
 

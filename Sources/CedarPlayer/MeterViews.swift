@@ -11,10 +11,10 @@ enum MeterStyle: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .segments: return "Сегменты"
-        case .bar: return "Сплошная шкала"
-        case .dots: return "Точка с пиком"
-        case .spectrum: return "Спектр"
+        case .segments: return L10n.string("Сегменты")
+        case .bar: return L10n.string("Сплошная шкала")
+        case .dots: return L10n.string("Точка с пиком")
+        case .spectrum: return L10n.string("Спектр")
         }
     }
 }
@@ -270,7 +270,7 @@ struct AnalogVUMeterView: View {
                 dial(needle: needleR, peak: levels.peakRight, title: "R")
             }
 
-            Text("0 VU = \(String(format: "%.0f", VUCalibration.zeroVUdBFS)) dBFS · интеграция 300 мс")
+            Text(L10n.format("0 VU = %.0f dBFS · интеграция 300 мс", VUCalibration.zeroVUdBFS))
                 .font(.system(size: 10))
                 .foregroundStyle(Theme.secondaryText.opacity(0.8))
                 .frame(height: 16)
@@ -297,7 +297,7 @@ struct AnalogVUMeterView: View {
             needleR += (targetR - needleR) * alpha
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(String(format: "VU-метр: левый %+.1f, правый %+.1f",
+        .accessibilityLabel(L10n.format("VU-метр: левый %+.1f, правый %+.1f",
                                    VUCalibration.vu(fromPosition: needleL),
                                    VUCalibration.vu(fromPosition: needleR)))
     }

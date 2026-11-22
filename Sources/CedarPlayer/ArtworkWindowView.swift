@@ -17,7 +17,7 @@ struct ArtworkWindowView: View {
                 .shadow(color: .black.opacity(0.45), radius: 18, y: 8)
 
             VStack(spacing: 3) {
-                Text(engine.currentTrack?.displayTitle ?? "Ничего не играет")
+                Text(engine.currentTrack?.displayTitle ?? L10n.string("Ничего не играет"))
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(.white)
                     .lineLimit(2)

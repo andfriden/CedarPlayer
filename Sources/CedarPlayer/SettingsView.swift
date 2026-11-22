@@ -7,6 +7,7 @@ struct SettingsView: View {
     @AppStorage("showFormatColumn") private var showFormatColumn = true
     @AppStorage("autoCoverSearch") private var autoCoverSearch = true
     @AppStorage("appearanceMode") private var appearanceMode = AppearanceMode.system.rawValue
+    @AppStorage("appLanguage") private var appLanguage = AppLanguage.system.rawValue
     @EnvironmentObject private var engine: PlayerEngine
     @EnvironmentObject private var library: Library
 
@@ -19,6 +20,14 @@ struct SettingsView: View {
                     }
                 }
                 .pickerStyle(.segmented)
+            }
+
+            Section("Язык") {
+                Picker("Язык интерфейса", selection: $appLanguage) {
+                    ForEach(AppLanguage.allCases) { language in
+                        Text(language.title).tag(language.rawValue)
+                    }
+                }
             }
 
             Section("Воспроизведение") {
@@ -113,7 +122,7 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
                 Toggle("Показывать формат и частоту дискретизации", isOn: $showFormatColumn)
                 HStack {
-                    Text("Треков в библиотеке: \(library.tracks.count)")
+                    Text(L10n.format("Треков в библиотеке: %ld", library.tracks.count))
                     Spacer()
                     Button("Показать папку данных") {
                         let url = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]

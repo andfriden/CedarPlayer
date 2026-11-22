@@ -67,9 +67,9 @@ struct ContentView: View {
 
     private var currentTitle: String {
         switch sidebarSelection {
-        case .playlist(let id): return library.playlist(with: id)?.name ?? "Плейлист"
+        case .playlist(let id): return library.playlist(with: id)?.name ?? L10n.string("Плейлист")
         case .smart(let rule): return rule.title
-        default: return "Все треки"
+        default: return L10n.string("Все треки")
         }
     }
 
@@ -275,7 +275,7 @@ struct ContentView: View {
                     loadDroppedURLs(providers) { urls in
                         let folders = urls.filter(isDirectory)
                         guard !folders.isEmpty else {
-                            Task { @MainActor in library.statusMessage = "Перетащите папку с музыкой" }
+                            Task { @MainActor in library.statusMessage = L10n.string("Перетащите папку с музыкой") }
                             return
                         }
                         Task { @MainActor in
@@ -345,7 +345,7 @@ struct ContentView: View {
     private func summary(for tracks: [Track]) -> String {
         let duration = tracks.reduce(0) { $0 + ($1.duration.isFinite ? $1.duration : 0) }
         let minutes = Int(duration / 60)
-        return "\(tracks.count) трек(ов) · \(minutes) мин"
+        return L10n.format("%ld трек(ов) · %ld мин", tracks.count, minutes)
     }
 
     // MARK: List
@@ -393,7 +393,7 @@ struct ContentView: View {
                                 }
                                 Menu("Оценка") {
                                     ForEach(0...5, id: \.self) { value in
-                                        Button(value == 0 ? "Без оценки" : String(repeating: "★", count: value)) {
+                                        Button(value == 0 ? L10n.string("Без оценки") : String(repeating: "★", count: value)) {
                                             library.setRating(value, for: [track.id])
                                         }
                                     }
@@ -585,7 +585,7 @@ struct ContentView: View {
             if !ids.isEmpty {
                 library.add(ids, to: playlistID)
                 if let playlist = library.playlist(with: playlistID) {
-                    library.statusMessage = "Добавлено в «\(playlist.name)»: \(ids.count)"
+                    library.statusMessage = L10n.format("Добавлено в «%@»: %ld", playlist.name, ids.count)
                 }
             }
             guard !urls.isEmpty else { return }
@@ -596,10 +596,10 @@ struct ContentView: View {
 
     private func renamePlaylist(_ playlist: Playlist) {
         let alert = NSAlert()
-        alert.messageText = "Переименовать плейлист"
-        alert.informativeText = "Новое название"
-        alert.addButton(withTitle: "Переименовать")
-        alert.addButton(withTitle: "Отмена")
+        alert.messageText = L10n.string("Переименовать плейлист")
+        alert.informativeText = L10n.string("Новое название")
+        alert.addButton(withTitle: L10n.string("Переименовать"))
+        alert.addButton(withTitle: L10n.string("Отмена"))
         let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 240, height: 24))
         field.stringValue = playlist.name
         alert.accessoryView = field
@@ -609,10 +609,10 @@ struct ContentView: View {
 
     private func clearPlaylist(_ playlist: Playlist) {
         let alert = NSAlert()
-        alert.messageText = "Очистить плейлист «\(playlist.name)»?"
-        alert.informativeText = "Треки останутся в библиотеке."
-        alert.addButton(withTitle: "Очистить")
-        alert.addButton(withTitle: "Отмена")
+        alert.messageText = L10n.format("Очистить плейлист «%@»?", playlist.name)
+        alert.informativeText = L10n.string("Треки останутся в библиотеке.")
+        alert.addButton(withTitle: L10n.string("Очистить"))
+        alert.addButton(withTitle: L10n.string("Отмена"))
         alert.buttons.first?.hasDestructiveAction = true
         if alert.runModal() == .alertFirstButtonReturn {
             library.clearPlaylist(playlist.id)
@@ -621,10 +621,10 @@ struct ContentView: View {
 
     private func deletePlaylist(_ playlist: Playlist) {
         let alert = NSAlert()
-        alert.messageText = "Удалить плейлист «\(playlist.name)»?"
-        alert.informativeText = "Треки останутся в библиотеке."
-        alert.addButton(withTitle: "Удалить")
-        alert.addButton(withTitle: "Отмена")
+        alert.messageText = L10n.format("Удалить плейлист «%@»?", playlist.name)
+        alert.informativeText = L10n.string("Треки останутся в библиотеке.")
+        alert.addButton(withTitle: L10n.string("Удалить"))
+        alert.addButton(withTitle: L10n.string("Отмена"))
         alert.buttons.first?.hasDestructiveAction = true
         if alert.runModal() == .alertFirstButtonReturn {
             library.delete(playlist)
@@ -646,9 +646,9 @@ struct ContentView: View {
         let text = format == .m3u ? PlaylistFile.m3u(tracks: tracks) : PlaylistFile.pls(tracks: tracks)
         do {
             try text.write(to: url, atomically: true, encoding: .utf8)
-            library.statusMessage = "Экспортировано: \(url.lastPathComponent)"
+            library.statusMessage = L10n.format("Экспортировано: %@", url.lastPathComponent)
         } catch {
-            library.statusMessage = "Ошибка экспорта: \(error.localizedDescription)"
+            library.statusMessage = L10n.format("Ошибка экспорта: %@", error.localizedDescription)
         }
     }
 
@@ -814,7 +814,7 @@ private struct AlbumCard: View {
     private var trackCountText: String {
         let count = album.tracks.count
         let minutes = Int((album.duration / 60).rounded())
-        return "\(count) трек(ов) · \(minutes) мин"
+        return L10n.format("%ld трек(ов) · %ld мин", count, minutes)
     }
 
     @ViewBuilder

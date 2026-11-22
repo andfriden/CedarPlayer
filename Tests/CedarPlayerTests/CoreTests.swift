@@ -392,9 +392,16 @@ final class VUCalibrationTests: XCTestCase {
 
 final class AudioDevicesTests: XCTestCase {
     func testFormatDescription() {
+        let previous = UserDefaults.standard.string(forKey: "appLanguage")
+        defer { UserDefaults.standard.set(previous, forKey: "appLanguage") }
+
+        UserDefaults.standard.set("ru", forKey: "appLanguage")
         XCTAssertEqual(AudioDevices.describe(rate: 48000, bits: 24, channels: 2), "48 кГц · 24 бит · 2 кан.")
         XCTAssertEqual(AudioDevices.describe(rate: 44100, bits: 16, channels: 2), "44.1 кГц · 16 бит · 2 кан.")
         XCTAssertEqual(AudioDevices.describe(rate: 96000, bits: 0, channels: 6), "96 кГц · 6 кан.")
+
+        UserDefaults.standard.set("en", forKey: "appLanguage")
+        XCTAssertEqual(L10n.resolvedCode, "en")
         XCTAssertEqual(AudioDevices.describe(rate: 0, bits: 24, channels: 2), "—")
     }
 

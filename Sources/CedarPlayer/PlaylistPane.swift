@@ -118,7 +118,7 @@ struct PlaylistPane: View {
     private var header: some View {
         HStack(spacing: 8) {
             Menu {
-                Button("Все треки (\(library.tracks.count))") { filterID = "all" }
+                Button(L10n.format("Все треки (%ld)", library.tracks.count)) { filterID = "all" }
                 if !library.playlists.isEmpty {
                     Divider()
                     ForEach(library.playlists) { playlist in
@@ -163,7 +163,7 @@ struct PlaylistPane: View {
                 }
             } label: {
                 HStack(spacing: 4) {
-                    Text(selectedPlaylist?.name ?? selectedSmart?.title ?? "Все треки")
+                    Text(selectedPlaylist?.name ?? selectedSmart?.title ?? L10n.string("Все треки"))
                         .font(.system(size: 12, weight: .medium))
                         .foregroundStyle(Theme.text)
                         .lineLimit(1)
@@ -500,8 +500,8 @@ struct PlaylistPane: View {
         panel.canChooseFiles = false
         panel.canChooseDirectories = true
         panel.allowsMultipleSelection = true
-        panel.message = "Плейлист получит имя папки"
-        panel.prompt = "Импортировать"
+        panel.message = L10n.string("Плейлист получит имя папки")
+        panel.prompt = L10n.string("Импортировать")
         guard panel.runModal() == .OK else { return }
         let folders = panel.urls
         Task { @MainActor in
@@ -517,15 +517,15 @@ struct PlaylistPane: View {
         }
     }
 
-    private func promptForName(title: String = "Новый плейлист",
-                               message: String = "Введите название",
+    private func promptForName(title: String = L10n.string("Новый плейлист"),
+                               message: String = L10n.string("Введите название"),
                                value: String = "",
-                               button: String = "Создать") -> String? {
+                               button: String = L10n.string("Создать")) -> String? {
         let alert = NSAlert()
         alert.messageText = title
         alert.informativeText = message
         alert.addButton(withTitle: button)
-        alert.addButton(withTitle: "Отмена")
+        alert.addButton(withTitle: L10n.string("Отмена"))
         let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 240, height: 24))
         field.placeholderString = "Название"
         field.stringValue = value
@@ -536,19 +536,19 @@ struct PlaylistPane: View {
     }
 
     private func renamePlaylist(_ playlist: Playlist) {
-        guard let name = promptForName(title: "Переименовать плейлист",
-                                       message: "Новое название",
+        guard let name = promptForName(title: L10n.string("Переименовать плейлист"),
+                                       message: L10n.string("Новое название"),
                                        value: playlist.name,
-                                       button: "Переименовать") else { return }
+                                       button: L10n.string("Переименовать")) else { return }
         library.renamePlaylist(playlist.id, to: name)
     }
 
     private func clearPlaylist(_ playlist: Playlist) {
         let alert = NSAlert()
-        alert.messageText = "Очистить плейлист «\(playlist.name)»?"
-        alert.informativeText = "Треки останутся в библиотеке."
-        alert.addButton(withTitle: "Очистить")
-        alert.addButton(withTitle: "Отмена")
+        alert.messageText = L10n.format("Очистить плейлист «%@»?", playlist.name)
+        alert.informativeText = L10n.string("Треки останутся в библиотеке.")
+        alert.addButton(withTitle: L10n.string("Очистить"))
+        alert.addButton(withTitle: L10n.string("Отмена"))
         alert.buttons.first?.hasDestructiveAction = true
         if alert.runModal() == .alertFirstButtonReturn {
             library.clearPlaylist(playlist.id)
@@ -557,10 +557,10 @@ struct PlaylistPane: View {
 
     private func deletePlaylist(_ playlist: Playlist) {
         let alert = NSAlert()
-        alert.messageText = "Удалить плейлист «\(playlist.name)»?"
-        alert.informativeText = "Треки останутся в библиотеке."
-        alert.addButton(withTitle: "Удалить")
-        alert.addButton(withTitle: "Отмена")
+        alert.messageText = L10n.format("Удалить плейлист «%@»?", playlist.name)
+        alert.informativeText = L10n.string("Треки останутся в библиотеке.")
+        alert.addButton(withTitle: L10n.string("Удалить"))
+        alert.addButton(withTitle: L10n.string("Отмена"))
         alert.buttons.first?.hasDestructiveAction = true
         if alert.runModal() == .alertFirstButtonReturn {
             library.delete(playlist)

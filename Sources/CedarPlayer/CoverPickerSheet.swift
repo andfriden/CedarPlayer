@@ -28,7 +28,7 @@ struct CoverPickerSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.Space.m) {
             VStack(alignment: .leading, spacing: 2) {
-                Text("Обложка для «\(queryTitle)»")
+                Text(L10n.format("Обложка для «%@»", queryTitle))
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(Theme.text)
                     .lineLimit(1)
@@ -131,12 +131,12 @@ struct CoverPickerSheet: View {
         defer { isLoading = false }
         let artist = track.albumArtist.isEmpty ? track.artist : track.albumArtist
         guard !track.album.isEmpty else {
-            errorMessage = "У трека нет названия альбома — базу не найти. Впишите альбом в тегах и повторите."
+            errorMessage = L10n.string("У трека нет названия альбома — базу не найти. Впишите альбом в тегах и повторите.")
             return
         }
         do {
             candidates = try await CoverArtService.shared.search(artist: artist, album: track.album)
-            if candidates.isEmpty { errorMessage = "Обложка не найдена" }
+            if candidates.isEmpty { errorMessage = L10n.string("Обложка не найдена") }
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -169,11 +169,11 @@ struct CoverPickerSheet: View {
         NowPlayingService.shared.refreshNow()
 
         if !embedInFile {
-            library.statusMessage = "Обложка добавлена в библиотеку"
+            library.statusMessage = L10n.string("Обложка добавлена в библиотеку")
         } else if failures > 0 {
-            library.statusMessage = "Обложка в библиотеке; в файл не записалось: \(failures)"
+            library.statusMessage = L10n.format("Обложка в библиотеке; в файл не записалось: %ld", failures)
         } else {
-            library.statusMessage = "Обложка сохранена в файл"
+            library.statusMessage = L10n.string("Обложка сохранена в файл")
         }
         dismiss()
     }

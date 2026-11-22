@@ -11,10 +11,10 @@ enum SmartRule: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .favorites: return "Любимые"
-        case .recent: return "Недавно добавленные"
-        case .noArtwork: return "Без обложки"
-        case .longTracks: return "Длинные треки"
+        case .favorites: return L10n.string("Любимые")
+        case .recent: return L10n.string("Недавно добавленные")
+        case .noArtwork: return L10n.string("Без обложки")
+        case .longTracks: return L10n.string("Длинные треки")
         }
     }
 
