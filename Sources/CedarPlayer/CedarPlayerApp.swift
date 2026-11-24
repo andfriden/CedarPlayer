@@ -9,7 +9,7 @@ struct CedarPlayerApp: App {
     @StateObject private var library = Library()
     @StateObject private var engine = PlayerEngine()
     @AppStorage("showPlaylist") private var showPlaylist = true
-    @AppStorage("meterStyle") private var meterStyleRaw = MeterStyle.segments.rawValue
+    @AppStorage("meterStyle") private var meterStyleRaw = MeterStyle.spectrum.rawValue
     @AppStorage("appearanceMode") private var appearanceMode = AppearanceMode.system.rawValue
     @AppStorage("appLanguage") private var appLanguage = AppLanguage.system.rawValue
     @Environment(\.openWindow) private var openWindow
@@ -370,8 +370,8 @@ struct CedarPlayerApp: App {
     }
 
     private static let snapshotSizes: [(String, CGFloat, CGFloat)] = [
-        ("player", 425, 300),
-        ("playlist", 425, 300),
+        ("player", Theme.Layout.width, Theme.Layout.playerHeight),
+        ("playlist", Theme.Layout.width, Theme.Layout.playlistHeight),
         ("equalizer", 760, 540),
         ("vu", 520, 300),
         ("mini", 320, 96),
@@ -710,7 +710,7 @@ struct CedarPlayerApp: App {
             .environmentObject(library)
             .environmentObject(engine)
             .preferredColorScheme(scheme)
-                .frame(width: 425, height: 600)
+                .frame(width: Theme.Layout.width, height: 620)
             .background(Theme.background)
             let renderer = ImageRenderer(content: view)
             renderer.scale = 2
@@ -872,7 +872,8 @@ struct CedarPlayerApp: App {
                 .id(appLanguage)
                 .preferredColorScheme(colorScheme)
         }
-        .defaultSize(width: 425, height: 1006)
+        .defaultSize(width: Theme.Layout.width, height: 864)
+        .windowStyle(.hiddenTitleBar)
         .windowResizability(.contentMinSize)
         .commands {
             CommandGroup(replacing: .newItem) {
@@ -938,10 +939,19 @@ struct CedarPlayerApp: App {
                 .keyboardShortcut("t", modifiers: .command)
                 .disabled(engine.currentTrack == nil)
                 Divider()
-                Button(L10n.string("Громче")) { engine.volume = min(1, engine.volume + 0.1) }
-                    .keyboardShortcut(.upArrow, modifiers: .command)
-                Button(L10n.string("Тише")) { engine.volume = max(0, engine.volume - 0.1) }
-                    .keyboardShortcut(.downArrow, modifiers: .command)
+                Button(L10n.string("Перемотка назад")) {
+                    engine.seek(to: max(0, engine.position - 5))
+                }
+                .keyboardShortcut(.leftArrow, modifiers: [])
+                Button(L10n.string("Перемотка вперёд")) {
+                    engine.seek(to: min(engine.duration, engine.position + 5))
+                }
+                .keyboardShortcut(.rightArrow, modifiers: [])
+                Divider()
+                Button(L10n.string("Громче")) { engine.volume = min(1, engine.volume + 0.05) }
+                    .keyboardShortcut(.upArrow, modifiers: [])
+                Button(L10n.string("Тише")) { engine.volume = max(0, engine.volume - 0.05) }
+                    .keyboardShortcut(.downArrow, modifiers: [])
                 Button(engine.isMuted ? L10n.string("Включить звук") : L10n.string("Заглушить")) { engine.isMuted.toggle() }
                     .keyboardShortcut("m", modifiers: [.command, .shift])
                 Divider()

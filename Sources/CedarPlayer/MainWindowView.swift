@@ -12,26 +12,29 @@ struct MainWindowView: View {
     @State private var editingTrack: Track?
     @ObservedObject private var updates = UpdateChecker.shared
 
-    private let width: CGFloat = 425
-    private let playerHeight: CGFloat = 300
-    private let playlistHeight: CGFloat = 300
+    private let playerHeight = Theme.Layout.playerHeight
+    private let playlistHeight = Theme.Layout.playlistHeight
 
     var body: some View {
         VStack(spacing: 0) {
+            WindowTitleBar(window: window)
             PlayerPane()
                 .contextMenu {
                     EditTagsMenuItem { track in editingTrack = track }
                 }
             if showPlaylist {
-                Divider().overlay(Theme.separator)
+                Divider().overlay(Theme.Cyber.separator)
                 PlaylistPane()
                     .frame(maxHeight: .infinity)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
-        .frame(width: width)
-        .frame(maxHeight: .infinity, alignment: .top)
-        .background(Theme.background)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .frame(minWidth: Theme.Layout.minWidth,
+               minHeight: showPlaylist ? Theme.Layout.minHeight
+                                      : Theme.Layout.titleBarHeight + Theme.Layout.playerHeight)
+        .background(Theme.Cyber.background)
+        .preferredColorScheme(.dark)
         .background(WindowAccessor { candidate in
             if window !== candidate { window = candidate }
         })
@@ -41,7 +44,8 @@ struct MainWindowView: View {
         .onAppear {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
                 guard let window else { return }
-                window.minSize = NSSize(width: width, height: playerHeight)
+                configureWindow(window)
+                window.minSize = NSSize(width: Theme.Layout.minWidth, height: Theme.Layout.minHeight)
                 forceDesignSize(window)
                 if let player { NowPlayingService.shared.attach(player) }
                 if let shotPath = ProcessInfo.processInfo.environment["CEDAR_WINDOW_SHOT"] {
@@ -52,7 +56,7 @@ struct MainWindowView: View {
             }
         }
         .animation(.easeInOut(duration: 0.16), value: showPlaylist)
-        .tint(Theme.accent)
+        .tint(Theme.Cyber.accent)
         .onReceive(NotificationCenter.default.publisher(for: .editTags)) { _ in
             editingTrack = player?.currentTrack
         }
@@ -90,10 +94,13 @@ struct MainWindowView: View {
                 }
             }
             try? await Task.sleep(nanoseconds: 1_800_000_000)
-            guard let view = window?.contentView else {
+            guard let content = window?.contentView else {
                 print("window shot: нет содержимого окна")
                 exit(1)
             }
+            // Include the custom title bar in the documentation capture.
+            var view = content
+            while let parent = view.superview { view = parent }
             let scale: CGFloat = 2
             let bounds = view.bounds
             guard let rep = NSBitmapImageRep(bitmapDataPlanes: nil,
@@ -137,17 +144,35 @@ struct MainWindowView: View {
         }
     }
 
-    /// Resizes the window to its design size: fixed width, height depends on the pane.
+    /// Resizes the window to its design height; width stays user-resizable.
+    private func configureWindow(_ window: NSWindow) {
+        window.titleVisibility = .hidden
+        window.titlebarAppearsTransparent = true
+        window.styleMask.insert(.fullSizeContentView)
+        window.isMovableByWindowBackground = false
+        window.standardWindowButton(.closeButton)?.isHidden = true
+        window.standardWindowButton(.miniaturizeButton)?.isHidden = true
+        window.standardWindowButton(.zoomButton)?.isHidden = true
+        window.backgroundColor = NSColor(Theme.Cyber.background)
+    }
+
     private func forceDesignSize(_ window: NSWindow) {
-        var targetHeight = showPlaylist ? playerHeight + playlistHeight : playerHeight
+        let chrome = Theme.Layout.titleBarHeight
+        var targetHeight = showPlaylist
+            ? max(Theme.Layout.minHeight, chrome + playerHeight + playlistHeight)
+            : chrome + playerHeight
         if let raw = ProcessInfo.processInfo.environment["CEDAR_SHOT_HEIGHT"],
-           let requested = Double(raw), requested >= playerHeight {
+           let requested = Double(raw), requested >= chrome + playerHeight {
             targetHeight = requested
         }
         let frame = window.frame
         let top = frame.maxY
         var target = frame
-        target.size.width = width
+        target.size.width = max(Theme.Layout.width, frame.width)
+        if let raw = ProcessInfo.processInfo.environment["CEDAR_SHOT_WIDTH"],
+           let requested = Double(raw), requested >= Theme.Layout.minWidth {
+            target.size.width = requested
+        }
         target.size.height = targetHeight
         target.origin.y = top - targetHeight
         window.setFrame(target, display: true, animate: false)
@@ -155,16 +180,22 @@ struct MainWindowView: View {
 
     private func resizeWindow(showPlaylist: Bool) {
         guard let window else { return }
-        let target = NSSize(width: width, height: showPlaylist ? playerHeight + playlistHeight : playerHeight)
+        let chrome = Theme.Layout.titleBarHeight
+        let minimum = showPlaylist
+            ? Theme.Layout.minHeight
+            : chrome + playerHeight
+        window.minSize = NSSize(width: Theme.Layout.minWidth, height: minimum)
+
         let frame = window.frame
         let top = frame.maxY
-        window.minSize = NSSize(width: width, height: playerHeight)
-
         var newFrame = frame
-        newFrame.size = target
-        newFrame.origin.y = top - target.height
+        if showPlaylist {
+            newFrame.size.height = max(frame.height, minimum)
+        } else {
+            newFrame.size.height = chrome + playerHeight
+        }
+        newFrame.origin.y = top - newFrame.height
         window.setFrame(newFrame, display: true, animate: true)
-        _ = frame
     }
 }
 

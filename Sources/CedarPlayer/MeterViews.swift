@@ -161,11 +161,11 @@ struct LevelMeterStrip: View {
         let gap: CGFloat = 1.4
         let width = max(1, (size.width - gap * CGFloat(bands.count - 1)) / CGFloat(bands.count))
 
-        let gradient = Gradient(colors: [
-            Color(red: 0.32, green: 0.86, blue: 0.46),
-            Color(red: 0.98, green: 0.74, blue: 0.22),
-            Color(red: 0.98, green: 0.30, blue: 0.26)
-        ])
+        let gradient = Gradient(colors: monochrome
+            ? [Theme.Cyber.accent.opacity(0.45), Theme.Cyber.accentBright]
+            : [Color(red: 0.32, green: 0.86, blue: 0.46),
+               Color(red: 0.98, green: 0.74, blue: 0.22),
+               Color(red: 0.98, green: 0.30, blue: 0.26)])
 
         for (index, value) in bands.enumerated() {
             let level = CGFloat(min(1, max(0, value)))
@@ -222,7 +222,7 @@ struct LevelMeterStrip: View {
     private func zoneColor(index: Int) -> Color {
         let ratio = Double(index) / Double(segments - 1)
         if monochrome {
-            return Theme.accent.opacity(0.55 + 0.45 * ratio)
+            return Theme.Cyber.accent.opacity(0.55 + 0.45 * ratio)
         }
         if ratio > 0.90 { return Color(red: 0.98, green: 0.30, blue: 0.26) }
         if ratio > 0.78 { return Color(red: 0.98, green: 0.74, blue: 0.22) }

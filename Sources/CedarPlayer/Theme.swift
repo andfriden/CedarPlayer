@@ -1,21 +1,54 @@
 import SwiftUI
 import AppKit
 
-/// UI palette and scales adapted to light and dark themes.
+/// Dark Cyber-HiFi palette: textured graphite panels with amber indicators.
 enum Theme {
-    static let background = adaptive(light: 0xF2F3F5, dark: 0x181A1E)
-    static let panel = adaptive(light: 0xFFFFFF, dark: 0x22252B)
-    static let text = adaptive(light: 0x1B1F27, dark: 0xF2F4F7)
-    static let secondaryText = adaptive(light: 0x5C6472, dark: 0xA2A9B4)
-    static let accent = adaptive(light: 0x3567C8, dark: 0x7BA7FF)
-    static let separator = adaptive(light: 0xD7DBE2, dark: 0x323740)
-    static let subtle = adaptive(light: 0xE9ECF1, dark: 0x2B2F36)
+    static let background = adaptive(light: 0xF0F0F2, dark: 0x1E1E22)
+    static let panel = adaptive(light: 0xFAFAFB, dark: 0x2A2A30)
+    static let titleBar = adaptive(light: 0xE4E4E8, dark: 0x232327)
+    static let text = adaptive(light: 0x1B1B20, dark: 0xEAEAEA)
+    static let secondaryText = adaptive(light: 0x6E6E73, dark: 0x8E8E93)
+    static let accent = adaptive(light: 0xD97700, dark: 0xFF8C00)
+    static let accentBright = adaptive(light: 0xE98600, dark: 0xFFA500)
+    static let separator = adaptive(light: 0xD6D6DC, dark: 0x3A3A42)
+    static let subtle = adaptive(light: 0xE9E9EE, dark: 0x35353C)
     static let danger = adaptive(light: 0xC4453F, dark: 0xE06C75)
     static let warning = Color(hex: 0xE5B44A)
     static let hover = Color(nsColor: NSColor(name: nil) { appearance in
-        isDark(appearance) ? NSColor.white.withAlphaComponent(0.05)
+        isDark(appearance) ? NSColor.white.withAlphaComponent(0.07)
                            : NSColor.black.withAlphaComponent(0.05)
     })
+    static let inset = Color(nsColor: NSColor(name: nil) { appearance in
+        isDark(appearance) ? NSColor.black.withAlphaComponent(0.28)
+                           : NSColor.black.withAlphaComponent(0.07)
+    })
+
+    /// Fixed palette for the main player window, independent of the system theme.
+    enum Cyber {
+        static let background = Color(hex: 0x1E1E22)
+        static let panel = Color(hex: 0x2A2A30)
+        static let titleBar = Color(hex: 0x232327)
+        static let text = Color(hex: 0xEAEAEA)
+        static let secondaryText = Color(hex: 0x8E8E93)
+        static let accent = Color(hex: 0xFF8C00)
+        static let accentBright = Color(hex: 0xFFA500)
+        static let separator = Color(hex: 0x3A3A42)
+        static let subtle = Color(hex: 0x35353C)
+        static let danger = Color(hex: 0xE06C75)
+        static let warning = Color(hex: 0xE5B44A)
+        static let hover = Color.white.opacity(0.07)
+        static let inset = Color.black.opacity(0.28)
+        static let track = Color(hex: 0x111114)
+    }
+
+    enum Layout {
+        static let width: CGFloat = 620
+        static let minWidth: CGFloat = 480
+        static let titleBarHeight: CGFloat = 34
+        static let playerHeight: CGFloat = 330
+        static let playlistHeight: CGFloat = 500
+        static let minHeight: CGFloat = 640
+    }
 
     enum Space {
         static let xs: CGFloat = 4
@@ -27,16 +60,17 @@ enum Theme {
 
     enum Radius {
         static let small: CGFloat = 6
-        static let medium: CGFloat = 8
-        static let large: CGFloat = 12
+        static let medium: CGFloat = 10
+        static let large: CGFloat = 16
     }
 
     enum Fonts {
-        static let nowPlaying = Font.system(size: 18, weight: .semibold)
+        static let nowPlaying = Font.system(size: 22, weight: .semibold)
+        static let nowPlayingSmall = Font.system(size: 17, weight: .semibold)
         static let listTitle = Font.system(size: 13, weight: .medium)
         static let artist = Font.system(size: 12)
         static let caption = Font.system(size: 11)
-        static let captionMono = Font.system(size: 11, design: .monospaced)
+        static let captionMono = Font.system(size: 10, weight: .medium, design: .monospaced)
         static let timeMono = Font.system(size: 11, design: .monospaced)
     }
 
