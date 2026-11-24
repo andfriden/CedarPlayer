@@ -2,7 +2,8 @@ import SwiftUI
 import AppKit
 
 /// Main window: player pane on top, playlist below. The playlist pane
-/// hides via a button in the player, a menu item and ⌥⌘P; the window keeps its size.
+/// hides via a button in the player, a menu item and ⌥⌘P; the window shrinks
+/// to the player and restores the remembered height.
 struct MainWindowView: View {
     @EnvironmentObject private var library: Library
     @Environment(\.player) private var player
@@ -10,6 +11,7 @@ struct MainWindowView: View {
     @AppStorage("resumeLastTrack") private var resumeLastTrack = true
     @State private var window: NSWindow?
     @State private var editingTrack: Track?
+    @State private var playlistHeight: CGFloat?
     @ObservedObject private var updates = UpdateChecker.shared
 
     var body: some View {
@@ -31,16 +33,20 @@ struct MainWindowView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .frame(minWidth: Theme.Layout.minWidth,
-               minHeight: Theme.Layout.minHeight - Theme.Layout.titleBarHeight)
+               minHeight: showPlaylist
+                   ? Theme.Layout.minHeight - Theme.Layout.titleBarHeight
+                   : Theme.Layout.playerHeight)
         .background(Theme.Cyber.background)
         .background(WindowAccessor { candidate in
             if window !== candidate { window = candidate }
         })
+        .onChange(of: showPlaylist) { newValue in
+            resizeWindow(showPlaylist: newValue)
+        }
         .onAppear {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
                 guard let window else { return }
                 configureWindow(window)
-                window.minSize = NSSize(width: Theme.Layout.minWidth, height: Theme.Layout.minHeight)
                 forceDesignSize(window)
                 if let player { NowPlayingService.shared.attach(player) }
                 if let shotPath = ProcessInfo.processInfo.environment["CEDAR_WINDOW_SHOT"] {
@@ -153,11 +159,14 @@ struct MainWindowView: View {
     }
 
     private func forceDesignSize(_ window: NSWindow) {
-        var targetHeight = Theme.Layout.defaultHeight
+        let compactHeight = Theme.Layout.titleBarHeight + Theme.Layout.playerHeight
+        let minimum = showPlaylist ? Theme.Layout.minHeight : compactHeight
+        var targetHeight = showPlaylist ? Theme.Layout.defaultHeight : compactHeight
         if let raw = ProcessInfo.processInfo.environment["CEDAR_SHOT_HEIGHT"],
            let requested = Double(raw) {
-            targetHeight = max(Theme.Layout.minHeight, requested)
+            targetHeight = max(minimum, requested)
         }
+        window.minSize = NSSize(width: Theme.Layout.minWidth, height: minimum)
         let frame = window.frame
         let top = frame.maxY
         var target = frame
@@ -169,6 +178,38 @@ struct MainWindowView: View {
         target.size.height = targetHeight
         target.origin.y = top - targetHeight
         window.setFrame(target, display: true, animate: false)
+    }
+
+    private func resizeWindow(showPlaylist: Bool) {
+        guard let window else { return }
+        let compactHeight = Theme.Layout.titleBarHeight + Theme.Layout.playerHeight
+        let frame = window.frame
+        let top = frame.maxY
+        var target = frame
+
+        if showPlaylist {
+            target.size.height = max(playlistHeight ?? Theme.Layout.defaultHeight,
+                                     Theme.Layout.minHeight)
+        } else {
+            if frame.height > compactHeight + 1 {
+                playlistHeight = frame.height
+            }
+            window.minSize = NSSize(width: Theme.Layout.minWidth, height: compactHeight)
+            target.size.height = compactHeight
+        }
+
+        target.origin.y = top - target.size.height
+        window.setFrame(target, display: true, animate: true)
+
+        if showPlaylist {
+            // Raising minSize before the animation forces an instant jump.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                guard (UserDefaults.standard.object(forKey: "showPlaylist") as? Bool) ?? true,
+                      window.frame.height > compactHeight + 1 else { return }
+                window.minSize = NSSize(width: Theme.Layout.minWidth,
+                                        height: Theme.Layout.minHeight)
+            }
+        }
     }
 }
 
