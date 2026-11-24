@@ -28,14 +28,11 @@ struct MainWindowView: View {
                     .padding(.vertical, 8)
                 PlaylistPane()
                     .frame(maxHeight: .infinity)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .frame(minWidth: Theme.Layout.minWidth,
-               minHeight: showPlaylist
-                   ? Theme.Layout.minHeight - Theme.Layout.titleBarHeight
-                   : Theme.Layout.playerHeight)
+               minHeight: Theme.Layout.playerHeight)
         .background(Theme.Cyber.background)
         .background(WindowAccessor { candidate in
             if window !== candidate { window = candidate }
@@ -56,7 +53,6 @@ struct MainWindowView: View {
                 }
             }
         }
-        .animation(.easeInOut(duration: 0.16), value: showPlaylist)
         .tint(Theme.Cyber.accent)
         .onReceive(NotificationCenter.default.publisher(for: .editTags)) { _ in
             editingTrack = player?.currentTrack
@@ -151,6 +147,7 @@ struct MainWindowView: View {
         window.titleVisibility = .visible
         window.titlebarAppearsTransparent = false
         window.styleMask.remove(.fullSizeContentView)
+        window.animationBehavior = .documentWindow
         window.isMovableByWindowBackground = false
         window.standardWindowButton(.closeButton)?.isHidden = false
         window.standardWindowButton(.miniaturizeButton)?.isHidden = false
@@ -194,21 +191,14 @@ struct MainWindowView: View {
             if frame.height > compactHeight + 1 {
                 playlistHeight = frame.height
             }
-            window.minSize = NSSize(width: Theme.Layout.minWidth, height: compactHeight)
             target.size.height = compactHeight
         }
 
         target.origin.y = top - target.size.height
-        window.setFrame(target, display: true, animate: true)
-
-        if showPlaylist {
-            // Raising minSize before the animation forces an instant jump.
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-                guard (UserDefaults.standard.object(forKey: "showPlaylist") as? Bool) ?? true,
-                      window.frame.height > compactHeight + 1 else { return }
-                window.minSize = NSSize(width: Theme.Layout.minWidth,
-                                        height: Theme.Layout.minHeight)
-            }
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0.18
+            context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+            window.animator().setFrame(target, display: true)
         }
     }
 }
