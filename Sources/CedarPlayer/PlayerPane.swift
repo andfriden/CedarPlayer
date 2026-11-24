@@ -8,6 +8,7 @@ struct PlayerPane: View {
     @EnvironmentObject private var library: Library
     @AppStorage("meterStyle") private var meterStyleRaw = MeterStyle.spectrum.rawValue
     @AppStorage("showPlaylist") private var showPlaylist = true
+    @Environment(\.openWindow) private var openWindow
     @State private var coverTrack: Track?
 
     private let artworkSize: CGFloat = 100
@@ -273,7 +274,7 @@ struct PlayerPane: View {
     // MARK: Transport
 
     private var transportRow: some View {
-        ZStack {
+        HStack(spacing: 0) {
             HStack(spacing: 6) {
                 CyberIconButton(symbol: "shuffle",
                                 help: L10n.string("Случайный порядок"),
@@ -287,14 +288,10 @@ struct PlayerPane: View {
                                 size: 28) {
                     engine.repeatMode = engine.repeatMode.next
                 }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
 
-            HStack(spacing: 0) {
                 transportButton("backward.fill", label: L10n.string("Предыдущий трек"), size: 32) {
                     engine.previous()
                 }
-                .padding(.trailing, 12)
 
                 Button { engine.toggle() } label: {
                     ZStack {
@@ -321,16 +318,15 @@ struct PlayerPane: View {
                 transportButton("forward.fill", label: L10n.string("Следующий трек"), size: 32) {
                     engine.next(manual: true)
                 }
-                .padding(.leading, 12)
 
                 transportButton("stop.fill", label: L10n.string("Стоп"), size: 28) {
                     engine.stop()
                 }
-                .padding(.leading, 8)
                 .disabled(engine.currentTrack == nil && engine.currentStation == nil)
                 .opacity(engine.currentTrack == nil && engine.currentStation == nil ? 0.35 : 1)
             }
-            .frame(maxWidth: .infinity, alignment: .center)
+
+            Spacer(minLength: 4)
 
             HStack(spacing: 6) {
                 Button {
@@ -351,7 +347,14 @@ struct PlayerPane: View {
                     engine.volume = value
                     if engine.isMuted { engine.isMuted = false }
                 }
-                .frame(width: 80)
+                .frame(width: 96)
+
+                CyberIconButton(symbol: "slider.vertical.3",
+                                help: L10n.string("Эквалайзер"),
+                                active: engine.isEQEnabled,
+                                size: 28) {
+                    openWindow(id: "equalizer")
+                }
 
                 CyberIconButton(symbol: showPlaylist ? "list.bullet.rectangle.fill" : "list.bullet.rectangle",
                                 help: showPlaylist ? L10n.string("Скрыть плейлист") : L10n.string("Показать плейлист"),
@@ -360,7 +363,6 @@ struct PlayerPane: View {
                     showPlaylist.toggle()
                 }
             }
-            .frame(maxWidth: .infinity, alignment: .trailing)
         }
         .frame(height: 40)
     }
