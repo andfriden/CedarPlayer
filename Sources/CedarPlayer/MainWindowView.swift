@@ -16,7 +16,6 @@ struct MainWindowView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            WindowTitleBar(window: window)
             PlayerPane()
                 .padding(.horizontal, Theme.Layout.contentPadding)
                 .padding(.top, Theme.Layout.contentPadding)
@@ -39,11 +38,6 @@ struct MainWindowView: View {
                    ? Theme.Layout.minHeight - Theme.Layout.titleBarHeight
                    : Theme.Layout.contentPadding + Theme.Layout.playerHeight)
         .background(Theme.Cyber.background)
-        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .strokeBorder(Theme.Cyber.outerBorder, lineWidth: 1)
-        }
         .preferredColorScheme(.dark)
         .background(WindowAccessor { candidate in
             if window !== candidate { window = candidate }
@@ -156,17 +150,16 @@ struct MainWindowView: View {
 
     /// Resizes the window to its design height; width stays user-resizable.
     private func configureWindow(_ window: NSWindow) {
-        window.titleVisibility = .hidden
-        window.titlebarAppearsTransparent = true
-        window.styleMask.insert(.fullSizeContentView)
+        window.title = "Cedar Player"
+        window.titleVisibility = .visible
+        window.titlebarAppearsTransparent = false
+        window.styleMask.remove(.fullSizeContentView)
         window.isMovableByWindowBackground = false
-        window.standardWindowButton(.closeButton)?.isHidden = true
-        window.standardWindowButton(.miniaturizeButton)?.isHidden = true
-        window.standardWindowButton(.zoomButton)?.isHidden = true
+        window.appearance = NSAppearance(named: .darkAqua)
+        window.standardWindowButton(.closeButton)?.isHidden = false
+        window.standardWindowButton(.miniaturizeButton)?.isHidden = false
+        window.standardWindowButton(.zoomButton)?.isHidden = false
         window.backgroundColor = NSColor(Theme.Cyber.background)
-        window.contentView?.wantsLayer = true
-        window.contentView?.layer?.cornerRadius = 8
-        window.contentView?.layer?.masksToBounds = true
     }
 
     private func forceDesignSize(_ window: NSWindow) {

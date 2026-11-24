@@ -130,8 +130,8 @@ struct CyberSpectrum: View {
             let gap: CGFloat = 2
             let count = max(1, Int((size.width + gap) / (barWidth + gap)))
             let step = size.width / CGFloat(count)
-            let lit = Color(hex: 0xFF8C00)
-            let bright = Color(hex: 0xFFA500)
+            let lit = Theme.Cyber.accent
+            let bright = Theme.Cyber.accentBright
 
             for index in 0..<count {
                 let position = count > 1 ? Double(index) / Double(count - 1) : 0

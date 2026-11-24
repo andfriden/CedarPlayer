@@ -873,7 +873,6 @@ struct CedarPlayerApp: App {
                 .preferredColorScheme(colorScheme)
         }
         .defaultSize(width: Theme.Layout.width, height: Theme.Layout.defaultHeight)
-        .windowStyle(.hiddenTitleBar)
         .windowResizability(.contentMinSize)
         .commands {
             CommandGroup(replacing: .newItem) {
