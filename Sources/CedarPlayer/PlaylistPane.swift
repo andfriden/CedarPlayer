@@ -43,12 +43,12 @@ struct PlaylistPane: View {
 
     private var tracks: [Track] { result.tracks }
 
-    private var showsArtwork: Bool { result.mixedArtwork }
-
     var body: some View {
         VStack(spacing: 0) {
             header
             Divider().overlay(Theme.separator)
+            columnHeader
+            Divider().overlay(Theme.separator.opacity(0.7))
             if tracks.isEmpty {
                 emptyState
             } else if scrolling {
@@ -64,12 +64,16 @@ struct PlaylistPane: View {
                     }
                     .modifier(EnterKeyModifier { playKeyboardSelection() })
                     .onTapGesture { listFocused = true }
+                    .frame(maxHeight: .infinity)
                 }
             } else {
                 listContent
+                    .frame(maxHeight: .infinity, alignment: .top)
             }
+            statusBar
         }
         .frame(width: 425)
+        .frame(maxHeight: .infinity, alignment: .top)
         .background(Theme.panel)
         .onAppear { if isShot { search = "" } }
         .task(id: search) {
@@ -110,7 +114,71 @@ struct PlaylistPane: View {
                     .id(track.id)
             }
         }
-        .padding(.vertical, 6)
+    }
+
+    // MARK: Table chrome
+
+    private let indexWidth: CGFloat = 28
+    private let ratingWidth: CGFloat = 56
+    private let durationWidth: CGFloat = 70
+
+    private var columnHeader: some View {
+        HStack(spacing: 0) {
+            Text("#")
+                .frame(width: indexWidth, alignment: .center)
+            Text(L10n.string("Название"))
+                .frame(minWidth: 120, maxWidth: .infinity, alignment: .leading)
+                .padding(.leading, 8)
+            Text(L10n.string("Исполнитель"))
+                .frame(minWidth: 80, maxWidth: .infinity, alignment: .leading)
+            Text(L10n.string("Рейтинг"))
+                .frame(width: ratingWidth, alignment: .center)
+            Text(L10n.string("Длительность"))
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+                .frame(width: durationWidth, alignment: .trailing)
+                .padding(.trailing, 8)
+        }
+        .textCase(.uppercase)
+        .font(.system(size: 10, weight: .bold))
+        .foregroundStyle(Theme.secondaryText)
+        .padding(.horizontal, 12)
+        .frame(height: 24)
+        .background(Theme.subtle.opacity(0.55))
+    }
+
+    private var statusBar: some View {
+        HStack(spacing: 8) {
+            Text("\(tracks.count) треков | \(totalTimeText)")
+            Spacer(minLength: 0)
+            Text("Размер: \(totalSizeText)")
+        }
+        .font(.system(size: 11))
+        .foregroundStyle(Theme.secondaryText)
+        .padding(.horizontal, 12)
+        .frame(height: 24)
+        .background(Theme.background)
+        .overlay(alignment: .top) {
+            Rectangle().fill(Theme.separator.opacity(0.7)).frame(height: 1)
+        }
+    }
+
+    private var totalTimeText: String {
+        let total = Int(tracks.reduce(0) { $0 + max(0, $1.duration) }.rounded())
+        let hours = total / 3600
+        let minutes = (total % 3600) / 60
+        if hours > 0 { return "\(hours) ч. \(minutes) мин." }
+        return "\(minutes) мин."
+    }
+
+    private var totalSizeText: String {
+        let bytes = tracks.reduce(0.0) { total, track in
+            guard track.bitrate > 0, track.duration > 0 else { return total }
+            return total + Double(track.bitrate) * track.duration / 8
+        }
+        if bytes >= 1_000_000_000 { return String(format: "%.1f ГБ", bytes / 1_000_000_000) }
+        if bytes >= 1_000_000 { return String(format: "%.1f МБ", bytes / 1_000_000) }
+        return String(format: "%.0f КБ", bytes / 1_000)
     }
 
     // MARK: Pane header
@@ -260,85 +328,79 @@ struct PlaylistPane: View {
     private func row(_ track: Track, index: Int) -> some View {
         let isCurrent = engine.currentTrack?.id == track.id
         let isSelected = selection.contains(track.id)
-        let isHovered = hoveredTrackID == track.id
-
         let isKeyboard = keyboardTrackID == track.id
+        let isHovered = hoveredTrackID == track.id
         let background: Color = isKeyboard
             ? Theme.accent.opacity(0.22)
             : isSelected
             ? Theme.accent.opacity(0.18)
             : (isCurrent ? Theme.accent.opacity(0.10) : (isHovered ? Theme.hover : .clear))
+        let titleColor = track.isMissing
+            ? Theme.secondaryText
+            : (isCurrent ? Theme.accent : Theme.text)
 
-        return HStack(spacing: Theme.Space.s) {
+        return HStack(spacing: 0) {
             ZStack {
                 if track.isMissing {
                     Image(systemName: "exclamationmark.triangle.fill")
-                        .font(.system(size: 10))
+                        .font(.system(size: 9))
                         .foregroundStyle(.orange)
                         .help("Файл не найден")
                 } else if isCurrent {
                     Image(systemName: engine.isPlaying ? "waveform" : "pause.fill")
-                        .font(.system(size: 11, weight: .medium))
+                        .font(.system(size: 10, weight: .medium))
                         .foregroundStyle(Theme.accent)
                 } else {
                     Text("\(index + 1)")
-                        .font(Theme.Fonts.captionMono)
+                        .font(.system(size: 11, design: .monospaced))
                         .foregroundStyle(Theme.secondaryText)
+                        .monospacedDigit()
                 }
             }
-            .frame(width: 20)
+            .frame(width: indexWidth, alignment: .center)
 
-            if showsArtwork {
-                artwork(track)
-                    .frame(width: 28, height: 28)
-                    .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.small, style: .continuous))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: Theme.Radius.small, style: .continuous)
-                            .strokeBorder(Theme.separator, lineWidth: 0.5)
-                    }
+            Text(track.displayTitle)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(titleColor)
+                .lineLimit(1)
+                .frame(minWidth: 120, maxWidth: .infinity, alignment: .leading)
+                .padding(.leading, 8)
+
+            Text(track.displayArtist)
+                .font(.system(size: 11))
+                .foregroundStyle(Theme.secondaryText)
+                .lineLimit(1)
+                .frame(minWidth: 80, maxWidth: .infinity, alignment: .leading)
+
+            HStack(spacing: 1) {
+                ForEach(1...5, id: \.self) { value in
+                    Image(systemName: value <= track.rating ? "star.fill" : "star")
+                        .font(.system(size: 9))
+                        .symbolRenderingMode(.monochrome)
+                        .foregroundStyle(value <= track.rating
+                                         ? Theme.accent
+                                         : Theme.secondaryText.opacity(0.35))
+                        .frame(width: 9, height: 9)
+                }
             }
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text(track.displayTitle)
-                    .font(Theme.Fonts.listTitle)
-                    .foregroundStyle(track.isMissing ? Theme.secondaryText : (isCurrent ? Theme.accent : Theme.text))
-                    .lineLimit(1)
-                Text(track.displayArtist)
-                    .font(Theme.Fonts.artist)
-                    .foregroundStyle(Theme.secondaryText)
-                    .lineLimit(1)
-            }
-
-            Spacer(minLength: Theme.Space.s)
-
-            if track.isMissing {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .font(.system(size: 9))
-                    .foregroundStyle(.orange)
-                    .help("Файл не найден")
-            }
-
-            if track.rating > 0, !showsArtwork {
-                Text(String(repeating: "★", count: track.rating))
-                    .font(.system(size: 9))
-                    .foregroundStyle(Theme.accent.opacity(0.9))
-            }
+            .frame(width: ratingWidth, alignment: .center)
 
             Text(track.timeText)
-                .font(Theme.Fonts.timeMono)
+                .font(.system(size: 11, design: .monospaced))
                 .foregroundStyle(Theme.secondaryText)
                 .monospacedDigit()
-                .frame(width: 44, alignment: .trailing)
+                .frame(width: durationWidth, alignment: .trailing)
+                .padding(.trailing, 8)
         }
-        .padding(.horizontal, Theme.Space.m)
-        .frame(height: 42)
+        .padding(.horizontal, 12)
+        .frame(height: 32)
         .background(background)
         .overlay(alignment: .leading) {
             if isCurrent {
                 Rectangle()
                     .fill(Theme.accent)
                     .frame(width: 2)
-                    .padding(.vertical, 10)
+                    .padding(.vertical, 7)
             }
         }
         .contentShape(Rectangle())
@@ -401,21 +463,6 @@ struct PlaylistPane: View {
             Divider()
             Button("Удалить из библиотеки", role: .destructive) {
                 library.remove([track.id])
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func artwork(_ track: Track) -> some View {
-        if let image = track.artworkID.flatMap({ ArtworkCache.shared.image(for: $0) })
-            ?? track.artwork.flatMap({ NSImage(data: $0) }) {
-            Image(nsImage: image).resizable().aspectRatio(contentMode: .fill)
-        } else {
-            ZStack {
-                Theme.subtle
-                Image(systemName: "music.note")
-                    .font(.system(size: 11))
-                    .foregroundStyle(Theme.secondaryText.opacity(0.8))
             }
         }
     }
