@@ -1,8 +1,8 @@
 import SwiftUI
 import AppKit
 
-/// Fixed 240 px now-playing panel: 100 px artwork, compact metadata,
-/// a 36 px amber spectrum, a 4 px seek track and a 40 px transport row.
+/// Fixed 240 px now-playing panel: 100 px artwork, metadata and spectrum
+/// in the right column, then a 4 px seek track and a 40 px transport row.
 struct PlayerPane: View {
     @EnvironmentObject private var engine: PlayerEngine
     @EnvironmentObject private var library: Library
@@ -16,22 +16,12 @@ struct PlayerPane: View {
             backdrop
             VStack(spacing: 0) {
                 topRow
-                    .frame(height: 100)
-                visualizer
-                    .frame(height: 36)
-                    .background(Theme.Cyber.inset.opacity(0.72), in: RoundedRectangle(cornerRadius: 4))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 4)
-                            .strokeBorder(Color.white.opacity(0.05), lineWidth: 0.8)
-                    }
-                    .padding(.top, 8)
-                    .onTapGesture { cycleMeterStyle() }
-                    .help(L10n.format("Визуализатор: %@", currentStyle.title))
+                    .frame(height: 132)
                 seekBlock
-                    .padding(.top, 2)
+                    .padding(.top, 10)
                 transportRow
                     .frame(height: 40)
-                    .padding(.top, 8)
+                    .padding(.top, 12)
             }
             .padding(12)
         }
@@ -102,14 +92,25 @@ struct PlayerPane: View {
                 .frame(height: 18)
                 .padding(.top, 6)
 
+                visualizer
+                    .frame(height: 24)
+                    .background(Theme.Cyber.inset.opacity(0.72), in: RoundedRectangle(cornerRadius: 4))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 4)
+                            .strokeBorder(Color.white.opacity(0.05), lineWidth: 0.8)
+                    }
+                    .padding(.top, 6)
+                    .onTapGesture { cycleMeterStyle() }
+                    .help(L10n.format("Визуализатор: %@", currentStyle.title))
+
                 rating
                     .frame(height: 14)
-                    .padding(.top, 8)
+                    .padding(.top, 6)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .frame(height: 100, alignment: .top)
+            .frame(height: 132, alignment: .top)
         }
-        .frame(height: 100, alignment: .top)
+        .frame(height: 132, alignment: .top)
     }
 
     private var artwork: some View {

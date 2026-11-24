@@ -319,7 +319,7 @@ CedarPlayer/
     ├── TagEditorSheet.swift      tag editor sheet
     ├── NowPlayingService.swift   Now Playing and media commands
     ├── MainWindowView.swift      player + playlist, window sizing
-    ├── PlayerPane.swift          player pane 425×300
+    ├── PlayerPane.swift          player pane 520×240
     ├── PlaylistPane.swift        bottom track list
     ├── MoreMenuButton.swift      AppKit “More” menu
     ├── ContentView.swift         “Library” window
@@ -367,7 +367,7 @@ remains expensive (about 155 ms), which the input delay hides.
 - Accent is used only for enabled state and the selected item.
 - Typography: title 18 pt semibold, list 13 pt medium, artist 12 pt, time and
   technical data 11 pt (monospaced).
-- Player pane 425×300, playlist 425×300, window 425×600 or 425×300. No glass or
+- Player pane 520×240, the playlist stretches; window 520×760, minimum 460×600. No glass or
   heavy shadows.
 
 ## Limitations
