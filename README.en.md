@@ -58,6 +58,8 @@ resources are not used.
 
 **Library**
 - File and folder import, drag & drop, search, sorting, playlists.
+- Star ratings directly in the list: click to rate, click again to clear;
+  rating applies to all selected tracks. Sort by rating.
 - Library filters by genre, year, format and quality, plus bulk actions for
   selected tracks.
 - “Play Next” and “Add to Queue” with a separate queue window, removal and

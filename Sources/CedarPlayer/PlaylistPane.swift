@@ -396,13 +396,23 @@ struct PlaylistPane: View {
 
             HStack(spacing: 2) {
                 ForEach(1...5, id: \.self) { value in
-                    Image(systemName: value <= track.rating ? "star.fill" : "star")
-                        .font(.system(size: 10))
-                        .symbolRenderingMode(.monochrome)
-                        .foregroundStyle(value <= track.rating
-                                         ? Theme.Cyber.accent
-                                         : secondary.opacity(0.35))
-                        .frame(width: 10, height: 10)
+                    Button {
+                        rate(track, value: value)
+                    } label: {
+                        Image(systemName: value <= track.rating ? "star.fill" : "star")
+                            .font(.system(size: 10))
+                            .symbolRenderingMode(.monochrome)
+                            .foregroundStyle(value <= track.rating
+                                             ? Theme.Cyber.accent
+                                             : secondary.opacity(0.35))
+                            .frame(width: 12, height: 18)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .focusable(false)
+                    .help(track.rating == value
+                          ? L10n.string("Снять оценку")
+                          : L10n.format("Оценка: %ld", value))
                 }
             }
             .frame(width: ratingWidth, alignment: .center)
@@ -504,6 +514,12 @@ struct PlaylistPane: View {
                 library.remove([track.id])
             }
         }
+    }
+
+    private func rate(_ track: Track, value: Int) {
+        let rating = track.rating == value ? 0 : value
+        let ids = selection.contains(track.id) ? selection : [track.id]
+        library.setRating(rating, for: ids)
     }
 
     private func deleteSelection() {

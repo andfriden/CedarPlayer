@@ -23,6 +23,22 @@ final class QueryTests: XCTestCase {
         XCTAssertEqual(result.tracks.first { $0.id == first.id }?.rating, 5)
     }
 
+    func testSortsByRating() {
+        var low = track("Low")
+        var high = track("High")
+        low.rating = 1
+        high.rating = 5
+        let library = Library(testTracks: [high, low])
+
+        let ascending = library.query(filterID: "all", search: "",
+                                      sortKey: .rating, ascending: true)
+        let descending = library.query(filterID: "all", search: "",
+                                       sortKey: .rating, ascending: false)
+
+        XCTAssertEqual(ascending.tracks.map(\.title), ["Low", "High"])
+        XCTAssertEqual(descending.tracks.map(\.title), ["High", "Low"])
+    }
+
     func testPlaylistQueryKeepsOrderAndSkipsMissing() {
         let first = track("A")
         let second = track("B")

@@ -210,6 +210,11 @@ final class Library: ObservableObject {
         case .title: list.sort { $0.displayTitle.localizedStandardCompare($1.displayTitle) == .orderedAscending }
         case .artist: list.sort { $0.displayArtist.localizedStandardCompare($1.displayArtist) == .orderedAscending }
         case .album: list.sort { $0.displayAlbum.localizedStandardCompare($1.displayAlbum) == .orderedAscending }
+        case .rating:
+            list.sort {
+                if $0.rating != $1.rating { return $0.rating < $1.rating }
+                return $0.displayTitle.localizedStandardCompare($1.displayTitle) == .orderedAscending
+            }
         case .duration: list.sort { $0.duration < $1.duration }
         }
         if !ascending { list.reverse() }
