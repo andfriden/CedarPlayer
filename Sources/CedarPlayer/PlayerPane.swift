@@ -271,6 +271,11 @@ struct PlayerPane: View {
         return min(1, max(0, engine.position / engine.duration))
     }
 
+    private func setVolume(_ value: Double) {
+        engine.volume = value
+        if engine.isMuted { engine.isMuted = false }
+    }
+
     // MARK: Transport
 
     private var transportRow: some View {
@@ -343,10 +348,11 @@ struct PlayerPane: View {
                 .help("Звук (⇧⌘M)")
                 .accessibilityLabel(engine.isMuted ? L10n.string("Включить звук") : L10n.string("Заглушить"))
 
-                CyberProgressBar(value: engine.volume, height: 4, thumbSize: 8) { value in
-                    engine.volume = value
-                    if engine.isMuted { engine.isMuted = false }
-                }
+                CyberProgressBar(value: engine.volume,
+                                 height: 4,
+                                 thumbSize: 8,
+                                 onLiveChange: setVolume,
+                                 onSeek: setVolume)
                 .frame(width: 96)
 
                 CyberIconButton(symbol: "slider.vertical.3",

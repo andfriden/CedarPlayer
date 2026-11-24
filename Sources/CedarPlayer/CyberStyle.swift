@@ -69,11 +69,13 @@ struct CyberProgressBar: View {
     var height: CGFloat = 18
     var thumbSize: CGFloat = 10
     var showsThumb = true
+    var onLiveChange: ((Double) -> Void)? = nil
     let onSeek: (Double) -> Void
+    @State private var dragFraction: Double?
 
     var body: some View {
         GeometryReader { geometry in
-            let fraction = min(1, max(0, value))
+            let fraction = min(1, max(0, dragFraction ?? value))
             let width = geometry.size.width
             let thumb: CGFloat = showsThumb ? thumbSize : 0
 
@@ -107,9 +109,16 @@ struct CyberProgressBar: View {
             .frame(height: height)
             .contentShape(Rectangle())
             .gesture(
+                // Seek once on release; dragging only moves the thumb.
                 DragGesture(minimumDistance: 0)
                     .onChanged { gesture in
+                        let next = min(1, max(0, gesture.location.x / max(1, width)))
+                        dragFraction = next
+                        onLiveChange?(next)
+                    }
+                    .onEnded { gesture in
                         onSeek(min(1, max(0, gesture.location.x / max(1, width))))
+                        dragFraction = nil
                     }
             )
             .accessibilityElement()

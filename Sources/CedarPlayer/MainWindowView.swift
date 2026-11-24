@@ -2,7 +2,7 @@ import SwiftUI
 import AppKit
 
 /// Main window: player pane on top, playlist below. The playlist pane
-/// collapses via a button in the player, a menu item and ⌥⌘P; the window adjusts its height.
+/// hides via a button in the player, a menu item and ⌥⌘P; the window keeps its size.
 struct MainWindowView: View {
     @EnvironmentObject private var library: Library
     @Environment(\.player) private var player
@@ -11,8 +11,6 @@ struct MainWindowView: View {
     @State private var window: NSWindow?
     @State private var editingTrack: Track?
     @ObservedObject private var updates = UpdateChecker.shared
-
-    private let playerHeight = Theme.Layout.playerHeight
 
     var body: some View {
         VStack(spacing: 0) {
@@ -33,16 +31,11 @@ struct MainWindowView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .frame(minWidth: Theme.Layout.minWidth,
-               minHeight: showPlaylist
-                   ? Theme.Layout.minHeight - Theme.Layout.titleBarHeight
-                   : Theme.Layout.playerHeight)
+               minHeight: Theme.Layout.minHeight - Theme.Layout.titleBarHeight)
         .background(Theme.Cyber.background)
         .background(WindowAccessor { candidate in
             if window !== candidate { window = candidate }
         })
-        .onChange(of: showPlaylist) { newValue in
-            resizeWindow(showPlaylist: newValue)
-        }
         .onAppear {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
                 guard let window else { return }
@@ -160,14 +153,10 @@ struct MainWindowView: View {
     }
 
     private func forceDesignSize(_ window: NSWindow) {
-        let chrome = Theme.Layout.titleBarHeight
-        let minimum = showPlaylist
-            ? Theme.Layout.minHeight
-            : chrome + playerHeight
-        var targetHeight = showPlaylist ? Theme.Layout.defaultHeight : minimum
+        var targetHeight = Theme.Layout.defaultHeight
         if let raw = ProcessInfo.processInfo.environment["CEDAR_SHOT_HEIGHT"],
-           let requested = Double(raw), requested >= minimum {
-            targetHeight = requested
+           let requested = Double(raw) {
+            targetHeight = max(Theme.Layout.minHeight, requested)
         }
         let frame = window.frame
         let top = frame.maxY
@@ -180,26 +169,6 @@ struct MainWindowView: View {
         target.size.height = targetHeight
         target.origin.y = top - targetHeight
         window.setFrame(target, display: true, animate: false)
-    }
-
-    private func resizeWindow(showPlaylist: Bool) {
-        guard let window else { return }
-        let chrome = Theme.Layout.titleBarHeight
-        let minimum = showPlaylist
-            ? Theme.Layout.minHeight
-            : chrome + playerHeight
-        window.minSize = NSSize(width: Theme.Layout.minWidth, height: minimum)
-
-        let frame = window.frame
-        let top = frame.maxY
-        var newFrame = frame
-        if showPlaylist {
-            newFrame.size.height = max(frame.height, minimum)
-        } else {
-            newFrame.size.height = minimum
-        }
-        newFrame.origin.y = top - newFrame.height
-        window.setFrame(newFrame, display: true, animate: true)
     }
 }
 
