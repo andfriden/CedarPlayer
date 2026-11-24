@@ -26,13 +26,21 @@ enum Theme {
     /// Fixed palette for the main player window, independent of the system theme.
     enum Cyber {
         static let background = Color(hex: 0x1E1E22)
+        static let playerBackground = Color(hex: 0x18181B)
+        static let statusBackground = Color(hex: 0x141416)
+        static let border = Color(hex: 0x2E2E36)
+        static let outerBorder = Color(hex: 0x3A3A42)
+        static let separator = Color(hex: 0x27272A)
+        static let titleText = Color(hex: 0xFFFFFF)
+        static let artistText = Color(hex: 0xA0A0AB)
+        static let tertiaryText = Color(hex: 0x71717A)
         static let panel = Color(hex: 0x2A2A30)
         static let titleBar = Color(hex: 0x232327)
         static let text = Color(hex: 0xEAEAEA)
         static let secondaryText = Color(hex: 0x8E8E93)
         static let accent = Color(hex: 0xFF8C00)
         static let accentBright = Color(hex: 0xFFA500)
-        static let separator = Color(hex: 0x3A3A42)
+
         static let subtle = Color(hex: 0x35353C)
         static let danger = Color(hex: 0xE06C75)
         static let warning = Color(hex: 0xE5B44A)
@@ -42,12 +50,14 @@ enum Theme {
     }
 
     enum Layout {
-        static let width: CGFloat = 620
-        static let minWidth: CGFloat = 480
-        static let titleBarHeight: CGFloat = 34
-        static let playerHeight: CGFloat = 330
-        static let playlistHeight: CGFloat = 500
-        static let minHeight: CGFloat = 640
+        static let width: CGFloat = 520
+        static let minWidth: CGFloat = 460
+        static let titleBarHeight: CGFloat = 32
+        static let playerHeight: CGFloat = 240
+        static let playlistHeight: CGFloat = 460
+        static let defaultHeight: CGFloat = 760
+        static let minHeight: CGFloat = 600
+        static let contentPadding: CGFloat = 12
     }
 
     enum Space {

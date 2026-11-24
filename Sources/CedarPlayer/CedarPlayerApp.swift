@@ -710,7 +710,7 @@ struct CedarPlayerApp: App {
             .environmentObject(library)
             .environmentObject(engine)
             .preferredColorScheme(scheme)
-                .frame(width: Theme.Layout.width, height: 620)
+                .frame(width: Theme.Layout.width, height: Theme.Layout.defaultHeight)
             .background(Theme.background)
             let renderer = ImageRenderer(content: view)
             renderer.scale = 2
@@ -872,7 +872,7 @@ struct CedarPlayerApp: App {
                 .id(appLanguage)
                 .preferredColorScheme(colorScheme)
         }
-        .defaultSize(width: Theme.Layout.width, height: 864)
+        .defaultSize(width: Theme.Layout.width, height: Theme.Layout.defaultHeight)
         .windowStyle(.hiddenTitleBar)
         .windowResizability(.contentMinSize)
         .commands {

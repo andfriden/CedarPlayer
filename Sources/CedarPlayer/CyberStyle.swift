@@ -67,6 +67,7 @@ struct CyberIconButton: View {
 struct CyberProgressBar: View {
     let value: Double
     var height: CGFloat = 18
+    var thumbSize: CGFloat = 10
     var showsThumb = true
     let onSeek: (Double) -> Void
 
@@ -74,7 +75,7 @@ struct CyberProgressBar: View {
         GeometryReader { geometry in
             let fraction = min(1, max(0, value))
             let width = geometry.size.width
-            let thumb: CGFloat = showsThumb ? 12 : 0
+            let thumb: CGFloat = showsThumb ? thumbSize : 0
 
             ZStack(alignment: .leading) {
                 Canvas { context, size in
@@ -119,11 +120,44 @@ struct CyberProgressBar: View {
     }
 }
 
+/// Fixed-step amber spectrum: 3 px bars with 2 px gaps.
+struct CyberSpectrum: View {
+    let bands: [Float]
+
+    var body: some View {
+        Canvas { context, size in
+            let barWidth: CGFloat = 3
+            let gap: CGFloat = 2
+            let count = max(1, Int((size.width + gap) / (barWidth + gap)))
+            let step = size.width / CGFloat(count)
+            let lit = Color(hex: 0xFF8C00)
+            let bright = Color(hex: 0xFFA500)
+
+            for index in 0..<count {
+                let position = count > 1 ? Double(index) / Double(count - 1) : 0
+                let source = position * Double(max(0, bands.count - 1))
+                let low = min(bands.count - 1, Int(source))
+                let high = min(bands.count - 1, low + 1)
+                let blend = Float(source - Double(low))
+                let value = bands.isEmpty ? 0 : bands[low] * (1 - blend) + bands[high] * blend
+                let height = max(1, size.height * CGFloat(min(1, max(0, value))))
+                let rect = CGRect(x: CGFloat(index) * step,
+                                  y: size.height - height,
+                                  width: barWidth,
+                                  height: height)
+                let color = value < 0.08 ? lit.opacity(0.22) : (value < 0.65 ? lit : bright)
+                context.fill(Path(roundedRect: rect, cornerRadius: 1), with: .color(color))
+            }
+        }
+    }
+}
+
 /// One-line text that gently scrolls when it does not fit.
 struct MarqueeText: View {
     let text: String
     var font: Font
     var color: Color
+    var height: CGFloat = 26
 
     @State private var textWidth: CGFloat = 0
     @State private var containerWidth: CGFloat = 0
@@ -153,7 +187,7 @@ struct MarqueeText: View {
                 }
         }
         .clipped()
-        .frame(height: 26)
+        .frame(height: height)
         .onHover { inside in
             if !inside { reset() }
         }

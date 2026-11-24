@@ -13,17 +13,21 @@ struct MainWindowView: View {
     @ObservedObject private var updates = UpdateChecker.shared
 
     private let playerHeight = Theme.Layout.playerHeight
-    private let playlistHeight = Theme.Layout.playlistHeight
 
     var body: some View {
         VStack(spacing: 0) {
             WindowTitleBar(window: window)
             PlayerPane()
+                .padding(.horizontal, Theme.Layout.contentPadding)
+                .padding(.top, Theme.Layout.contentPadding)
                 .contextMenu {
                     EditTagsMenuItem { track in editingTrack = track }
                 }
             if showPlaylist {
-                Divider().overlay(Theme.Cyber.separator)
+                Rectangle()
+                    .fill(Theme.Cyber.separator)
+                    .frame(height: 1)
+                    .padding(.vertical, 8)
                 PlaylistPane()
                     .frame(maxHeight: .infinity)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
@@ -31,9 +35,15 @@ struct MainWindowView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .frame(minWidth: Theme.Layout.minWidth,
-               minHeight: showPlaylist ? Theme.Layout.minHeight
-                                      : Theme.Layout.titleBarHeight + Theme.Layout.playerHeight)
+               minHeight: showPlaylist
+                   ? Theme.Layout.minHeight - Theme.Layout.titleBarHeight
+                   : Theme.Layout.contentPadding + Theme.Layout.playerHeight)
         .background(Theme.Cyber.background)
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .strokeBorder(Theme.Cyber.outerBorder, lineWidth: 1)
+        }
         .preferredColorScheme(.dark)
         .background(WindowAccessor { candidate in
             if window !== candidate { window = candidate }
@@ -154,21 +164,25 @@ struct MainWindowView: View {
         window.standardWindowButton(.miniaturizeButton)?.isHidden = true
         window.standardWindowButton(.zoomButton)?.isHidden = true
         window.backgroundColor = NSColor(Theme.Cyber.background)
+        window.contentView?.wantsLayer = true
+        window.contentView?.layer?.cornerRadius = 8
+        window.contentView?.layer?.masksToBounds = true
     }
 
     private func forceDesignSize(_ window: NSWindow) {
         let chrome = Theme.Layout.titleBarHeight
-        var targetHeight = showPlaylist
-            ? max(Theme.Layout.minHeight, chrome + playerHeight + playlistHeight)
-            : chrome + playerHeight
+        let minimum = showPlaylist
+            ? Theme.Layout.minHeight
+            : chrome + Theme.Layout.contentPadding + playerHeight
+        var targetHeight = showPlaylist ? Theme.Layout.defaultHeight : minimum
         if let raw = ProcessInfo.processInfo.environment["CEDAR_SHOT_HEIGHT"],
-           let requested = Double(raw), requested >= chrome + playerHeight {
+           let requested = Double(raw), requested >= minimum {
             targetHeight = requested
         }
         let frame = window.frame
         let top = frame.maxY
         var target = frame
-        target.size.width = max(Theme.Layout.width, frame.width)
+        target.size.width = Theme.Layout.width
         if let raw = ProcessInfo.processInfo.environment["CEDAR_SHOT_WIDTH"],
            let requested = Double(raw), requested >= Theme.Layout.minWidth {
             target.size.width = requested
@@ -183,7 +197,7 @@ struct MainWindowView: View {
         let chrome = Theme.Layout.titleBarHeight
         let minimum = showPlaylist
             ? Theme.Layout.minHeight
-            : chrome + playerHeight
+            : chrome + Theme.Layout.contentPadding + playerHeight
         window.minSize = NSSize(width: Theme.Layout.minWidth, height: minimum)
 
         let frame = window.frame
@@ -192,7 +206,7 @@ struct MainWindowView: View {
         if showPlaylist {
             newFrame.size.height = max(frame.height, minimum)
         } else {
-            newFrame.size.height = chrome + playerHeight
+            newFrame.size.height = minimum
         }
         newFrame.origin.y = top - newFrame.height
         window.setFrame(newFrame, display: true, animate: true)
