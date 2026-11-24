@@ -7,6 +7,7 @@ struct PlayerPane: View {
     @EnvironmentObject private var engine: PlayerEngine
     @EnvironmentObject private var library: Library
     @AppStorage("meterStyle") private var meterStyleRaw = MeterStyle.spectrum.rawValue
+    @AppStorage("showPlaylist") private var showPlaylist = true
     @State private var coverTrack: Track?
 
     private let artworkSize: CGFloat = 100
@@ -215,7 +216,9 @@ struct PlayerPane: View {
     @ViewBuilder
     private var visualizer: some View {
         if currentStyle == .spectrum {
-            CyberSpectrum(bands: engine.spectrum)
+            CyberSpectrum(bands: engine.spectrum,
+                          peaks: engine.spectrumPeaks,
+                          isPlaying: engine.isPlaying)
         } else {
             LevelMeterStrip(style: currentStyle,
                             levelLeft: engine.levelL,
@@ -349,6 +352,13 @@ struct PlayerPane: View {
                     if engine.isMuted { engine.isMuted = false }
                 }
                 .frame(width: 80)
+
+                CyberIconButton(symbol: showPlaylist ? "list.bullet.rectangle.fill" : "list.bullet.rectangle",
+                                help: showPlaylist ? L10n.string("Скрыть плейлист") : L10n.string("Показать плейлист"),
+                                active: showPlaylist,
+                                size: 28) {
+                    showPlaylist.toggle()
+                }
             }
             .frame(maxWidth: .infinity, alignment: .trailing)
         }

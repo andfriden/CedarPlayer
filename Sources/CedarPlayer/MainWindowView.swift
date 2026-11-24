@@ -187,7 +187,7 @@ struct MainWindowView: View {
         let chrome = Theme.Layout.titleBarHeight
         let minimum = showPlaylist
             ? Theme.Layout.minHeight
-            : chrome + Theme.Layout.contentPadding + playerHeight
+            : chrome + playerHeight
         window.minSize = NSSize(width: Theme.Layout.minWidth, height: minimum)
 
         let frame = window.frame

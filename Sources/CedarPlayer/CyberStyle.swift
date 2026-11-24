@@ -120,33 +120,62 @@ struct CyberProgressBar: View {
     }
 }
 
-/// Fixed-step amber spectrum: 3 px bars with 2 px gaps.
+/// Fixed-step spectrum with a gentle live shimmer, peak caps and glow.
 struct CyberSpectrum: View {
     let bands: [Float]
+    var peaks: [Float] = []
+    var isPlaying = false
 
     var body: some View {
-        Canvas { context, size in
-            let barWidth: CGFloat = 3
-            let gap: CGFloat = 2
-            let count = max(1, Int((size.width + gap) / (barWidth + gap)))
-            let step = size.width / CGFloat(count)
-            let lit = Theme.Cyber.accent
-            let bright = Theme.Cyber.accentBright
+        TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: !isPlaying)) { timeline in
+            let time = isPlaying ? timeline.date.timeIntervalSinceReferenceDate : 0
+            Canvas { context, size in
+                let barWidth: CGFloat = 3
+                let gap: CGFloat = 2
+                let count = max(1, Int((size.width + gap) / (barWidth + gap)))
+                let step = size.width / CGFloat(count)
+                let lit = Theme.Cyber.accent
+                let bright = Theme.Cyber.accentBright
 
-            for index in 0..<count {
-                let position = count > 1 ? Double(index) / Double(count - 1) : 0
-                let source = position * Double(max(0, bands.count - 1))
-                let low = min(bands.count - 1, Int(source))
-                let high = min(bands.count - 1, low + 1)
-                let blend = Float(source - Double(low))
-                let value = bands.isEmpty ? 0 : bands[low] * (1 - blend) + bands[high] * blend
-                let height = max(1, size.height * CGFloat(min(1, max(0, value))))
-                let rect = CGRect(x: CGFloat(index) * step,
-                                  y: size.height - height,
-                                  width: barWidth,
-                                  height: height)
-                let color = value < 0.08 ? lit.opacity(0.22) : (value < 0.65 ? lit : bright)
-                context.fill(Path(roundedRect: rect, cornerRadius: 1), with: .color(color))
+                var path = Path()
+                for index in 0..<count {
+                    let position = count > 1 ? Double(index) / Double(count - 1) : 0
+                    let source = position * Double(max(0, bands.count - 1))
+                    let low = min(bands.count - 1, Int(source))
+                    let high = min(bands.count - 1, low + 1)
+                    let blend = Float(source - Double(low))
+                    let sampled = bands.isEmpty ? 0 : bands[low] * (1 - blend) + bands[high] * blend
+                    let shimmer = isPlaying
+                        ? Float(0.015 + 0.012 * sin(time * 4.2 + Double(index) * 0.37))
+                        : 0
+                    let value = min(1, max(0, sampled + shimmer))
+                    let height = max(1, size.height * CGFloat(value))
+                    let rect = CGRect(x: CGFloat(index) * step,
+                                      y: size.height - height,
+                                      width: barWidth,
+                                      height: height)
+                    path.addRoundedRect(in: rect, cornerSize: CGSize(width: 1, height: 1))
+                }
+
+                context.drawLayer { layer in
+                    layer.addFilter(.shadow(color: lit.opacity(0.35), radius: 3))
+                    layer.fill(path, with: .linearGradient(
+                        Gradient(colors: [lit.opacity(0.55), lit, bright]),
+                        startPoint: CGPoint(x: 0, y: size.height),
+                        endPoint: CGPoint(x: 0, y: 0)))
+                }
+
+                guard peaks.count == bands.count else { return }
+                for (index, rawPeak) in peaks.enumerated() {
+                    let peak = min(1, max(0, rawPeak))
+                    guard peak > 0.04 else { continue }
+                    let position = count > 1 ? Double(index) / Double(peaks.count - 1) : 0
+                    let x = CGFloat(position) * size.width
+                    let y = max(0, size.height - size.height * CGFloat(peak) - 2)
+                    context.fill(Path(roundedRect: CGRect(x: x, y: y, width: barWidth, height: 2),
+                                      cornerRadius: 1),
+                                 with: .color(bright.opacity(0.9)))
+                }
             }
         }
     }
