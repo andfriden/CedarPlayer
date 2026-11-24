@@ -1,21 +1,72 @@
 import SwiftUI
 import AppKit
 
-/// UI palette and scales adapted to light and dark themes.
+/// Dark Cyber-HiFi palette: textured graphite panels with amber indicators.
 enum Theme {
-    static let background = adaptive(light: 0xF2F3F5, dark: 0x181A1E)
-    static let panel = adaptive(light: 0xFFFFFF, dark: 0x22252B)
-    static let text = adaptive(light: 0x1B1F27, dark: 0xF2F4F7)
-    static let secondaryText = adaptive(light: 0x5C6472, dark: 0xA2A9B4)
-    static let accent = adaptive(light: 0x3567C8, dark: 0x7BA7FF)
-    static let separator = adaptive(light: 0xD7DBE2, dark: 0x323740)
-    static let subtle = adaptive(light: 0xE9ECF1, dark: 0x2B2F36)
+    static let background = adaptive(light: 0xF0F0F2, dark: 0x1E1E22)
+    static let panel = adaptive(light: 0xFAFAFB, dark: 0x2A2A30)
+    static let titleBar = adaptive(light: 0xE4E4E8, dark: 0x232327)
+    static let text = adaptive(light: 0x1B1B20, dark: 0xEAEAEA)
+    static let secondaryText = adaptive(light: 0x6E6E73, dark: 0x8E8E93)
+    static let accent = adaptive(light: 0x008FBF, dark: 0x35D6FF)
+    static let accentBright = adaptive(light: 0x00A6D6, dark: 0x7BE7FF)
+    static let separator = adaptive(light: 0xD6D6DC, dark: 0x3A3A42)
+    static let subtle = adaptive(light: 0xE9E9EE, dark: 0x35353C)
     static let danger = adaptive(light: 0xC4453F, dark: 0xE06C75)
     static let warning = Color(hex: 0xE5B44A)
+    /// Test-only override for the main player window's fixed Cyber palette.
+    static var forcedDark: Bool?
+
     static let hover = Color(nsColor: NSColor(name: nil) { appearance in
-        isDark(appearance) ? NSColor.white.withAlphaComponent(0.05)
+        isDark(appearance) ? NSColor.white.withAlphaComponent(0.07)
                            : NSColor.black.withAlphaComponent(0.05)
     })
+    static let inset = Color(nsColor: NSColor(name: nil) { appearance in
+        isDark(appearance) ? NSColor.black.withAlphaComponent(0.28)
+                           : NSColor.black.withAlphaComponent(0.07)
+    })
+
+    /// Fixed palette for the main player window, independent of the system theme.
+    enum Cyber {
+        static var background: Color { Theme.adaptiveForced(light: 0xF4F4F7, dark: 0x1E1E22) }
+        static var playerBackground: Color { Theme.adaptiveForced(light: 0xF9F9FB, dark: 0x18181B) }
+        static var statusBackground: Color { Theme.adaptiveForced(light: 0xE9E9EE, dark: 0x141416) }
+        static var border: Color { Theme.adaptiveForced(light: 0xD5D5DD, dark: 0x2E2E36) }
+        static var outerBorder: Color { Theme.adaptiveForced(light: 0xD0D0D8, dark: 0x3A3A42) }
+        static var separator: Color { Theme.adaptiveForced(light: 0xD8D8E0, dark: 0x27272A) }
+        static var titleText: Color { Theme.adaptiveForced(light: 0x17171B, dark: 0xFFFFFF) }
+        static var artistText: Color { Theme.adaptiveForced(light: 0x5F5F6A, dark: 0xA0A0AB) }
+        static var tertiaryText: Color { Theme.adaptiveForced(light: 0x8A8A95, dark: 0x71717A) }
+        static var panel: Color { Theme.adaptiveForced(light: 0xFFFFFF, dark: 0x2A2A30) }
+        static var titleBar: Color { Theme.adaptiveForced(light: 0xECECF1, dark: 0x232327) }
+        static var text: Color { Theme.adaptiveForced(light: 0x1B1B20, dark: 0xEAEAEA) }
+        static var secondaryText: Color { Theme.adaptiveForced(light: 0x6E6E79, dark: 0x8E8E93) }
+        static var accent: Color { Theme.adaptiveForced(light: 0x007EA8, dark: 0x35D6FF) }
+        static var accentBright: Color { Theme.adaptiveForced(light: 0x00A6D6, dark: 0x7BE7FF) }
+        static var subtle: Color { Theme.adaptiveForced(light: 0xE8E8EF, dark: 0x35353C) }
+        static var danger: Color { Theme.danger }
+        static var warning: Color { Theme.warning }
+        static var hover: Color {
+            if let forced = Theme.forcedDark { return forced ? Color.white.opacity(0.07) : Color.black.opacity(0.05) }
+            return Theme.hover
+        }
+        static var inset: Color {
+            if let forced = Theme.forcedDark { return forced ? Color.black.opacity(0.28) : Color.black.opacity(0.07) }
+            return Theme.inset
+        }
+        static var track: Color { Theme.adaptiveForced(light: 0xD8D8DE, dark: 0x111114) }
+    }
+
+    enum Layout {
+        static let width: CGFloat = 520
+        static let minWidth: CGFloat = 460
+        static let titleBarHeight: CGFloat = 32
+        static let playerHeight: CGFloat = 240
+        static let playlistHeight: CGFloat = 460
+        static let defaultHeight: CGFloat = 760
+        static let minHeight: CGFloat = 600
+        static let contentPadding: CGFloat = 12
+    }
 
     enum Space {
         static let xs: CGFloat = 4
@@ -27,21 +78,29 @@ enum Theme {
 
     enum Radius {
         static let small: CGFloat = 6
-        static let medium: CGFloat = 8
-        static let large: CGFloat = 12
+        static let medium: CGFloat = 10
+        static let large: CGFloat = 16
     }
 
     enum Fonts {
-        static let nowPlaying = Font.system(size: 18, weight: .semibold)
+        static let nowPlaying = Font.system(size: 22, weight: .semibold)
+        static let nowPlayingSmall = Font.system(size: 17, weight: .semibold)
         static let listTitle = Font.system(size: 13, weight: .medium)
         static let artist = Font.system(size: 12)
         static let caption = Font.system(size: 11)
-        static let captionMono = Font.system(size: 11, design: .monospaced)
+        static let captionMono = Font.system(size: 10, weight: .medium, design: .monospaced)
         static let timeMono = Font.system(size: 11, design: .monospaced)
     }
 
     private static func adaptive(light: UInt32, dark: UInt32) -> Color {
         Color(nsColor: NSColor(name: nil) { appearance in
+            nsColor(hex: isDark(appearance) ? dark : light)
+        })
+    }
+
+    private static func adaptiveForced(light: UInt32, dark: UInt32) -> Color {
+        if let forcedDark { return Color(hex: forcedDark ? dark : light) }
+        return Color(nsColor: NSColor(name: nil) { appearance in
             nsColor(hex: isDark(appearance) ? dark : light)
         })
     }

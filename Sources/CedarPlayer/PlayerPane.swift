@@ -1,33 +1,47 @@
 import SwiftUI
 import AppKit
 
-/// Player pane 425×300: artwork and metadata in one row, a compact
-/// meter, volume, progress and main buttons. Rare actions live in the "More" menu.
+/// Fixed 240 px now-playing panel: 100 px artwork, compact metadata,
+/// a 36 px amber spectrum, a 4 px seek track and a 40 px transport row.
 struct PlayerPane: View {
     @EnvironmentObject private var engine: PlayerEngine
     @EnvironmentObject private var library: Library
-    @AppStorage("showPlaylist") private var showPlaylist = true
-    @AppStorage("meterStyle") private var meterStyleRaw = MeterStyle.segments.rawValue
+    @AppStorage("meterStyle") private var meterStyleRaw = MeterStyle.spectrum.rawValue
     @State private var coverTrack: Track?
 
-    var artworkSize: CGFloat = 92
+    private let artworkSize: CGFloat = 100
 
     var body: some View {
-        VStack(spacing: Theme.Space.s) {
-            topRow
-            meter
-            volumeRow
-            if engine.currentStation != nil {
-                radioStatus
-            } else {
+        ZStack {
+            backdrop
+            VStack(spacing: 0) {
+                topRow
+                    .frame(height: 100)
+                visualizer
+                    .frame(height: 36)
+                    .background(Theme.Cyber.inset.opacity(0.72), in: RoundedRectangle(cornerRadius: 4))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 4)
+                            .strokeBorder(Color.white.opacity(0.05), lineWidth: 0.8)
+                    }
+                    .padding(.top, 8)
+                    .onTapGesture { cycleMeterStyle() }
+                    .help(L10n.format("Визуализатор: %@", currentStyle.title))
                 seekBlock
+                    .padding(.top, 2)
+                transportRow
+                    .frame(height: 40)
+                    .padding(.top, 8)
             }
-            transportRow
+            .padding(12)
         }
-        .padding(.horizontal, Theme.Space.l)
-        .padding(.vertical, Theme.Space.m)
-        .frame(width: 425, height: 300, alignment: .top)
-        .background(Theme.background)
+        .frame(maxWidth: .infinity)
+        .frame(height: Theme.Layout.playerHeight)
+        .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .strokeBorder(Theme.Cyber.border, lineWidth: 1)
+        }
         .sheet(item: $coverTrack) { track in
             CoverPickerSheet(track: track)
                 .environmentObject(library)
@@ -35,131 +49,190 @@ struct PlayerPane: View {
         }
     }
 
+    // MARK: Backdrop
+
+    private var backdrop: some View {
+        ZStack {
+            Theme.Cyber.playerBackground
+            RadialGradient(colors: [Theme.Cyber.accent.opacity(0.09), .clear],
+                           center: .topTrailing, startRadius: 0, endRadius: 300)
+            Canvas { context, size in
+                var y: CGFloat = 0
+                while y < size.height {
+                    context.fill(Path(CGRect(x: 0, y: y, width: size.width, height: 0.5)),
+                                 with: .color(Theme.Cyber.separator.opacity(0.18)))
+                    y += 3
+                }
+            }
+            .allowsHitTesting(false)
+        }
+    }
+
     // MARK: Artwork and metadata
 
     private var topRow: some View {
-        HStack(alignment: .top, spacing: Theme.Space.m) {
+        HStack(alignment: .top, spacing: 16) {
             artwork
 
-            VStack(alignment: .leading, spacing: Theme.Space.xs) {
-                Text(engine.currentStation.map { engine.radioTrack ?? $0.name }
-                     ?? engine.currentTrack?.displayTitle ?? L10n.string("Ничего не играет"))
-                    .font(Theme.Fonts.nowPlaying)
-                    .foregroundStyle(Theme.text)
+            VStack(alignment: .leading, spacing: 0) {
+                MarqueeText(text: titleText,
+                            font: .system(size: 16, weight: .bold),
+                            color: Theme.Cyber.titleText,
+                            height: 24)
+                    .frame(height: 24)
+
+                Text(secondaryText)
+                    .font(.system(size: 13, weight: .regular))
+                    .foregroundStyle(Theme.Cyber.artistText)
                     .lineLimit(1)
-                    .truncationMode(.tail)
-                    .minimumScaleFactor(0.85)
+                    .frame(height: 18, alignment: .top)
+                    .padding(.top, 4)
 
-                Text(engine.currentStation != nil
-                     ? (engine.radioArtist ?? L10n.string("Онлайн-радио"))
-                     : engine.currentTrack?.displayArtist ?? "—")
-                    .font(Theme.Fonts.artist)
-                    .foregroundStyle(Theme.secondaryText)
-                    .lineLimit(1)
-
-                if engine.currentStation == nil, let album = engine.currentTrack?.album, !album.isEmpty {
-                    Text(album)
-                        .font(Theme.Fonts.caption)
-                        .foregroundStyle(Theme.secondaryText.opacity(0.85))
+                HStack(spacing: 6) {
+                    Text(formatBadge)
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(Theme.Cyber.playerBackground)
+                        .frame(width: 42, height: 18)
+                        .background(Theme.Cyber.accent, in: RoundedRectangle(cornerRadius: 3))
+                    Text(technicalText)
+                        .font(.system(size: 11, weight: .regular, design: .monospaced))
+                        .foregroundStyle(Theme.Cyber.tertiaryText)
                         .lineLimit(1)
                 }
+                .frame(height: 18)
+                .padding(.top, 6)
 
-                if let station = engine.currentStation {
-                    Text(station.name)
-                        .font(Theme.Fonts.caption)
-                        .foregroundStyle(Theme.secondaryText.opacity(0.8))
-                        .lineLimit(1)
-                } else if let quality = engine.currentTrack?.qualityText, !quality.isEmpty {
-                    Text(quality)
-                        .font(Theme.Fonts.caption)
-                        .foregroundStyle(Theme.secondaryText.opacity(0.8))
-                        .lineLimit(1)
-                        .padding(.top, 2)
-                }
-
-                if let error = engine.errorMessage {
-                    Text(error)
-                        .font(Theme.Fonts.caption)
-                        .foregroundStyle(Color(hex: 0xE06C75))
-                        .lineLimit(1)
-                }
+                rating
+                    .frame(height: 14)
+                    .padding(.top, 8)
             }
-
-            Spacer(minLength: 0)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(height: 100, alignment: .top)
         }
-        .frame(height: artworkSize, alignment: .top)
+        .frame(height: 100, alignment: .top)
     }
 
     private var artwork: some View {
         Group {
-            if let station = engine.currentStation,
-               let data = library.stationLogo(station),
-               let image = NSImage(data: data) {
-                Image(nsImage: image).resizable().aspectRatio(contentMode: .fill)
-            } else if let data = engine.currentTrack?.artwork, let image = NSImage(data: data) {
+            if let image = artworkImage {
                 Image(nsImage: image).resizable().aspectRatio(contentMode: .fill)
             } else {
                 ZStack {
-                    Theme.subtle
-                    Image(systemName: engine.currentStation == nil ? "music.note" : "dot.radiowaves.left.and.right")
-                        .font(.system(size: artworkSize * 0.28, weight: .light))
-                        .foregroundStyle(Theme.secondaryText.opacity(0.7))
+                    LinearGradient(colors: [Theme.Cyber.subtle, Theme.Cyber.panel],
+                                   startPoint: .topLeading, endPoint: .bottomTrailing)
+                    Image(systemName: engine.currentStation == nil ? "opticaldisc" : "dot.radiowaves.left.and.right")
+                        .font(.system(size: 30, weight: .ultraLight))
+                        .foregroundStyle(Theme.Cyber.secondaryText.opacity(0.55))
                 }
             }
         }
         .frame(width: artworkSize, height: artworkSize)
-        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.medium, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: Theme.Radius.medium, style: .continuous)
-                .strokeBorder(Theme.separator, lineWidth: 1)
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .strokeBorder(Theme.Cyber.border, lineWidth: 1)
         }
         .overlay(alignment: .bottomTrailing) {
             if engine.currentTrack != nil, engine.currentTrack?.artwork == nil {
-                Button {
-                    coverTrack = engine.currentTrack
-                } label: {
+                Button { coverTrack = engine.currentTrack } label: {
                     Image(systemName: "magnifyingglass")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(Theme.text)
-                        .frame(width: 26, height: 26)
-                        .background(Color.black.opacity(0.45), in: RoundedRectangle(cornerRadius: 6))
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundStyle(Theme.Cyber.text)
+                        .frame(width: 22, height: 22)
+                        .background(Color.black.opacity(0.55), in: RoundedRectangle(cornerRadius: 4))
                 }
                 .buttonStyle(.plain)
-                .padding(6)
+                .padding(5)
                 .help("Найти обложку в базе")
             }
         }
-        .shadow(color: .black.opacity(0.22), radius: 4, y: 2)
         .contextMenu {
-            Button("Найти обложку в базе…") {
-                coverTrack = engine.currentTrack
-            }
-            .disabled(engine.currentTrack == nil)
+            Button("Найти обложку в базе…") { coverTrack = engine.currentTrack }
+                .disabled(engine.currentTrack == nil)
         }
     }
 
-    // MARK: Meter
+    private var artworkImage: NSImage? {
+        if let station = engine.currentStation,
+           let data = library.stationLogo(station),
+           let image = NSImage(data: data) {
+            return image
+        }
+        if let data = engine.currentTrack?.artwork {
+            return NSImage(data: data)
+        }
+        return nil
+    }
 
-    /// Visualizer: L/R level or spectrum. Clicking it changes the style.
-    private var meter: some View {
-        LevelMeterStrip(style: currentStyle,
-                        levelLeft: engine.levelL,
-                        levelRight: engine.levelR,
-                        peakLeft: engine.peakL,
-                        peakRight: engine.peakR,
-                        bands: engine.spectrum,
-                        spectrumPeaks: engine.spectrumPeaks,
-                        isPlaying: engine.isPlaying,
-                        showsScale: false,
-                        monochrome: false)
-            .frame(height: 40)
-            .contentShape(Rectangle())
-            .onTapGesture { cycleMeterStyle() }
-            .help(L10n.format("Визуализатор: %@ — нажмите, чтобы сменить", currentStyle.title))
+    private var titleText: String {
+        engine.currentStation.map { engine.radioTrack ?? $0.name }
+            ?? engine.currentTrack?.displayTitle
+            ?? L10n.string("Ничего не играет")
+    }
+
+    private var secondaryText: String {
+        if engine.currentStation != nil {
+            return engine.radioArtist ?? L10n.string("Онлайн-радио")
+        }
+        let artist = engine.currentTrack?.displayArtist ?? L10n.string("Выберите трек")
+        let album = engine.currentTrack?.displayAlbum ?? ""
+        return album.isEmpty ? artist : "\(artist) · \(album)"
+    }
+
+    private var formatBadge: String {
+        if engine.currentStation != nil { return "LIVE" }
+        guard let track = engine.currentTrack else { return "AUDIO" }
+        let ext = track.url.pathExtension.uppercased()
+        return ext.isEmpty ? "AUDIO" : ext
+    }
+
+    private var technicalText: String {
+        guard let track = engine.currentTrack else { return "STANDBY" }
+        let rate = track.sampleRate > 0 ? "\(Int(track.sampleRate / 1000)) kHz" : nil
+        if track.bitDepth > 0, let rate {
+            return "\(track.bitDepth)-bit / \(rate)"
+        }
+        if track.bitrate > 0 {
+            return "\(Int(Double(track.bitrate) / 1000)) kbps"
+        }
+        return rate ?? "—"
+    }
+
+    private var rating: some View {
+        HStack(spacing: 4) {
+            ForEach(1...5, id: \.self) { value in
+                Image(systemName: value <= (engine.currentTrack?.rating ?? 0) ? "star.fill" : "star")
+                    .font(.system(size: 12))
+                    .symbolRenderingMode(.monochrome)
+                    .foregroundStyle(value <= (engine.currentTrack?.rating ?? 0)
+                                     ? Theme.Cyber.accent : Theme.Cyber.tertiaryText.opacity(0.45))
+                    .frame(width: 14, height: 14)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var visualizer: some View {
+        if currentStyle == .spectrum {
+            CyberSpectrum(bands: engine.spectrum)
+        } else {
+            LevelMeterStrip(style: currentStyle,
+                            levelLeft: engine.levelL,
+                            levelRight: engine.levelR,
+                            peakLeft: engine.peakL,
+                            peakRight: engine.peakR,
+                            bands: engine.spectrum,
+                            spectrumPeaks: engine.spectrumPeaks,
+                            isPlaying: engine.isPlaying,
+                            showsScale: false,
+                            monochrome: true)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 3)
+        }
     }
 
     private var currentStyle: MeterStyle {
-        MeterStyle(rawValue: meterStyleRaw) ?? .segments
+        MeterStyle(rawValue: meterStyleRaw) ?? .spectrum
     }
 
     private func cycleMeterStyle() {
@@ -168,102 +241,72 @@ struct PlayerPane: View {
         meterStyleRaw = all[(index + 1) % all.count].rawValue
     }
 
-    // MARK: Volume
-
-    private var volumeRow: some View {
-        HStack(spacing: Theme.Space.s) {
-            Button {
-                engine.isMuted.toggle()
-            } label: {
-                Image(systemName: engine.isMuted || engine.volume == 0 ? "speaker.slash.fill" : "speaker.wave.2.fill")
-                    .font(.system(size: 13, weight: .regular))
-                    .foregroundStyle(engine.isMuted ? Theme.accent : Theme.secondaryText)
-                    .frame(width: 32, height: 32)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .help("Звук (⇧⌘M)")
-            .accessibilityLabel(engine.isMuted ? L10n.string("Включить звук") : L10n.string("Заглушить"))
-
-            Slider(value: $engine.volume, in: 0...1)
-                .controlSize(.mini)
-                .tint(Theme.accent)
-        }
-        .frame(height: 32)
-    }
-
-    private var radioStatus: some View {
-        HStack(spacing: Theme.Space.s) {
-            if engine.radioBuffering {
-                ProgressView()
-                    .controlSize(.small)
-                Text("Буферизация…")
-                    .font(Theme.Fonts.caption)
-                    .foregroundStyle(Theme.secondaryText)
-            } else {
-                Text("Прямой эфир")
-                    .font(Theme.Fonts.caption)
-                    .foregroundStyle(Theme.accent)
-            }
-            Spacer(minLength: 0)
-        }
-        .frame(height: 34)
-    }
-
-    // MARK: Position
+    // MARK: Seek
 
     private var seekBlock: some View {
-        VStack(spacing: Theme.Space.xs) {
-            Slider(value: Binding(
-                get: { engine.duration > 0 ? engine.position / engine.duration : 0 },
-                set: { engine.seek(to: $0 * engine.duration) }
-            ))
-            .controlSize(.mini)
-            .tint(Theme.accent)
-            .help(progressTooltip)
-
+        VStack(spacing: 4) {
+            CyberProgressBar(value: progressFraction, height: 4, thumbSize: 10) { fraction in
+                guard engine.duration > 0 else { return }
+                engine.seek(to: fraction * engine.duration)
+            }
             HStack {
                 Text(timeText(engine.position))
-                    .frame(width: 60, alignment: .leading)
                 Spacer(minLength: 0)
-                Text(timeText(engine.duration))
-                    .frame(width: 60, alignment: .trailing)
+                Text("-" + timeText(max(0, engine.duration - engine.position)))
             }
-            .font(Theme.Fonts.timeMono)
-            .foregroundStyle(Theme.secondaryText)
+            .font(.system(size: 11, weight: .regular, design: .monospaced))
+            .foregroundStyle(Theme.Cyber.tertiaryText)
+            .frame(height: 14)
         }
+        .frame(height: 22)
     }
 
-    private var progressTooltip: String {
-        let left = timeText(engine.position)
-        let total = timeText(engine.duration)
-        var parts = [engine.currentTrack?.extendedInfoText ?? ""].filter { !$0.isEmpty }
-        if !engine.outputFormatDescription.isEmpty, engine.outputFormatDescription != "—" {
-            parts.append(L10n.format("выход: %@", engine.outputFormatDescription))
-        }
-        return parts.isEmpty ? L10n.format("%ld из %ld", left, total) : L10n.format("%ld из %ld · %@", left, total, parts.joined(separator: " · "))
+    private var progressFraction: Double {
+        guard engine.duration > 0, engine.position.isFinite else { return 0 }
+        return min(1, max(0, engine.position / engine.duration))
     }
 
     // MARK: Transport
 
     private var transportRow: some View {
         ZStack {
-            HStack(spacing: Theme.Space.s) {
-                transportButton("backward.fill", label: L10n.string("Предыдущий трек"), size: 15) { engine.previous() }
-                    .keyboardShortcut(.leftArrow, modifiers: .command)
+            HStack(spacing: 6) {
+                CyberIconButton(symbol: "shuffle",
+                                help: L10n.string("Случайный порядок"),
+                                active: engine.isShuffle,
+                                size: 28) {
+                    engine.isShuffle.toggle()
+                }
+                CyberIconButton(symbol: engine.repeatMode.symbol,
+                                help: repeatHelp,
+                                active: engine.repeatMode != .off,
+                                size: 28) {
+                    engine.repeatMode = engine.repeatMode.next
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            HStack(spacing: 0) {
+                transportButton("backward.fill", label: L10n.string("Предыдущий трек"), size: 32) {
+                    engine.previous()
+                }
+                .padding(.trailing, 12)
 
                 Button { engine.toggle() } label: {
                     ZStack {
                         Circle()
-                            .fill(Theme.text.opacity(0.10))
-                            .frame(width: 46, height: 46)
+                            .fill(LinearGradient(colors: [Theme.Cyber.accentBright, Theme.Cyber.accent],
+                                                 startPoint: .topLeading, endPoint: .bottomTrailing))
+                            .frame(width: 40, height: 40)
+                            .shadow(color: Theme.Cyber.accent.opacity(0.5), radius: 8)
                         Image(systemName: engine.isPlaying ? "pause.fill" : "play.fill")
-                            .font(.system(size: 19, weight: .medium))
-                            .foregroundStyle(Theme.text)
+                            .font(.system(size: 15, weight: .bold))
+                            .foregroundStyle(Theme.Cyber.playerBackground)
                             .offset(x: engine.isPlaying ? 0 : 1)
                     }
-                    .frame(width: 52, height: 48)
+                    .frame(width: 40, height: 40)
                     .contentShape(Rectangle())
+                    .opacity(engine.currentTrack == nil && engine.currentStation == nil ? 0.5 : 1)
                 }
                 .buttonStyle(.plain)
                 .keyboardShortcut(.space, modifiers: [])
@@ -271,44 +314,65 @@ struct PlayerPane: View {
                 .help("Воспроизведение (пробел)")
                 .accessibilityLabel(engine.isPlaying ? L10n.string("Пауза") : L10n.string("Воспроизвести"))
 
-                transportButton("forward.fill", label: L10n.string("Следующий трек"), size: 15) { engine.next(manual: true) }
-                    .keyboardShortcut(.rightArrow, modifiers: .command)
-            }
+                transportButton("forward.fill", label: L10n.string("Следующий трек"), size: 32) {
+                    engine.next(manual: true)
+                }
+                .padding(.leading, 12)
 
-            HStack(spacing: Theme.Space.xs) {
-                Spacer()
-                MoreMenuButton { coverTrack = engine.currentTrack }
-                playlistButton
+                transportButton("stop.fill", label: L10n.string("Стоп"), size: 28) {
+                    engine.stop()
+                }
+                .padding(.leading, 8)
+                .disabled(engine.currentTrack == nil && engine.currentStation == nil)
+                .opacity(engine.currentTrack == nil && engine.currentStation == nil ? 0.35 : 1)
             }
+            .frame(maxWidth: .infinity, alignment: .center)
+
+            HStack(spacing: 6) {
+                Button {
+                    engine.isMuted.toggle()
+                } label: {
+                    Image(systemName: engine.isMuted || engine.volume == 0
+                          ? "speaker.slash.fill" : "speaker.wave.2.fill")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(engine.isMuted ? Theme.Cyber.accent : Theme.Cyber.secondaryText)
+                        .frame(width: 20, height: 20)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help("Звук (⇧⌘M)")
+                .accessibilityLabel(engine.isMuted ? L10n.string("Включить звук") : L10n.string("Заглушить"))
+
+                CyberProgressBar(value: engine.volume, height: 4, thumbSize: 8) { value in
+                    engine.volume = value
+                    if engine.isMuted { engine.isMuted = false }
+                }
+                .frame(width: 80)
+            }
+            .frame(maxWidth: .infinity, alignment: .trailing)
         }
-        .frame(height: 48)
+        .frame(height: 40)
+    }
+
+    private var repeatHelp: String {
+        switch engine.repeatMode {
+        case .off: return L10n.string("Повтор выключен")
+        case .all: return L10n.string("Повтор списка")
+        case .one: return L10n.string("Повтор трека")
+        }
     }
 
     private func transportButton(_ symbol: String, label: String, size: CGFloat,
                                  action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: symbol)
-                .font(.system(size: size, weight: .regular))
-                .foregroundStyle(Theme.text.opacity(0.9))
-                .frame(width: 36, height: 36)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(Theme.Cyber.text.opacity(0.9))
+                .frame(width: size, height: size)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-    }
-
-    private var playlistButton: some View {
-        Button {
-            showPlaylist.toggle()
-        } label: {
-            Image(systemName: showPlaylist ? "list.bullet.rectangle.fill" : "list.bullet.rectangle")
-                .font(.system(size: 14, weight: .regular))
-                .foregroundStyle(showPlaylist ? Theme.accent : Theme.secondaryText)
-                .frame(width: 36, height: 36)
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .help("Показать/скрыть плейлист (⌥⌘P)")
-        .accessibilityLabel(showPlaylist ? L10n.string("Скрыть плейлист") : L10n.string("Показать плейлист"))
+        .accessibilityLabel(label)
     }
 
     private func timeText(_ seconds: TimeInterval) -> String {

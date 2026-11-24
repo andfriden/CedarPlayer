@@ -126,10 +126,10 @@ final class UISnapshotTests: XCTestCase {
         let library = Library(testTracks: [makeTrack(1), makeTrack(2), makeTrack(3)])
 
         let pane = PlayerPane().environmentObject(engine).environmentObject(library)
-        _ = try image(pane, width: 425, height: 300, name: "player-pane")
+        _ = try image(pane, width: Theme.Layout.width, height: Theme.Layout.playerHeight, name: "player-pane")
 
         let playlist = PlaylistPane(scrolling: false).environmentObject(engine).environmentObject(library)
-        _ = try image(playlist, width: 425, height: 300, name: "playlist-pane")
+        _ = try image(playlist, width: Theme.Layout.width, height: Theme.Layout.playlistHeight, name: "playlist-pane")
     }
 
     func testEqualizerSnapshot() throws {

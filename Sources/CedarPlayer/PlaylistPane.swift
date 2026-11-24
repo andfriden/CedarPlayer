@@ -25,6 +25,9 @@ struct PlaylistPane: View {
         ProcessInfo.processInfo.environment["CEDAR_WINDOW_SHOT"] != nil
     }
 
+    /// Offscreen rendering cannot host AppKit-backed menus and text fields.
+    private var isSnapshot: Bool { isShot || !scrolling }
+
     private var selectedPlaylist: Playlist? {
         filterID == "all" ? nil : library.playlists.first { $0.id.uuidString == filterID }
     }
@@ -46,9 +49,7 @@ struct PlaylistPane: View {
     var body: some View {
         VStack(spacing: 0) {
             header
-            Divider().overlay(Theme.separator)
             columnHeader
-            Divider().overlay(Theme.separator.opacity(0.7))
             if tracks.isEmpty {
                 emptyState
             } else if scrolling {
@@ -72,9 +73,9 @@ struct PlaylistPane: View {
             }
             statusBar
         }
-        .frame(width: 425)
-        .frame(maxHeight: .infinity, alignment: .top)
-        .background(Theme.panel)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .frame(minHeight: 240)
+        .background(Theme.Cyber.background)
         .onAppear { if isShot { search = "" } }
         .task(id: search) {
             if search.isEmpty {
@@ -100,7 +101,7 @@ struct PlaylistPane: View {
         .overlay {
             if isDropping {
                 RoundedRectangle(cornerRadius: Theme.Radius.medium)
-                    .strokeBorder(Theme.accent, style: StrokeStyle(lineWidth: 2, dash: [6, 4]))
+                    .strokeBorder(Theme.Cyber.accent, style: StrokeStyle(lineWidth: 2, dash: [6, 4]))
                     .padding(4)
                     .allowsHitTesting(false)
             }
@@ -118,33 +119,33 @@ struct PlaylistPane: View {
 
     // MARK: Table chrome
 
-    private let indexWidth: CGFloat = 28
-    private let ratingWidth: CGFloat = 56
-    private let durationWidth: CGFloat = 70
+    private let indexWidth: CGFloat = 36
+    private let ratingWidth: CGFloat = 70
+    private let durationWidth: CGFloat = 80
 
     private var columnHeader: some View {
         HStack(spacing: 0) {
             Text("#")
                 .frame(width: indexWidth, alignment: .center)
             Text(L10n.string("Название"))
-                .frame(minWidth: 120, maxWidth: .infinity, alignment: .leading)
+                .frame(minWidth: 150, maxWidth: .infinity, alignment: .leading)
                 .padding(.leading, 8)
             Text(L10n.string("Исполнитель"))
-                .frame(minWidth: 80, maxWidth: .infinity, alignment: .leading)
+                .frame(minWidth: 100, maxWidth: .infinity, alignment: .leading)
             Text(L10n.string("Рейтинг"))
                 .frame(width: ratingWidth, alignment: .center)
             Text(L10n.string("Длительность"))
                 .lineLimit(1)
-                .minimumScaleFactor(0.75)
+                .minimumScaleFactor(0.8)
                 .frame(width: durationWidth, alignment: .trailing)
-                .padding(.trailing, 8)
+                .minimumScaleFactor(0.75)
         }
         .textCase(.uppercase)
-        .font(.system(size: 10, weight: .bold))
-        .foregroundStyle(Theme.secondaryText)
+        .font(.system(size: 11, weight: .bold))
+        .foregroundStyle(Theme.Cyber.tertiaryText)
         .padding(.horizontal, 12)
         .frame(height: 24)
-        .background(Theme.subtle.opacity(0.55))
+        .background(Theme.Cyber.background)
     }
 
     private var statusBar: some View {
@@ -153,14 +154,11 @@ struct PlaylistPane: View {
             Spacer(minLength: 0)
             Text("Размер: \(totalSizeText)")
         }
-        .font(.system(size: 11))
-        .foregroundStyle(Theme.secondaryText)
+        .font(.system(size: 11, weight: .regular))
+        .foregroundStyle(Theme.Cyber.tertiaryText)
         .padding(.horizontal, 12)
         .frame(height: 24)
-        .background(Theme.background)
-        .overlay(alignment: .top) {
-            Rectangle().fill(Theme.separator.opacity(0.7)).frame(height: 1)
-        }
+        .background(Theme.Cyber.statusBackground)
     }
 
     private var totalTimeText: String {
@@ -184,134 +182,161 @@ struct PlaylistPane: View {
     // MARK: Pane header
 
     private var header: some View {
-        HStack(spacing: 8) {
-            Menu {
-                Button(L10n.format("Все треки (%ld)", library.tracks.count)) { filterID = "all" }
-                if !library.playlists.isEmpty {
-                    Divider()
-                    ForEach(library.playlists) { playlist in
-                        Button("\(playlist.name) (\(library.tracks(in: playlist).count))") {
-                            filterID = playlist.id.uuidString
-                        }
-                    }
-                }
-                Divider()
-                Menu("Умные подборки") {
-                    ForEach(SmartRule.allCases) { rule in
-                        Button("\(rule.title) (\(rule.filter(library.tracks).count))") {
-                            filterID = "smart:\(rule.rawValue)"
-                        }
-                    }
-                }
-                if !library.stations.isEmpty {
-                    Divider()
-                    Menu("Радио") {
-                        ForEach(library.stations) { station in
-                            Button(station.name) {
-                                library.ensureStationLogo(station)
-                                engine.playRadio(station)
-                            }
-                        }
-                    }
-                }
-                Divider()
-                Button("Новый плейлист…") {
-                    if let name = promptForName() {
-                        let playlist = library.createPlaylist(named: name)
-                        filterID = playlist.id.uuidString
-                    }
-                }
-                Button("Импортировать папку как плейлист…") { chooseFolderAsPlaylist() }
-                if let playlist = selectedPlaylist {
-                    Divider()
-                    Button("Переименовать…") { renamePlaylist(playlist) }
-                    Button("Очистить плейлист…", role: .destructive) { clearPlaylist(playlist) }
-                        .disabled(playlist.trackIDs.isEmpty)
-                    Button("Удалить плейлист…", role: .destructive) { deletePlaylist(playlist) }
-                }
-            } label: {
+        HStack(spacing: 6) {
+            if isSnapshot {
                 HStack(spacing: 4) {
                     Text(selectedPlaylist?.name ?? selectedSmart?.title ?? L10n.string("Все треки"))
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(Theme.text)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(Theme.Cyber.text)
                         .lineLimit(1)
                     Image(systemName: "chevron.down")
                         .font(.system(size: 8, weight: .semibold))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.Cyber.tertiaryText)
                 }
-            }
-            .menuStyle(.borderlessButton)
-            .menuIndicator(.hidden)
-            .frame(maxWidth: 120)
-
-            HStack(spacing: 4) {
-                Image(systemName: "magnifyingglass")
-                    .font(.system(size: 9))
-                    .foregroundStyle(.secondary)
-                if isShot {
-                    // For window snapshots the search field must not intercept input.
-                    Text("Поиск")
-                        .font(.system(size: 12))
-                        .foregroundStyle(Theme.secondaryText)
-                        .frame(height: 26, alignment: .leading)
-                } else {
-                    TextField("Поиск", text: $search)
-                        .textFieldStyle(.plain)
-                        .font(.system(size: 12))
-                        .frame(height: 26)
-                }
-            }
-            .padding(.horizontal, Theme.Space.s)
-            .background(Theme.subtle, in: RoundedRectangle(cornerRadius: Theme.Radius.small))
-            .frame(height: 26)
-
-            Spacer(minLength: 4)
-
-            Menu {
-                Picker("Сортировка", selection: $sortKeyRaw) {
-                    ForEach(SortKey.allCases) { key in
-                        Text(key.title).tag(key.rawValue)
+                .frame(width: 96, alignment: .leading)
+            } else {
+                Menu {
+                    Button(L10n.format("Все треки (%ld)", library.tracks.count)) { filterID = "all" }
+                    if !library.playlists.isEmpty {
+                        Divider()
+                        ForEach(library.playlists) { playlist in
+                            Button("\(playlist.name) (\(library.tracks(in: playlist).count))") {
+                                filterID = playlist.id.uuidString
+                            }
+                        }
+                    }
+                    Divider()
+                    Menu(L10n.string("Умные подборки")) {
+                        ForEach(SmartRule.allCases) { rule in
+                            Button("\(rule.title) (\(rule.filter(library.tracks).count))") {
+                                filterID = "smart:\(rule.rawValue)"
+                            }
+                        }
+                    }
+                    if !library.stations.isEmpty {
+                        Divider()
+                        Menu(L10n.string("Радио")) {
+                            ForEach(library.stations) { station in
+                                Button(station.name) {
+                                    library.ensureStationLogo(station)
+                                    engine.playRadio(station)
+                                }
+                            }
+                        }
+                    }
+                    Divider()
+                    Button(L10n.string("Новый плейлист…")) {
+                        if let name = promptForName() {
+                            let playlist = library.createPlaylist(named: name)
+                            filterID = playlist.id.uuidString
+                        }
+                    }
+                    Button(L10n.string("Импортировать папку как плейлист…")) { chooseFolderAsPlaylist() }
+                    Button(L10n.string("Сохранить плейлист…")) { savePlaylist() }
+                        .disabled(tracks.isEmpty)
+                    if let playlist = selectedPlaylist {
+                        Divider()
+                        Button(L10n.string("Переименовать…")) { renamePlaylist(playlist) }
+                        Button(L10n.string("Очистить плейлист…"), role: .destructive) { clearPlaylist(playlist) }
+                            .disabled(playlist.trackIDs.isEmpty)
+                        Button(L10n.string("Удалить плейлист…"), role: .destructive) { deletePlaylist(playlist) }
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Text(selectedPlaylist?.name ?? selectedSmart?.title ?? L10n.string("Все треки"))
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(Theme.Cyber.text)
+                            .lineLimit(1)
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 8, weight: .semibold))
+                            .foregroundStyle(Theme.Cyber.tertiaryText)
                     }
                 }
-                Toggle("По возрастанию", isOn: $sortAscending)
-            } label: {
+                .menuStyle(.borderlessButton)
+                .menuIndicator(.hidden)
+                .frame(width: 96, alignment: .leading)
+                .help(L10n.string("Выбрать плейлист или подборку"))
+            }
+
+            HStack(spacing: 6) {
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(Theme.Cyber.accent.opacity(0.85))
+                    .frame(width: 14, height: 14)
+                if isSnapshot {
+                    Text(L10n.string("Поиск"))
+                        .font(.system(size: 12))
+                        .foregroundStyle(Theme.Cyber.tertiaryText)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                } else {
+                    TextField(L10n.string("Поиск"), text: $search)
+                        .textFieldStyle(.plain)
+                        .font(.system(size: 12))
+                        .multilineTextAlignment(.leading)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+            .padding(.leading, 8)
+            .padding(.trailing, 8)
+            .frame(minWidth: 180, idealWidth: 220, maxWidth: 220)
+            .frame(height: 28)
+            .background(Theme.Cyber.inset.opacity(0.85), in: RoundedRectangle(cornerRadius: 4))
+            .overlay {
+                RoundedRectangle(cornerRadius: 4)
+                    .strokeBorder(Color.white.opacity(0.05), lineWidth: 0.8)
+            }
+
+            Spacer(minLength: 0)
+
+            CyberIconButton(symbol: "plus", help: L10n.string("Добавить файлы (⌘O)")) {
+                library.presentImportPanel(into: selectedPlaylist?.id)
+            }
+            CyberIconButton(symbol: "trash", help: L10n.string("Удалить выбранные")) {
+                deleteSelection()
+            }
+            .opacity(selection.isEmpty ? 0.4 : 1)
+            .disabled(selection.isEmpty)
+
+            if isSnapshot {
                 Image(systemName: "arrow.up.arrow.down")
                     .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(Theme.secondaryText)
-                    .frame(width: 24, height: 24)
-                    .contentShape(Rectangle())
-            }
-            .menuStyle(.borderlessButton)
-            .menuIndicator(.hidden)
-
-            Text("\(tracks.count)")
-                .font(Theme.Fonts.captionMono)
-                .foregroundStyle(Theme.secondaryText)
-
-            Button {
-                library.presentImportPanel(into: selectedPlaylist?.id)
-            } label: {
-                Image(systemName: "plus")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(Theme.secondaryText)
+                    .foregroundStyle(Theme.Cyber.tertiaryText)
                     .frame(width: 28, height: 28)
-                    .contentShape(Rectangle())
+            } else {
+                Menu {
+                    Picker(L10n.string("Сортировка"), selection: $sortKeyRaw) {
+                        ForEach(SortKey.allCases) { key in
+                            Text(key.title).tag(key.rawValue)
+                        }
+                    }
+                    Toggle(L10n.string("По возрастанию"), isOn: $sortAscending)
+                } label: {
+                    Image(systemName: "arrow.up.arrow.down")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(Theme.Cyber.tertiaryText)
+                        .frame(width: 28, height: 28)
+                        .contentShape(Rectangle())
+                }
+                .menuStyle(.borderlessButton)
+                .menuIndicator(.hidden)
+                .help(L10n.string("Сортировка"))
             }
-            .buttonStyle(.plain)
-            .help("Добавить файлы (⌘O)")
         }
-        .padding(.horizontal, Theme.Space.m)
-        .padding(.vertical, Theme.Space.s)
+        .frame(height: 36)
+        .padding(.horizontal, 12)
+        .padding(.bottom, 8)
+        .frame(height: 44)
+        .background(Theme.Cyber.background)
     }
 
     private var emptyState: some View {
         VStack(spacing: 4) {
             Text(selectedSmart != nil ? "В подборке пока нет треков" : "Плейлист пуст")
                 .font(Theme.Fonts.artist)
-                .foregroundStyle(Theme.secondaryText)
+                .foregroundStyle(Theme.Cyber.secondaryText)
             Text(selectedSmart != nil ? "Выберите «Все треки» в меню фильтра" : "Перетащите файлы сюда")
                 .font(Theme.Fonts.caption)
-                .foregroundStyle(Theme.secondaryText.opacity(0.8))
+                .foregroundStyle(Theme.Cyber.secondaryText.opacity(0.8))
 
             if selectedSmart != nil || selectedPlaylist != nil {
                 Button("Показать все треки") { filterID = "all" }
@@ -328,79 +353,82 @@ struct PlaylistPane: View {
     private func row(_ track: Track, index: Int) -> some View {
         let isCurrent = engine.currentTrack?.id == track.id
         let isSelected = selection.contains(track.id)
-        let isKeyboard = keyboardTrackID == track.id
         let isHovered = hoveredTrackID == track.id
-        let background: Color = isKeyboard
-            ? Theme.accent.opacity(0.22)
+        let foreground = Theme.Cyber.text
+        let secondary = Theme.Cyber.secondaryText
+        let background: Color = isCurrent
+            ? Theme.Cyber.accent.opacity(0.14)
             : isSelected
-            ? Theme.accent.opacity(0.18)
-            : (isCurrent ? Theme.accent.opacity(0.10) : (isHovered ? Theme.hover : .clear))
-        let titleColor = track.isMissing
-            ? Theme.secondaryText
-            : (isCurrent ? Theme.accent : Theme.text)
+            ? Theme.Cyber.accent.opacity(0.16)
+            : (isHovered ? Theme.Cyber.hover : .clear)
 
         return HStack(spacing: 0) {
             ZStack {
                 if track.isMissing {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .font(.system(size: 9))
-                        .foregroundStyle(.orange)
-                        .help("Файл не найден")
+                        .foregroundStyle(isCurrent ? Color.black.opacity(0.7) : Theme.Cyber.warning)
                 } else if isCurrent {
                     Image(systemName: engine.isPlaying ? "waveform" : "pause.fill")
-                        .font(.system(size: 10, weight: .medium))
-                        .foregroundStyle(Theme.accent)
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(Theme.Cyber.accent)
                 } else {
                     Text("\(index + 1)")
-                        .font(.system(size: 11, design: .monospaced))
-                        .foregroundStyle(Theme.secondaryText)
+                        .font(.system(size: 11, weight: .regular, design: .monospaced))
+                        .foregroundStyle(secondary)
                         .monospacedDigit()
                 }
             }
             .frame(width: indexWidth, alignment: .center)
 
             Text(track.displayTitle)
-                .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(titleColor)
+                .font(.system(size: 12, weight: isCurrent ? .semibold : .medium))
+                .foregroundStyle(foreground)
                 .lineLimit(1)
-                .frame(minWidth: 120, maxWidth: .infinity, alignment: .leading)
+                .frame(minWidth: 150, maxWidth: .infinity, alignment: .leading)
                 .padding(.leading, 8)
 
             Text(track.displayArtist)
-                .font(.system(size: 11))
-                .foregroundStyle(Theme.secondaryText)
+                .font(.system(size: 11, weight: .regular))
+                .foregroundStyle(secondary)
                 .lineLimit(1)
-                .frame(minWidth: 80, maxWidth: .infinity, alignment: .leading)
+                .frame(minWidth: 96, maxWidth: .infinity, alignment: .leading)
 
-            HStack(spacing: 1) {
+            HStack(spacing: 2) {
                 ForEach(1...5, id: \.self) { value in
                     Image(systemName: value <= track.rating ? "star.fill" : "star")
-                        .font(.system(size: 9))
+                        .font(.system(size: 10))
                         .symbolRenderingMode(.monochrome)
                         .foregroundStyle(value <= track.rating
-                                         ? Theme.accent
-                                         : Theme.secondaryText.opacity(0.35))
-                        .frame(width: 9, height: 9)
+                                         ? Theme.Cyber.accent
+                                         : secondary.opacity(0.35))
+                        .frame(width: 10, height: 10)
                 }
             }
             .frame(width: ratingWidth, alignment: .center)
 
             Text(track.timeText)
-                .font(.system(size: 11, design: .monospaced))
-                .foregroundStyle(Theme.secondaryText)
+                .font(.system(size: 11, weight: .regular, design: .monospaced))
+                .foregroundStyle(secondary)
                 .monospacedDigit()
                 .frame(width: durationWidth, alignment: .trailing)
-                .padding(.trailing, 8)
+                .padding(.trailing, 12)
         }
         .padding(.horizontal, 12)
         .frame(height: 32)
-        .background(background)
+        .background(background, in: RoundedRectangle(cornerRadius: 3, style: .continuous))
         .overlay(alignment: .leading) {
             if isCurrent {
-                Rectangle()
-                    .fill(Theme.accent)
-                    .frame(width: 2)
-                    .padding(.vertical, 7)
+                RoundedRectangle(cornerRadius: 1, style: .continuous)
+                    .fill(Theme.Cyber.accent)
+                    .frame(width: 2, height: 18)
+                    .padding(.leading, 4)
+            }
+        }
+        .overlay {
+            if isSelected && !isCurrent {
+                RoundedRectangle(cornerRadius: 3, style: .continuous)
+                    .strokeBorder(Theme.Cyber.accent.opacity(0.55), lineWidth: 0.8)
             }
         }
         .contentShape(Rectangle())
@@ -416,7 +444,6 @@ struct PlaylistPane: View {
         .accessibilityLabel("\(index + 1). \(track.displayTitle), \(track.displayArtist), \(track.timeText)")
         .onTapGesture {
             selection = [track.id]
-            keyboardTrackID = track.id
             listFocused = true
         }
         .onTapGesture(count: 2) {
@@ -428,42 +455,80 @@ struct PlaylistPane: View {
             guard let start = list.firstIndex(where: { $0.id == track.id }) else { return }
             engine.setQueue(list, startAt: start)
         }
+        .modifier(TrackReorderDrop(
+            enabled: !isSnapshot,
+            trackID: track.id,
+            targetID: track.id,
+            playlist: selectedPlaylist,
+            onDrop: { movedID in
+                guard let playlist = selectedPlaylist else { return }
+                library.moveTrack(in: playlist.id, movedID, before: track.id)
+                sortKeyRaw = SortKey.manual.rawValue
+                sortAscending = true
+            }
+        ))
         .contextMenu {
             if track.isMissing {
-                Button("Найти файл…") { library.presentReplacePanel(for: track) }
+                Button(L10n.string("Найти файл…")) { library.presentReplacePanel(for: track) }
                 Divider()
             }
-            Button("Воспроизвести") {
+            Button(L10n.string("Воспроизвести")) {
                 let list = tracks
                 if let start = list.firstIndex(where: { $0.id == track.id }) {
                     engine.setQueue(list, startAt: start)
                 }
             }
             .disabled(track.isMissing)
-            Button("Играть следующим") { engine.playNext(track) }
-            Button("Добавить в очередь") { engine.addToQueue([track]) }
-            Menu("Добавить в плейлист") {
+            Button(L10n.string("Играть следующим")) { engine.playNext(track) }
+            Button(L10n.string("Добавить в очередь")) { engine.addToQueue([track]) }
+            Menu(L10n.string("Добавить в плейлист")) {
                 ForEach(library.playlists) { playlist in
                     Button(playlist.name) { library.add([track.id], to: playlist.id) }
                 }
-                if library.playlists.isEmpty { Text("Нет плейлистов") }
+                if library.playlists.isEmpty { Text(L10n.string("Нет плейлистов")) }
             }
-            Menu("Оценка") {
+            Menu(L10n.string("Оценка")) {
                 ForEach(0...5, id: \.self) { value in
-                    Button(value == 0 ? "Без оценки" : String(repeating: "★", count: value)) {
+                    Button(value == 0 ? L10n.string("Без оценки") : String(repeating: "★", count: value)) {
                         library.setRating(value, for: [track.id])
                     }
                 }
             }
-            Button("Найти обложку в базе…") { coverTrack = track }
-            Button("Показать в Finder") {
+            Button(L10n.string("Найти обложку в базе…")) { coverTrack = track }
+            Button(L10n.string("Показать в Finder")) {
                 NSWorkspace.shared.activateFileViewerSelecting([track.url])
             }
             .disabled(track.isMissing)
             Divider()
-            Button("Удалить из библиотеки", role: .destructive) {
+            Button(L10n.string("Удалить из библиотеки"), role: .destructive) {
                 library.remove([track.id])
             }
+        }
+    }
+
+    private func deleteSelection() {
+        guard !selection.isEmpty else { return }
+        if let playlist = selectedPlaylist {
+            library.remove(selection, from: playlist.id)
+        } else {
+            library.remove(selection)
+        }
+        selection.removeAll()
+        listFocused = true
+    }
+
+    private func savePlaylist() {
+        guard !tracks.isEmpty else { return }
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [UTType(filenameExtension: "m3u") ?? .plainText]
+        panel.nameFieldStringValue = "\(selectedPlaylist?.name ?? L10n.string("Плейлист")).m3u"
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        let text = PlaylistFile.m3u(tracks: tracks)
+        do {
+            try text.write(to: url, atomically: true, encoding: .utf8)
+            library.statusMessage = L10n.format("Экспортировано: %@", url.lastPathComponent)
+        } catch {
+            library.statusMessage = L10n.format("Ошибка сохранения: %@", error.localizedDescription)
         }
     }
 
@@ -663,6 +728,34 @@ private struct EnterKeyModifier: ViewModifier {
             } else {
                 content
             }
+        }
+    }
+}
+
+
+/// Drag reorder for playlist rows; disabled for offscreen snapshots.
+private struct TrackReorderDrop: ViewModifier {
+    let enabled: Bool
+    let trackID: UUID
+    let targetID: UUID
+    let playlist: Playlist?
+    let onDrop: (UUID) -> Void
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if enabled, playlist != nil {
+            content
+                .onDrag { NSItemProvider(object: trackID.uuidString as NSString) }
+                .onDrop(of: [.text], isTargeted: nil) { providers in
+                    guard let provider = providers.first else { return false }
+                    provider.loadObject(ofClass: NSString.self) { object, _ in
+                        guard let raw = object as? String, let movedID = UUID(uuidString: raw) else { return }
+                        DispatchQueue.main.async { onDrop(movedID) }
+                    }
+                    return true
+                }
+        } else {
+            content
         }
     }
 }

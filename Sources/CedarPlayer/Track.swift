@@ -126,7 +126,7 @@ struct Track: Identifiable, Hashable, Codable {
 }
 
 enum SortKey: String, CaseIterable, Identifiable {
-    case added, title, artist, album, duration
+    case added, title, artist, album, duration, manual
 
     var id: String { rawValue }
 
@@ -137,6 +137,7 @@ enum SortKey: String, CaseIterable, Identifiable {
         case .artist: return L10n.string("По исполнителю")
         case .album: return L10n.string("По альбому")
         case .duration: return L10n.string("По длительности")
+        case .manual: return L10n.string("Ручной порядок")
         }
     }
 }

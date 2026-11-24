@@ -87,3 +87,32 @@ final class PlaylistManagementTests: XCTestCase {
         XCTAssertEqual(library.tracks.count, 1)
     }
 }
+
+@MainActor
+final class PlaylistOrderTests: XCTestCase {
+    func testManualOrderMovesTrackBeforeTarget() {
+        var one = Track(url: URL(fileURLWithPath: "/tmp/one.flac"))
+        var two = Track(url: URL(fileURLWithPath: "/tmp/two.flac"))
+        var three = Track(url: URL(fileURLWithPath: "/tmp/three.flac"))
+        one.title = "One"
+        two.title = "Two"
+        three.title = "Three"
+        let library = Library(testTracks: [one, two, three])
+        let playlist = library.createPlaylist(named: "Order")
+        library.add(Set([one.id, two.id, three.id]), to: playlist.id)
+
+        XCTAssertEqual(library.query(filterID: playlist.id.uuidString,
+                                     search: "",
+                                     sortKey: .manual,
+                                     ascending: true).tracks.map(\.title),
+                       ["One", "Two", "Three"])
+
+        library.moveTrack(in: playlist.id, three.id, before: one.id)
+        XCTAssertEqual(library.playlist(with: playlist.id)?.trackIDs, [three.id, one.id, two.id])
+        XCTAssertEqual(library.query(filterID: playlist.id.uuidString,
+                                     search: "",
+                                     sortKey: .manual,
+                                     ascending: true).tracks.map(\.title),
+                       ["Three", "One", "Two"])
+    }
+}

@@ -204,6 +204,8 @@ final class Library: ObservableObject {
         }
 
         switch sortKey {
+        case .manual:
+            break
         case .added: list.sort { $0.addedAt < $1.addedAt }
         case .title: list.sort { $0.displayTitle.localizedStandardCompare($1.displayTitle) == .orderedAscending }
         case .artist: list.sort { $0.displayArtist.localizedStandardCompare($1.displayArtist) == .orderedAscending }
@@ -843,5 +845,26 @@ final class Library: ObservableObject {
 
     func playlist(with id: UUID) -> Playlist? {
         playlists.first { $0.id == id }
+    }
+
+    /// Removes tracks from a playlist without touching the library entries.
+    func remove(_ ids: Set<UUID>, from playlistID: UUID) {
+        guard !ids.isEmpty,
+              let index = playlists.firstIndex(where: { $0.id == playlistID }) else { return }
+        playlists[index].trackIDs.removeAll { ids.contains($0) }
+        statusMessage = L10n.format("Удалено из плейлиста: %ld", ids.count)
+    }
+
+    /// Moves a track inside a playlist's manual order.
+    func moveTrack(in playlistID: UUID, _ trackID: UUID, before targetID: UUID) {
+        guard trackID != targetID,
+              let index = playlists.firstIndex(where: { $0.id == playlistID }),
+              let from = playlists[index].trackIDs.firstIndex(of: trackID) else { return }
+        var ids = playlists[index].trackIDs
+        let moved = ids.remove(at: from)
+        guard let to = ids.firstIndex(of: targetID) else { return }
+        ids.insert(moved, at: to)
+        playlists[index].trackIDs = ids
+        statusMessage = L10n.string("Порядок плейлиста изменён")
     }
 }
