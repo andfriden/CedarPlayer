@@ -28,7 +28,7 @@ struct PlayerPane: View {
                     .onTapGesture { cycleMeterStyle() }
                     .help(L10n.format("Визуализатор: %@", currentStyle.title))
                 seekBlock
-                    .padding(.top, 6)
+                    .padding(.top, 2)
                 transportRow
                     .frame(height: 40)
                     .padding(.top, 8)
@@ -244,7 +244,7 @@ struct PlayerPane: View {
     // MARK: Seek
 
     private var seekBlock: some View {
-        VStack(spacing: 0) {
+        VStack(spacing: 4) {
             CyberProgressBar(value: progressFraction, height: 4, thumbSize: 10) { fraction in
                 guard engine.duration > 0 else { return }
                 engine.seek(to: fraction * engine.duration)
@@ -258,7 +258,7 @@ struct PlayerPane: View {
             .foregroundStyle(Theme.Cyber.tertiaryText)
             .frame(height: 14)
         }
-        .frame(height: 18)
+        .frame(height: 22)
     }
 
     private var progressFraction: Double {
