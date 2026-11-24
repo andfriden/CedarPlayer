@@ -60,7 +60,7 @@ struct PlayerPane: View {
                 var y: CGFloat = 0
                 while y < size.height {
                     context.fill(Path(CGRect(x: 0, y: y, width: size.width, height: 0.5)),
-                                 with: .color(.white.opacity(0.018)))
+                                 with: .color(Theme.Cyber.separator.opacity(0.18)))
                     y += 3
                 }
             }
@@ -91,7 +91,7 @@ struct PlayerPane: View {
                 HStack(spacing: 6) {
                     Text(formatBadge)
                         .font(.system(size: 10, weight: .bold))
-                        .foregroundStyle(Color(hex: 0x17171A))
+                        .foregroundStyle(Theme.Cyber.playerBackground)
                         .frame(width: 42, height: 18)
                         .background(Theme.Cyber.accent, in: RoundedRectangle(cornerRadius: 3))
                     Text(technicalText)
@@ -118,7 +118,7 @@ struct PlayerPane: View {
                 Image(nsImage: image).resizable().aspectRatio(contentMode: .fill)
             } else {
                 ZStack {
-                    LinearGradient(colors: [Color(hex: 0x303038), Color(hex: 0x1B1B1F)],
+                    LinearGradient(colors: [Theme.Cyber.subtle, Theme.Cyber.panel],
                                    startPoint: .topLeading, endPoint: .bottomTrailing)
                     Image(systemName: engine.currentStation == nil ? "opticaldisc" : "dot.radiowaves.left.and.right")
                         .font(.system(size: 30, weight: .ultraLight))
@@ -301,7 +301,7 @@ struct PlayerPane: View {
                             .shadow(color: Theme.Cyber.accent.opacity(0.5), radius: 8)
                         Image(systemName: engine.isPlaying ? "pause.fill" : "play.fill")
                             .font(.system(size: 15, weight: .bold))
-                            .foregroundStyle(Color(hex: 0x17171A))
+                            .foregroundStyle(Theme.Cyber.playerBackground)
                             .offset(x: engine.isPlaying ? 0 : 1)
                     }
                     .frame(width: 40, height: 40)

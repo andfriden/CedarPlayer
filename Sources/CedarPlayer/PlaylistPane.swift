@@ -354,10 +354,10 @@ struct PlaylistPane: View {
         let isCurrent = engine.currentTrack?.id == track.id
         let isSelected = selection.contains(track.id)
         let isHovered = hoveredTrackID == track.id
-        let foreground = isCurrent ? Color(hex: 0x17171A) : Theme.Cyber.text
-        let secondary = isCurrent ? Color.black.opacity(0.62) : Theme.Cyber.secondaryText
+        let foreground = Theme.Cyber.text
+        let secondary = Theme.Cyber.secondaryText
         let background: Color = isCurrent
-            ? Theme.Cyber.accent
+            ? Theme.Cyber.accent.opacity(0.14)
             : isSelected
             ? Theme.Cyber.accent.opacity(0.16)
             : (isHovered ? Theme.Cyber.hover : .clear)
@@ -371,7 +371,7 @@ struct PlaylistPane: View {
                 } else if isCurrent {
                     Image(systemName: engine.isPlaying ? "waveform" : "pause.fill")
                         .font(.system(size: 10, weight: .bold))
-                        .foregroundStyle(foreground)
+                        .foregroundStyle(Theme.Cyber.accent)
                 } else {
                     Text("\(index + 1)")
                         .font(.system(size: 11, weight: .regular, design: .monospaced))
@@ -382,7 +382,7 @@ struct PlaylistPane: View {
             .frame(width: indexWidth, alignment: .center)
 
             Text(track.displayTitle)
-                .font(.system(size: 12, weight: .medium))
+                .font(.system(size: 12, weight: isCurrent ? .semibold : .medium))
                 .foregroundStyle(foreground)
                 .lineLimit(1)
                 .frame(minWidth: 150, maxWidth: .infinity, alignment: .leading)
@@ -400,8 +400,8 @@ struct PlaylistPane: View {
                         .font(.system(size: 10))
                         .symbolRenderingMode(.monochrome)
                         .foregroundStyle(value <= track.rating
-                                         ? (isCurrent ? Color.black : Theme.Cyber.accent)
-                                         : (isCurrent ? Color.black : secondary.opacity(0.35)))
+                                         ? Theme.Cyber.accent
+                                         : secondary.opacity(0.35))
                         .frame(width: 10, height: 10)
                 }
             }
@@ -417,6 +417,14 @@ struct PlaylistPane: View {
         .padding(.horizontal, 12)
         .frame(height: 32)
         .background(background, in: RoundedRectangle(cornerRadius: 3, style: .continuous))
+        .overlay(alignment: .leading) {
+            if isCurrent {
+                RoundedRectangle(cornerRadius: 1, style: .continuous)
+                    .fill(Theme.Cyber.accent)
+                    .frame(width: 2, height: 18)
+                    .padding(.leading, 4)
+            }
+        }
         .overlay {
             if isSelected && !isCurrent {
                 RoundedRectangle(cornerRadius: 3, style: .continuous)

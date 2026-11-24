@@ -38,7 +38,6 @@ struct MainWindowView: View {
                    ? Theme.Layout.minHeight - Theme.Layout.titleBarHeight
                    : Theme.Layout.contentPadding + Theme.Layout.playerHeight)
         .background(Theme.Cyber.background)
-        .preferredColorScheme(.dark)
         .background(WindowAccessor { candidate in
             if window !== candidate { window = candidate }
         })
@@ -155,7 +154,6 @@ struct MainWindowView: View {
         window.titlebarAppearsTransparent = false
         window.styleMask.remove(.fullSizeContentView)
         window.isMovableByWindowBackground = false
-        window.appearance = NSAppearance(named: .darkAqua)
         window.standardWindowButton(.closeButton)?.isHidden = false
         window.standardWindowButton(.miniaturizeButton)?.isHidden = false
         window.standardWindowButton(.zoomButton)?.isHidden = false

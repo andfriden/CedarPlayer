@@ -391,8 +391,9 @@ struct CedarPlayerApp: App {
         var written = 0
         for (name, width, height) in snapshotSizes {
             for scheme in [ColorScheme.dark, .light] {
-                NSAppearance.current = NSAppearance(named: scheme == .dark ? .darkAqua : .aqua)
-                    ?? NSAppearance.current
+                let appearance = NSAppearance(named: scheme == .dark ? .darkAqua : .aqua)
+                Theme.forcedDark = scheme == .dark
+                NSAppearance.current = appearance ?? NSAppearance.current
                 let view = snapshotView(name, scheme: scheme)
                 let renderer = ImageRenderer(content: view.frame(width: width, height: height))
                 renderer.scale = 2
@@ -406,6 +407,7 @@ struct CedarPlayerApp: App {
                 written += 1
             }
         }
+        Theme.forcedDark = nil
         print("SNAPSHOTS dir=\(directory.path) files=\(written)")
         exit(0)
     }
