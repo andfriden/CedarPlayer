@@ -18,7 +18,6 @@ struct MainWindowView: View {
         VStack(spacing: 0) {
             PlayerPane()
                 .padding(.horizontal, Theme.Layout.contentPadding)
-                .padding(.top, Theme.Layout.contentPadding)
                 .contextMenu {
                     EditTagsMenuItem { track in editingTrack = track }
                 }
@@ -36,7 +35,7 @@ struct MainWindowView: View {
         .frame(minWidth: Theme.Layout.minWidth,
                minHeight: showPlaylist
                    ? Theme.Layout.minHeight - Theme.Layout.titleBarHeight
-                   : Theme.Layout.contentPadding + Theme.Layout.playerHeight)
+                   : Theme.Layout.playerHeight)
         .background(Theme.Cyber.background)
         .background(WindowAccessor { candidate in
             if window !== candidate { window = candidate }
@@ -164,7 +163,7 @@ struct MainWindowView: View {
         let chrome = Theme.Layout.titleBarHeight
         let minimum = showPlaylist
             ? Theme.Layout.minHeight
-            : chrome + Theme.Layout.contentPadding + playerHeight
+            : chrome + playerHeight
         var targetHeight = showPlaylist ? Theme.Layout.defaultHeight : minimum
         if let raw = ProcessInfo.processInfo.environment["CEDAR_SHOT_HEIGHT"],
            let requested = Double(raw), requested >= minimum {
