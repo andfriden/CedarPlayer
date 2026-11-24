@@ -147,7 +147,6 @@ struct MainWindowView: View {
         window.titleVisibility = .visible
         window.titlebarAppearsTransparent = false
         window.styleMask.remove(.fullSizeContentView)
-        window.animationBehavior = .documentWindow
         window.isMovableByWindowBackground = false
         window.standardWindowButton(.closeButton)?.isHidden = false
         window.standardWindowButton(.miniaturizeButton)?.isHidden = false
@@ -157,13 +156,12 @@ struct MainWindowView: View {
 
     private func forceDesignSize(_ window: NSWindow) {
         let compactHeight = Theme.Layout.titleBarHeight + Theme.Layout.playerHeight
-        let minimum = showPlaylist ? Theme.Layout.minHeight : compactHeight
         var targetHeight = showPlaylist ? Theme.Layout.defaultHeight : compactHeight
         if let raw = ProcessInfo.processInfo.environment["CEDAR_SHOT_HEIGHT"],
            let requested = Double(raw) {
-            targetHeight = max(minimum, requested)
+            targetHeight = max(compactHeight, requested)
         }
-        window.minSize = NSSize(width: Theme.Layout.minWidth, height: minimum)
+        window.minSize = NSSize(width: Theme.Layout.minWidth, height: compactHeight)
         let frame = window.frame
         let top = frame.maxY
         var target = frame
@@ -195,11 +193,7 @@ struct MainWindowView: View {
         }
 
         target.origin.y = top - target.size.height
-        NSAnimationContext.runAnimationGroup { context in
-            context.duration = 0.18
-            context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
-            window.animator().setFrame(target, display: true)
-        }
+        window.setFrame(target, display: true, animate: false)
     }
 }
 
