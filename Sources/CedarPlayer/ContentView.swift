@@ -785,6 +785,7 @@ private struct LiveAlbumCard: View {
 }
 
 private struct TrackRow: View {
+    @AppStorage("showFormatColumn") private var showFormatColumn = true
     let index: Int
     let track: Track
     let isCurrent: Bool
@@ -839,10 +840,12 @@ private struct TrackRow: View {
                     .help("Файл не найден")
             }
 
-            Text(track.formatText)
-                .font(.system(size: 10, design: .monospaced))
-                .foregroundStyle(.tertiary)
-                .frame(width: 110, alignment: .leading)
+            if showFormatColumn {
+                Text(track.formatText)
+                    .font(.system(size: 10, design: .monospaced))
+                    .foregroundStyle(.tertiary)
+                    .frame(width: 110, alignment: .leading)
+            }
 
             Text(track.timeText)
                 .font(.system(size: 11, design: .monospaced))
