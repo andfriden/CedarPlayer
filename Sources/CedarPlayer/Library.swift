@@ -21,6 +21,12 @@ final class Library: ObservableObject {
             scheduleSave()
         }
     }
+    @Published var smartCollections: [SmartCollection] = [] {
+        didSet {
+            revision &+= 1
+            scheduleSave()
+        }
+    }
     @Published var stations: [RadioStation] = [] {
         didSet { scheduleSave() }
     }
@@ -89,6 +95,7 @@ final class Library: ObservableObject {
         var playlists: [Playlist]
         var stations: [RadioStation]?
         var watchFolders: [String]?
+        var smartCollections: [SmartCollection]?
     }
 
     private var isTestInstance = false
@@ -127,6 +134,7 @@ final class Library: ObservableObject {
         }
         tracks = loaded
         playlists = store.playlists
+        smartCollections = store.smartCollections ?? []
         stations = store.stations ?? []
         watchFolders = (store.watchFolders ?? []).map { URL(fileURLWithPath: $0) }
     }
@@ -139,7 +147,8 @@ final class Library: ObservableObject {
             let store = Store(tracks: self.tracks,
                               playlists: self.playlists,
                               stations: self.stations,
-                              watchFolders: self.watchFolders.map(\.path))
+                              watchFolders: self.watchFolders.map(\.path),
+                              smartCollections: self.smartCollections)
             guard let data = try? JSONEncoder().encode(store) else { return }
             try? data.write(to: Self.storeURL, options: .atomic)
 
@@ -192,6 +201,10 @@ final class Library: ObservableObject {
         } else if filterID.hasPrefix("smart:"),
                   let rule = SmartRule(rawValue: String(filterID.dropFirst(6))) {
             list = rule.filter(tracks)
+        } else if filterID.hasPrefix("smartset:"),
+                  let id = UUID(uuidString: String(filterID.dropFirst(9))),
+                  let collection = smartCollections.first(where: { $0.id == id }) {
+            list = collection.filter(tracks)
         } else if let playlist = playlists.first(where: { $0.id.uuidString == filterID }) {
             let byID = trackMap()
             list = playlist.trackIDs.compactMap { byID[$0] }
@@ -859,6 +872,22 @@ final class Library: ObservableObject {
         // Order follows the library: search and sorting must not affect adding.
         let ordered = tracks.map(\.id).filter { ids.contains($0) }
         playlists[index].trackIDs.append(contentsOf: ordered.filter { !playlists[index].trackIDs.contains($0) })
+    }
+
+    func smartCollection(with id: UUID) -> SmartCollection? {
+        smartCollections.first { $0.id == id }
+    }
+
+    func upsertSmartCollection(_ collection: SmartCollection) {
+        if let index = smartCollections.firstIndex(where: { $0.id == collection.id }) {
+            smartCollections[index] = collection
+        } else {
+            smartCollections.append(collection)
+        }
+    }
+
+    func removeSmartCollection(_ id: UUID) {
+        smartCollections.removeAll { $0.id == id }
     }
 
     func playlist(with id: UUID) -> Playlist? {

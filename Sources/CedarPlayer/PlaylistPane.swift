@@ -16,6 +16,7 @@ struct PlaylistPane: View {
     @State private var isDropping = false
     @State private var hoveredTrackID: UUID?
     @State private var coverTrack: Track?
+    @State private var editingSmart: SmartCollection?
     @State private var keyboardTrackID: UUID?
     @FocusState private var listFocused: Bool
     /// For offscreen rendering: ImageRenderer does not show ScrollView content.
@@ -35,6 +36,19 @@ struct PlaylistPane: View {
     private var selectedSmart: SmartRule? {
         guard filterID.hasPrefix("smart:") else { return nil }
         return SmartRule(rawValue: String(filterID.dropFirst(6)))
+    }
+
+    private var selectedCustomSmart: SmartCollection? {
+        guard filterID.hasPrefix("smartset:"),
+              let id = UUID(uuidString: String(filterID.dropFirst(9))) else { return nil }
+        return library.smartCollection(with: id)
+    }
+
+    private var currentTitle: String {
+        selectedPlaylist?.name
+            ?? selectedSmart?.title
+            ?? selectedCustomSmart?.name
+            ?? L10n.string("Все треки")
     }
 
     private var result: Library.TrackListResult {
@@ -90,6 +104,12 @@ struct PlaylistPane: View {
             CoverPickerSheet(track: track)
                 .environmentObject(library)
                 .environmentObject(engine)
+        }
+        .sheet(item: $editingSmart) { collection in
+            SmartCollectionEditor(collection: collection) { saved in
+                library.upsertSmartCollection(saved)
+                filterID = "smartset:\(saved.id.uuidString)"
+            }
         }
         .onDrop(of: [.fileURL], isTargeted: $isDropping) { providers in
             loadDroppedURLs(providers) { urls in
@@ -182,7 +202,7 @@ struct PlaylistPane: View {
         HStack(spacing: 6) {
             if isSnapshot {
                 HStack(spacing: 4) {
-                    Text(selectedPlaylist?.name ?? selectedSmart?.title ?? L10n.string("Все треки"))
+                    Text(currentTitle)
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundStyle(Theme.Cyber.text)
                         .lineLimit(1)
@@ -208,6 +228,18 @@ struct PlaylistPane: View {
                             Button("\(rule.title) (\(rule.filter(library.tracks).count))") {
                                 filterID = "smart:\(rule.rawValue)"
                             }
+                        }
+                        if !library.smartCollections.isEmpty {
+                            Divider()
+                            ForEach(library.smartCollections) { collection in
+                                Button("\(collection.name) (\(collection.filter(library.tracks).count))") {
+                                    filterID = "smartset:\(collection.id.uuidString)"
+                                }
+                            }
+                        }
+                        Divider()
+                        Button(L10n.string("Новая умная подборка…")) {
+                            editingSmart = SmartCollection(name: L10n.string("Новая подборка"))
                         }
                     }
                     if !library.stations.isEmpty {
@@ -238,9 +270,17 @@ struct PlaylistPane: View {
                             .disabled(playlist.trackIDs.isEmpty)
                         Button(L10n.string("Удалить плейлист…"), role: .destructive) { deletePlaylist(playlist) }
                     }
+                    if let collection = selectedCustomSmart {
+                        Divider()
+                        Button(L10n.string("Изменить умную подборку…")) { editingSmart = collection }
+                        Button(L10n.string("Удалить умную подборку…"), role: .destructive) {
+                            library.removeSmartCollection(collection.id)
+                            filterID = "all"
+                        }
+                    }
                 } label: {
                     HStack(spacing: 4) {
-                        Text(selectedPlaylist?.name ?? selectedSmart?.title ?? L10n.string("Все треки"))
+                        Text(currentTitle)
                             .font(.system(size: 12, weight: .semibold))
                             .foregroundStyle(Theme.Cyber.text)
                             .lineLimit(1)

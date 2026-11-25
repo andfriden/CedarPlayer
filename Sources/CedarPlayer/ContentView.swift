@@ -25,6 +25,7 @@ struct ContentView: View {
     enum SidebarItem: Hashable {
         case allTracks
         case smart(SmartRule)
+        case smartCollection(UUID)
         case playlist(UUID)
     }
 
@@ -43,6 +44,8 @@ struct ContentView: View {
         switch sidebarSelection {
         case .smart(let rule):
             return rule.filter(library.visibleTracks)
+        case .smartCollection(let id):
+            return library.smartCollection(with: id)?.filter(library.visibleTracks) ?? []
         case .playlist(let id):
             guard let playlist = library.playlist(with: id) else { return [] }
             let all = library.tracks(in: playlist)
@@ -83,6 +86,7 @@ struct ContentView: View {
         switch sidebarSelection {
         case .playlist(let id): return library.playlist(with: id)?.name ?? L10n.string("Плейлист")
         case .smart(let rule): return rule.title
+        case .smartCollection(let id): return library.smartCollection(with: id)?.name ?? L10n.string("Умная подборка")
         default: return L10n.string("Все треки")
         }
     }
@@ -261,6 +265,10 @@ struct ContentView: View {
                 ForEach(SmartRule.allCases) { rule in
                     Label(rule.title, systemImage: rule.symbol)
                         .tag(SidebarItem.smart(rule))
+                }
+                ForEach(library.smartCollections) { collection in
+                    Label(collection.name, systemImage: "line.3.horizontal.decrease.circle")
+                        .tag(SidebarItem.smartCollection(collection.id))
                 }
             }
 

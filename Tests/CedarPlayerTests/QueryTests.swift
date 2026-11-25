@@ -39,6 +39,32 @@ final class QueryTests: XCTestCase {
         XCTAssertEqual(descending.tracks.map(\.title), ["High", "Low"])
     }
 
+    func testCustomSmartCollectionAppliesConditions() {
+        var rock = track("Rock Anthem")
+        rock.genre = "Rock"
+        rock.year = "2001"
+        rock.rating = 5
+        var pop = track("Pop Song")
+        pop.genre = "Pop"
+        pop.year = "2001"
+        pop.rating = 5
+        var low = track("Quiet Rock")
+        low.genre = "Rock"
+        low.year = "2001"
+        low.rating = 2
+
+        let library = Library(testTracks: [rock, pop, low])
+        let collection = SmartCollection(name: "Good Rock",
+                                         minimumRating: 4,
+                                         genre: "rock",
+                                         year: "2001")
+        library.smartCollections = [collection]
+        let result = library.query(filterID: "smartset:\(collection.id.uuidString)",
+                                   search: "", sortKey: .title, ascending: true)
+
+        XCTAssertEqual(result.tracks.map(\.title), ["Rock Anthem"])
+    }
+
     func testPlaylistQueryKeepsOrderAndSkipsMissing() {
         let first = track("A")
         let second = track("B")
