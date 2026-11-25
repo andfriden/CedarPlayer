@@ -858,6 +858,10 @@ struct CedarPlayerApp: App {
         AppearanceMode(rawValue: appearanceMode)?.colorScheme
     }
 
+    private var interfaceIdentity: String {
+        "\(appLanguage)-\(appearanceMode)"
+    }
+
     private var interfaceLocale: Locale {
         _ = appLanguage
         return L10n.locale
@@ -871,7 +875,7 @@ struct CedarPlayerApp: App {
                 .environment(\.player, engine)
                 .environment(\.locale, interfaceLocale)
                 .onAppear { appDelegate.configure(library: library, engine: engine) }
-                .id(appLanguage)
+                .id(interfaceIdentity)
                 .preferredColorScheme(colorScheme)
         }
         .defaultSize(width: Theme.Layout.width, height: Theme.Layout.defaultHeight)
@@ -1003,7 +1007,7 @@ struct CedarPlayerApp: App {
                 .environmentObject(engine)
                 .environment(\.player, engine)
                 .environment(\.locale, interfaceLocale)
-                .id(appLanguage)
+                .id(interfaceIdentity)
                 .preferredColorScheme(colorScheme)
         }
         .defaultSize(width: 900, height: 560)
@@ -1012,7 +1016,7 @@ struct CedarPlayerApp: App {
             AnalogVUMeterView()
                 .environmentObject(engine)
                 .environment(\.locale, interfaceLocale)
-                .id(appLanguage)
+                .id(interfaceIdentity)
                 .preferredColorScheme(colorScheme)
         }
         .defaultSize(width: 520, height: 300)
@@ -1022,7 +1026,7 @@ struct CedarPlayerApp: App {
                 .environmentObject(library)
                 .environmentObject(engine)
                 .environment(\.locale, interfaceLocale)
-                .id(appLanguage)
+                .id(interfaceIdentity)
                 .preferredColorScheme(colorScheme)
         }
         .defaultSize(width: 430, height: 560)
@@ -1032,7 +1036,7 @@ struct CedarPlayerApp: App {
             EqualizerView()
                 .environmentObject(engine)
                 .environment(\.locale, interfaceLocale)
-                .id(appLanguage)
+                .id(interfaceIdentity)
                 .preferredColorScheme(colorScheme)
         }
         .defaultSize(width: 760, height: 540)
@@ -1042,7 +1046,7 @@ struct CedarPlayerApp: App {
             LyricsView()
                 .environmentObject(engine)
                 .environment(\.locale, interfaceLocale)
-                .id(appLanguage)
+                .id(interfaceIdentity)
                 .preferredColorScheme(colorScheme)
         }
         .defaultSize(width: 480, height: 460)
@@ -1052,7 +1056,7 @@ struct CedarPlayerApp: App {
                 .environmentObject(library)
                 .environmentObject(engine)
                 .environment(\.locale, interfaceLocale)
-                .id(appLanguage)
+                .id(interfaceIdentity)
                 .preferredColorScheme(colorScheme)
         }
         .windowResizability(.contentMinSize)
@@ -1063,7 +1067,7 @@ struct CedarPlayerApp: App {
                 .environmentObject(library)
                 .environmentObject(engine)
                 .environment(\.locale, interfaceLocale)
-                .id(appLanguage)
+                .id(interfaceIdentity)
                 .preferredColorScheme(colorScheme)
         } label: {
             Image(systemName: "music.note")
@@ -1073,7 +1077,7 @@ struct CedarPlayerApp: App {
         Settings {
             SettingsView()
                 .environment(\.locale, interfaceLocale)
-                .id(appLanguage)
+                .id(interfaceIdentity)
                 .preferredColorScheme(colorScheme)
                 .environmentObject(library)
                 .environmentObject(engine)

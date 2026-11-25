@@ -416,6 +416,13 @@ final class AppearanceModeTests: XCTestCase {
         XCTAssertNil(AppearanceMode.system.colorScheme)
         XCTAssertEqual(AppearanceMode.dark.colorScheme, .dark)
         XCTAssertEqual(AppearanceMode.light.colorScheme, .light)
-        XCTAssertEqual(AppearanceMode.allCases.map(\.title), ["Системное", "Тёмное", "Светлое"])
+        XCTAssertEqual(AppearanceMode.catppuccinLatte.colorScheme, .light)
+        XCTAssertEqual(AppearanceMode.catppuccinFrappe.colorScheme, .dark)
+        XCTAssertEqual(AppearanceMode.catppuccinMacchiato.colorScheme, .dark)
+        XCTAssertEqual(AppearanceMode.catppuccinMocha.colorScheme, .dark)
+        XCTAssertEqual(AppearanceMode.allCases.map(\.title), [
+            "Системное", "Тёмное", "Светлое", "Catppuccin Latte",
+            "Catppuccin Frappé", "Catppuccin Macchiato", "Catppuccin Mocha"
+        ])
     }
 }
