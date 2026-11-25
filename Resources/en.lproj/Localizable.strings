@@ -351,3 +351,11 @@
 "Изменить умную подборку…" = "Edit Smart Collection…";
 "Удалить умную подборку…" = "Delete Smart Collection…";
 "Умная подборка" = "Smart Collection";
+"Найти дубликаты…" = "Find Duplicates…";
+"Перепривязать отсутствующие файлы…" = "Relink Missing Files…";
+"Дубликаты" = "Duplicates";
+"Дубликатов не найдено" = "No Duplicates Found";
+"Оставить этот" = "Keep This";
+"Выберите папки с отсутствующими файлами" = "Choose Folders with Missing Files";
+"Привязано файлов: %ld из %ld" = "Relinked %ld of %ld Files";
+"Нет отсутствующих файлов" = "No Missing Files";

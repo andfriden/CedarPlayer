@@ -7,6 +7,7 @@ struct SettingsView: View {
     @AppStorage("showFormatColumn") private var showFormatColumn = true
     @AppStorage("autoCoverSearch") private var autoCoverSearch = true
     @AppStorage("checkForUpdates") private var checkForUpdates = true
+    @State private var showDuplicates = false
     @AppStorage("appearanceMode") private var appearanceMode = AppearanceMode.system.rawValue
     @AppStorage("accentChoice") private var accentChoice = AccentChoice.theme.rawValue
     @AppStorage("appLanguage") private var appLanguage = AppLanguage.system.rawValue
@@ -133,6 +134,10 @@ struct SettingsView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Toggle("Показывать формат и частоту дискретизации", isOn: $showFormatColumn)
+                Button(L10n.string("Найти дубликаты…")) { showDuplicates = true }
+                Button(L10n.string("Перепривязать отсутствующие файлы…")) {
+                    library.presentBatchRelinkPanel()
+                }
                 HStack {
                     Text(L10n.format("Треков в библиотеке: %ld", library.tracks.count))
                     Spacer()
@@ -153,5 +158,9 @@ struct SettingsView: View {
         .formStyle(.grouped)
         .frame(width: 460, height: 480)
         .padding(.vertical, 8)
+        .sheet(isPresented: $showDuplicates) {
+            DuplicateFinderView()
+                .environmentObject(library)
+        }
     }
 }

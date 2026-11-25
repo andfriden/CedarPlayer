@@ -65,6 +65,21 @@ final class QueryTests: XCTestCase {
         XCTAssertEqual(result.tracks.map(\.title), ["Rock Anthem"])
     }
 
+    func testDuplicateGroupsUseMetadataAndDuration() {
+        var first = track("Same Song")
+        first.duration = 200
+        var second = track("Same Song")
+        second.duration = 200
+        var different = track("Same Song")
+        different.duration = 201
+
+        let library = Library(testTracks: [first, second, different])
+        let groups = library.duplicateGroups()
+
+        XCTAssertEqual(groups.count, 1)
+        XCTAssertEqual(groups.first?.tracks.count, 2)
+    }
+
     func testPlaylistQueryKeepsOrderAndSkipsMissing() {
         let first = track("A")
         let second = track("B")
