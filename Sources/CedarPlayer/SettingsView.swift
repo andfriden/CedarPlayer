@@ -8,6 +8,7 @@ struct SettingsView: View {
     @AppStorage("autoCoverSearch") private var autoCoverSearch = true
     @AppStorage("checkForUpdates") private var checkForUpdates = true
     @AppStorage("appearanceMode") private var appearanceMode = AppearanceMode.system.rawValue
+    @AppStorage("accentChoice") private var accentChoice = AccentChoice.theme.rawValue
     @AppStorage("appLanguage") private var appLanguage = AppLanguage.system.rawValue
     @EnvironmentObject private var engine: PlayerEngine
     @EnvironmentObject private var library: Library
@@ -20,7 +21,13 @@ struct SettingsView: View {
                         Text(mode.title).tag(mode.rawValue)
                     }
                 }
-                .pickerStyle(.segmented)
+                .pickerStyle(.menu)
+                Picker("Акцент", selection: $accentChoice) {
+                    ForEach(AccentChoice.allCases) { choice in
+                        Text(choice.title).tag(choice.rawValue)
+                    }
+                }
+                .pickerStyle(.menu)
             }
 
             Section("Язык") {

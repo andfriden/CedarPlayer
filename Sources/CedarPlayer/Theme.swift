@@ -39,13 +39,19 @@ enum Theme {
         }
     }
 
+    private static var customAccent: (normal: Color, bright: Color)? {
+        let choice = AccentChoice.current
+        guard let color = choice.color, let bright = choice.bright else { return nil }
+        return (color, bright)
+    }
+
     static var background: Color { themed(\.base, light: 0xF0F0F2, dark: 0x1E1E22) }
     static var panel: Color { themed(\.surface0, light: 0xFAFAFB, dark: 0x2A2A30) }
     static var titleBar: Color { themed(\.mantle, light: 0xE4E4E8, dark: 0x232327) }
     static var text: Color { themed(\.text, light: 0x1B1B20, dark: 0xEAEAEA) }
     static var secondaryText: Color { themed(\.subtext0, light: 0x6E6E73, dark: 0x8E8E93) }
-    static var accent: Color { themed(\.mauve, light: 0x008FBF, dark: 0x35D6FF) }
-    static var accentBright: Color { themed(\.lavender, light: 0x00A6D6, dark: 0x7BE7FF) }
+    static var accent: Color { customAccent?.normal ?? themed(\.mauve, light: 0x008FBF, dark: 0x35D6FF) }
+    static var accentBright: Color { customAccent?.bright ?? themed(\.lavender, light: 0x00A6D6, dark: 0x7BE7FF) }
     static var separator: Color { themed(\.surface0, light: 0xD6D6DC, dark: 0x3A3A42) }
     static var subtle: Color { themed(\.surface1, light: 0xE9E9EE, dark: 0x35353C) }
     static var danger: Color { themed(\.red, light: 0xC4453F, dark: 0xE06C75) }
@@ -79,8 +85,8 @@ enum Theme {
         static var titleBar: Color { Theme.themedForced(\.mantle, light: 0xECECF1, dark: 0x232327) }
         static var text: Color { Theme.themedForced(\.text, light: 0x1B1B20, dark: 0xEAEAEA) }
         static var secondaryText: Color { Theme.themedForced(\.subtext0, light: 0x6E6E79, dark: 0x8E8E93) }
-        static var accent: Color { Theme.themedForced(\.mauve, light: 0x007EA8, dark: 0x35D6FF) }
-        static var accentBright: Color { Theme.themedForced(\.lavender, light: 0x00A6D6, dark: 0x7BE7FF) }
+        static var accent: Color { Theme.customAccent?.normal ?? Theme.themedForced(\.mauve, light: 0x007EA8, dark: 0x35D6FF) }
+        static var accentBright: Color { Theme.customAccent?.bright ?? Theme.themedForced(\.lavender, light: 0x00A6D6, dark: 0x7BE7FF) }
         static var subtle: Color { Theme.themedForced(\.surface1, light: 0xE8E8EF, dark: 0x35353C) }
         static var danger: Color { Theme.danger }
         static var warning: Color { Theme.warning }
@@ -204,6 +210,70 @@ enum AppearanceMode: String, CaseIterable, Identifiable {
         case .system: return nil
         case .dark, .catppuccinFrappe, .catppuccinMacchiato, .catppuccinMocha: return .dark
         case .light, .catppuccinLatte: return .light
+        }
+    }
+}
+
+/// Accent selection: follow the theme, macOS accent, or a system color.
+enum AccentChoice: String, CaseIterable, Identifiable {
+    case theme
+    case system
+    case blue
+    case purple
+    case pink
+    case red
+    case orange
+    case yellow
+    case green
+    case graphite
+
+    var id: String { rawValue }
+
+    static var current: AccentChoice {
+        AccentChoice(rawValue: UserDefaults.standard.string(forKey: "accentChoice") ?? "") ?? .theme
+    }
+
+    var title: String {
+        switch self {
+        case .theme: return L10n.string("Как в теме")
+        case .system: return L10n.string("Системный")
+        case .blue: return L10n.string("Синий")
+        case .purple: return L10n.string("Фиолетовый")
+        case .pink: return L10n.string("Розовый")
+        case .red: return L10n.string("Красный")
+        case .orange: return L10n.string("Оранжевый")
+        case .yellow: return L10n.string("Жёлтый")
+        case .green: return L10n.string("Зелёный")
+        case .graphite: return L10n.string("Графит")
+        }
+    }
+
+    var color: Color? {
+        base.map { Color(nsColor: $0) }
+    }
+
+    var bright: Color? {
+        guard let base else { return nil }
+        return Color(nsColor: NSColor(name: nil) { appearance in
+            let dark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            let fraction: CGFloat = dark ? 0.35 : 0.12
+            guard let resolved = base.usingColorSpace(.sRGB) else { return base }
+            return resolved.blended(withFraction: fraction, of: .white) ?? resolved
+        })
+    }
+
+    private var base: NSColor? {
+        switch self {
+        case .theme: return nil
+        case .system: return .controlAccentColor
+        case .blue: return .systemBlue
+        case .purple: return .systemPurple
+        case .pink: return .systemPink
+        case .red: return .systemRed
+        case .orange: return .systemOrange
+        case .yellow: return .systemYellow
+        case .green: return .systemGreen
+        case .graphite: return .systemGray
         }
     }
 }

@@ -11,6 +11,7 @@ struct CedarPlayerApp: App {
     @AppStorage("showPlaylist") private var showPlaylist = true
     @AppStorage("meterStyle") private var meterStyleRaw = MeterStyle.spectrum.rawValue
     @AppStorage("appearanceMode") private var appearanceMode = AppearanceMode.system.rawValue
+    @AppStorage("accentChoice") private var accentChoice = AccentChoice.theme.rawValue
     @AppStorage("appLanguage") private var appLanguage = AppLanguage.system.rawValue
     @Environment(\.openWindow) private var openWindow
 
@@ -859,7 +860,7 @@ struct CedarPlayerApp: App {
     }
 
     private var interfaceIdentity: String {
-        "\(appLanguage)-\(appearanceMode)"
+        "\(appLanguage)-\(appearanceMode)-\(accentChoice)"
     }
 
     private var interfaceLocale: Locale {
