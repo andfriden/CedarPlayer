@@ -1,12 +1,19 @@
 import SwiftUI
 import AppKit
+import UniformTypeIdentifiers
 
-/// Lyrics window that reads and saves .lrc next to the file.
+/// Lyrics window: loads sidecar .lrc files, downloads them from LRCLIB and
+/// highlights the line matching the current playback position.
 struct LyricsView: View {
     @EnvironmentObject private var engine: PlayerEngine
     @State private var text = ""
     @State private var loadedTrackID: UUID?
     @State private var status = ""
+    @State private var isEditing = false
+    @State private var isDownloading = false
+    @State private var parsedLines: [LRCLine] = []
+    @State private var currentLineIndex: Int?
+    private let tick = Timer.publish(every: 0.1, on: .main, in: .common).autoconnect()
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -14,26 +21,41 @@ struct LyricsView: View {
                 Text(engine.currentTrack?.displayTitle ?? L10n.string("Нет трека"))
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(Theme.text)
+                    .lineLimit(1)
                 Spacer()
                 Text(status)
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
             }
 
-            TextEditor(text: $text)
-                .font(.system(size: 13, design: .monospaced))
-                .scrollContentBackground(.hidden)
-                .background(Theme.panel)
-                .overlay(
-                    RoundedRectangle(cornerRadius: Theme.Radius.small)
-                        .stroke(Theme.separator, lineWidth: 1)
-                )
+            HStack(spacing: 8) {
+                Button(L10n.string("Скачать .lrc")) { downloadLyrics() }
+                    .disabled(engine.currentTrack == nil || isDownloading)
+                Button(L10n.string("Загрузить .lrc")) { openLyrics() }
+                Button(isEditing ? L10n.string("Готово") : L10n.string("Редактировать")) {
+                    toggleEditing()
+                }
+                Spacer()
+                if isDownloading { ProgressView().controlSize(.small) }
+            }
+
+            Group {
+                if isEditing {
+                    editor
+                } else {
+                    lyricsView
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
 
             HStack {
-                Button("Загрузить .lrc") { openLyrics() }
-                Button("Сохранить") { saveLyrics() }
+                if isEditing {
+                    Button(L10n.string("Сохранить")) { saveLyrics() }
+                }
                 Spacer()
-                Text("Формат: [мм:сс.xx] строка")
+                Text(L10n.string("Формат: [мм:сс.xx] строка"))
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
             }
@@ -43,35 +65,219 @@ struct LyricsView: View {
         .background(Theme.background)
         .onAppear { syncTrack() }
         .onChange(of: engine.currentTrack?.id) { _ in syncTrack() }
+        .onReceive(tick) { _ in
+            if !isEditing { syncCurrentLine() }
+        }
+    }
+
+    private var editor: some View {
+        TextEditor(text: $text)
+            .font(.system(size: 13, design: .monospaced))
+            .scrollContentBackground(.hidden)
+            .background(Theme.panel)
+            .overlay(
+                RoundedRectangle(cornerRadius: Theme.Radius.small)
+                    .stroke(Theme.separator, lineWidth: 1)
+            )
+    }
+
+    private var lyricsView: some View {
+        Group {
+            if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                emptyState
+            } else if parsedLines.isEmpty {
+                plainText
+            } else {
+                syncedText
+            }
+        }
+        .background(Theme.panel)
+        .overlay(
+            RoundedRectangle(cornerRadius: Theme.Radius.small)
+                .stroke(Theme.separator, lineWidth: 1)
+        )
+    }
+
+    private var emptyState: some View {
+        VStack(spacing: 10) {
+            Image(systemName: "text.quote")
+                .font(.system(size: 28))
+                .foregroundStyle(Theme.secondaryText.opacity(0.65))
+            Text(L10n.string("Текст не найден"))
+                .font(Theme.Fonts.artist)
+                .foregroundStyle(Theme.secondaryText)
+            Button(L10n.string("Скачать .lrc")) { downloadLyrics() }
+                .disabled(engine.currentTrack == nil || isDownloading)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private var plainText: some View {
+        ScrollView {
+            Text(text)
+                .font(.system(size: 15))
+                .foregroundStyle(Theme.text)
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(14)
+        }
+    }
+
+    private var syncedText: some View {
+        ScrollViewReader { proxy in
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 4) {
+                    ForEach(parsedLines) { line in
+                        lineView(line)
+                            .id(line.id)
+                    }
+                }
+                .padding(12)
+            }
+            .onChange(of: currentLineIndex) { index in
+                guard let index, parsedLines.indices.contains(index) else { return }
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    proxy.scrollTo(parsedLines[index].id, anchor: .center)
+                }
+            }
+        }
+    }
+
+    private func lineView(_ line: LRCLine) -> some View {
+        let current = currentLineIndex == line.id
+        let past = currentLineIndex.map { line.id < $0 } ?? false
+        return Text(line.text)
+            .font(.system(size: current ? 17 : 15,
+                          weight: current ? .semibold : .regular))
+            .foregroundStyle(current
+                             ? Theme.accent
+                             : (past ? Theme.secondaryText : Theme.text.opacity(0.65)))
+            .textSelection(.enabled)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 5)
+            .background(current ? Theme.accent.opacity(0.10) : .clear,
+                        in: RoundedRectangle(cornerRadius: 6))
     }
 
     private func syncTrack() {
         guard let track = engine.currentTrack, track.id != loadedTrackID else { return }
         loadedTrackID = track.id
         status = ""
-        let sidecar = track.url.deletingPathExtension().appendingPathExtension("lrc")
-        text = (try? String(contentsOf: sidecar, encoding: .utf8)) ?? ""
+        isEditing = false
+        text = readLyrics(sidecarURL(for: track)) ?? ""
+        reparse()
+        syncCurrentLine()
+    }
+
+    private func reparse() {
+        parsedLines = LRCParser.parse(text)
+        currentLineIndex = nil
+    }
+
+    private func toggleEditing() {
+        isEditing.toggle()
+        if !isEditing {
+            reparse()
+            syncCurrentLine()
+        }
+    }
+
+    private func syncCurrentLine() {
+        guard !parsedLines.isEmpty else {
+            currentLineIndex = nil
+            return
+        }
+        let position = engine.position
+        var index: Int?
+        for (offset, line) in parsedLines.enumerated() {
+            if line.time <= position + 0.02 {
+                index = offset
+            } else {
+                break
+            }
+        }
+        if currentLineIndex != index { currentLineIndex = index }
     }
 
     private func openLyrics() {
         guard engine.currentTrack != nil else { return }
         let panel = NSOpenPanel()
-        panel.allowedContentTypes = [.plainText]
+        let lrc = UTType(filenameExtension: "lrc")
+        panel.allowedContentTypes = [lrc, .plainText].compactMap { $0 }
         panel.allowsMultipleSelection = false
         guard panel.runModal() == .OK, let url = panel.url else { return }
-        text = (try? String(contentsOf: url, encoding: .utf8)) ?? ""
+        text = readLyrics(url) ?? ""
+        isEditing = false
+        reparse()
+        syncCurrentLine()
         status = L10n.format("Загружено: %@", url.lastPathComponent)
     }
 
     private func saveLyrics() {
         guard let track = engine.currentTrack else { return }
-        let sidecar = track.url.deletingPathExtension().appendingPathExtension("lrc")
         do {
-            try text.write(to: sidecar, atomically: true, encoding: .utf8)
-            status = L10n.format("Сохранено: %@", sidecar.lastPathComponent)
+            let url = try writeLyrics(text, for: track)
+            reparse()
+            syncCurrentLine()
+            status = L10n.format("Сохранено: %@", url.lastPathComponent)
         } catch {
             status = L10n.format("Ошибка сохранения: %@", error.localizedDescription)
         }
+    }
+
+    private func downloadLyrics() {
+        guard let track = engine.currentTrack, !isDownloading else { return }
+        let trackID = track.id
+        let title = track.title
+        let artist = track.artist.isEmpty ? track.albumArtist : track.artist
+        let album = track.album
+        let duration = track.duration
+        isDownloading = true
+        status = L10n.string("Поиск текста…")
+
+        Task { @MainActor in
+            do {
+                let lyrics = try await LyricsService.shared.download(
+                    title: title, artist: artist, album: album, duration: duration)
+                guard engine.currentTrack?.id == trackID else {
+                    isDownloading = false
+                    return
+                }
+                text = lyrics
+                isEditing = false
+                reparse()
+                syncCurrentLine()
+                do {
+                    let url = try writeLyrics(lyrics, for: track)
+                    status = parsedLines.isEmpty
+                        ? L10n.format("Скачано без синхронизации: %@", url.lastPathComponent)
+                        : L10n.format("Скачано: %@", url.lastPathComponent)
+                } catch {
+                    status = L10n.format("Ошибка сохранения: %@", error.localizedDescription)
+                }
+            } catch {
+                status = error.localizedDescription
+            }
+            isDownloading = false
+        }
+    }
+
+    private func sidecarURL(for track: Track) -> URL {
+        track.url.deletingPathExtension().appendingPathExtension("lrc")
+    }
+
+    private func readLyrics(_ url: URL) -> String? {
+        if let text = try? String(contentsOf: url, encoding: .utf8) { return text }
+        guard let data = try? Data(contentsOf: url) else { return nil }
+        return String(data: data, encoding: .windowsCP1251)
+            ?? String(decoding: data, as: UTF8.self)
+    }
+
+    private func writeLyrics(_ text: String, for track: Track) throws -> URL {
+        let url = sidecarURL(for: track)
+        try text.write(to: url, atomically: true, encoding: .utf8)
+        return url
     }
 }
 

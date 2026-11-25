@@ -323,3 +323,15 @@
 "Только пропавшие файлы" = "Missing files only";
 "Сбросить фильтры" = "Reset filters";
 "Действия (%ld)" = "Actions (%ld)";
+"Готово" = "Done";
+"Редактировать" = "Edit";
+"Скачать .lrc" = "Download .lrc";
+"Текст не найден" = "Lyrics Not Found";
+"Поиск текста…" = "Searching for Lyrics…";
+"Скачано: %@" = "Downloaded: %@";
+"Скачано без синхронизации: %@" = "Downloaded without synchronization: %@";
+"Недостаточно данных для поиска текста" = "Not Enough Data to Search for Lyrics";
+"Это инструментальная композиция" = "This Is an Instrumental Track";
+"Нет ответа" = "No Response";
+"LRCLIB вернул %ld%@" = "LRCLIB returned %ld%@";
+" (повтор через %@ с)" = " (retry in %@ s)";
