@@ -15,6 +15,8 @@ struct PlaylistPane: View {
     @State private var search = ""
     @State private var appliedSearch = ""
     @State private var selection: Set<UUID> = []
+    @State private var lastSelectedIndex: Int?
+    @State private var batchTagRequest: BatchTagRequest?
     @State private var isDropping = false
     @State private var hoveredTrackID: UUID?
     @State private var coverTrack: Track?
@@ -112,6 +114,11 @@ struct PlaylistPane: View {
                 library.upsertSmartCollection(saved)
                 filterID = "smartset:\(saved.id.uuidString)"
             }
+        }
+        .sheet(item: $batchTagRequest) { request in
+            BatchTagEditorSheet(tracks: request.tracks)
+                .environmentObject(library)
+                .environmentObject(engine)
         }
         .onDrop(of: [.fileURL], isTargeted: $isDropping) { providers in
             loadDroppedURLs(providers) { urls in
@@ -500,7 +507,7 @@ struct PlaylistPane: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(index + 1). \(track.displayTitle), \(track.displayArtist), \(track.timeText)")
         .onTapGesture {
-            selection = [track.id]
+            select(track, index: index)
             listFocused = true
         }
         .onTapGesture(count: 2) {
@@ -525,6 +532,13 @@ struct PlaylistPane: View {
             }
         ))
         .contextMenu {
+            if selection.count > 1, selection.contains(track.id) {
+                Button(L10n.format("Изменить теги выбранных (%ld)…", selection.count)) {
+                    let selected = library.tracks.filter { selection.contains($0.id) }
+                    batchTagRequest = BatchTagRequest(tracks: selected)
+                }
+                Divider()
+            }
             if track.isMissing {
                 Button(L10n.string("Найти файл…")) { library.presentReplacePanel(for: track) }
                 Divider()
@@ -561,6 +575,26 @@ struct PlaylistPane: View {
                 library.remove([track.id])
             }
         }
+    }
+
+    private func select(_ track: Track, index: Int) {
+        let flags = NSEvent.modifierFlags
+        if flags.contains(.command) {
+            if selection.contains(track.id) {
+                selection.remove(track.id)
+            } else {
+                selection.insert(track.id)
+            }
+        } else if flags.contains(.shift), let start = lastSelectedIndex {
+            let lower = min(start, index)
+            let upper = max(start, index)
+            if tracks.indices.contains(lower), tracks.indices.contains(upper) {
+                selection = Set(tracks[lower...upper].map(\.id))
+            }
+        } else {
+            selection = [track.id]
+        }
+        lastSelectedIndex = index
     }
 
     private func rate(_ track: Track, value: Int) {

@@ -381,3 +381,9 @@
 "Варианты текста" = "Lyrics Variants";
 "Колонка исполнителя" = "Artist Column";
 "Колонка рейтинга" = "Rating Column";
+"Изменить теги выбранных (%ld)…" = "Edit Tags for Selected (%ld)…";
+"Массовая правка тегов" = "Batch Tag Editing";
+"Выбрано треков: %ld" = "%ld Tracks Selected";
+"Отметьте поля, которые нужно изменить. Названия и номера треков не меняются." = "Check the fields to change. Titles and track numbers stay as they are.";
+"Обновлено: %ld из %ld" = "Updated %ld of %ld";
+"Обновлено: %ld из %ld; ошибок: %ld. %@" = "Updated %ld of %ld; errors: %ld. %@";
