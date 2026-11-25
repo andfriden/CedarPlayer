@@ -162,7 +162,7 @@ struct PlaylistPane: View {
     }
 
     private var totalTimeText: String {
-        let total = Int(tracks.reduce(0) { $0 + max(0, $1.duration) }.rounded())
+        let total = Int(result.totalDuration.rounded())
         let hours = total / 3600
         let minutes = (total % 3600) / 60
         if hours > 0 { return "\(hours) ч. \(minutes) мин." }
@@ -170,10 +170,7 @@ struct PlaylistPane: View {
     }
 
     private var totalSizeText: String {
-        let bytes = tracks.reduce(0.0) { total, track in
-            guard track.bitrate > 0, track.duration > 0 else { return total }
-            return total + Double(track.bitrate) * track.duration / 8
-        }
+        let bytes = result.totalSize
         if bytes >= 1_000_000_000 { return String(format: "%.1f ГБ", bytes / 1_000_000_000) }
         if bytes >= 1_000_000 { return String(format: "%.1f МБ", bytes / 1_000_000) }
         return String(format: "%.0f КБ", bytes / 1_000)

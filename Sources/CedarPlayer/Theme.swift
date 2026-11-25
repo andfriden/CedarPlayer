@@ -128,8 +128,6 @@ enum Theme {
 
     enum Fonts {
         static let nowPlaying = Font.system(size: 22, weight: .semibold)
-        static let nowPlayingSmall = Font.system(size: 17, weight: .semibold)
-        static let listTitle = Font.system(size: 13, weight: .medium)
         static let artist = Font.system(size: 12)
         static let caption = Font.system(size: 11)
         static let captionMono = Font.system(size: 10, weight: .medium, design: .monospaced)

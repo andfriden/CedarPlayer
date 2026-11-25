@@ -446,6 +446,14 @@ struct MiniPlayerView: View {
         .shadow(color: .black.opacity(0.25), radius: 3, y: 1)
     }
 
+    private var currentCover: NSImage? {
+        guard let track = engine.currentTrack else { return nil }
+        if let id = track.artworkID, let image = ArtworkCache.shared.image(for: id) {
+            return image
+        }
+        return track.artwork.flatMap { NSImage(data: $0) }
+    }
+
     @ViewBuilder
     private var coverCircle: some View {
         if let station = engine.currentStation,
@@ -455,7 +463,7 @@ struct MiniPlayerView: View {
                 .resizable()
                 .aspectRatio(contentMode: .fill)
                 .clipShape(Circle())
-        } else if let data = engine.currentTrack?.artwork, let image = NSImage(data: data) {
+        } else if let image = currentCover {
             Image(nsImage: image)
                 .resizable()
                 .aspectRatio(contentMode: .fill)

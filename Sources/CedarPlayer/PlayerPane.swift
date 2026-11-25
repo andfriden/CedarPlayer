@@ -161,10 +161,11 @@ struct PlayerPane: View {
            let image = NSImage(data: data) {
             return image
         }
-        if let data = engine.currentTrack?.artwork {
-            return NSImage(data: data)
+        guard let track = engine.currentTrack else { return nil }
+        if let id = track.artworkID, let image = ArtworkCache.shared.image(for: id) {
+            return image
         }
-        return nil
+        return track.artwork.flatMap(NSImage.init(data:))
     }
 
     private var titleText: String {

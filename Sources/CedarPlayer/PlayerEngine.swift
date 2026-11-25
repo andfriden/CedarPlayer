@@ -71,7 +71,6 @@ final class PlayerEngine: ObservableObject {
     /// Gap between track switch and the next start (for gapless checks).
     @Published private(set) var lastTransitionGap: TimeInterval?
     private var transitionStartedAt: Date?
-    private var autoTransition = false
 
     /// True crossfade: the next track overlaps the last seconds of the current one.
     @Published var crossfadeSeconds: Double = 0 {
@@ -647,7 +646,6 @@ final class PlayerEngine: ObservableObject {
     }
 
     func pause() {
-        autoTransition = false
         transitionStartedAt = nil
         if let radioPlayer {
             radioPlayer.pause()
@@ -692,7 +690,6 @@ final class PlayerEngine: ObservableObject {
     }
 
     func seek(to seconds: TimeInterval) {
-        autoTransition = false
         transitionStartedAt = nil
         if let dsd {
             let clamped = max(0, min(seconds, duration))
@@ -717,7 +714,6 @@ final class PlayerEngine: ObservableObject {
     }
 
     func next(manual: Bool = false) {
-        if manual { autoTransition = false }
         cancelCrossfade()
         if currentStation != nil {
             stop()
@@ -816,8 +812,6 @@ final class PlayerEngine: ObservableObject {
               let tracks = try? JSONDecoder().decode([Track].self, from: data) else { return }
         upNext = tracks.filter { FileManager.default.fileExists(atPath: $0.url.path) }
     }
-
-    func currentIndex() -> Int? { queueIndex >= 0 ? queueIndex : nil }
 
     // MARK: Crossfade
 
@@ -998,7 +992,6 @@ final class PlayerEngine: ObservableObject {
     private func handleTrackEnd() {
         guard crossfadeState == nil else { return }
         guard isPlaying || position >= duration - 0.5 else { return }
-        autoTransition = true
         transitionStartedAt = Date()
         if repeatMode == .one {
             seekFrame = startFrame
@@ -1061,7 +1054,6 @@ final class PlayerEngine: ObservableObject {
                 }
                 let played = Double(self.currentFrame() - self.startFrame) / self.sampleRate
                 self.position = min(self.duration, max(0, played))
-                if self.position > 1.0 { self.autoTransition = false }
                 self.applyFade()
                 self.startCrossfadeIfNeeded()
                 self.tick += 1

@@ -37,9 +37,17 @@ enum L10n {
 
     static var locale: Locale { Locale(identifier: resolvedCode) }
 
+    private static let bundleCache = NSCache<NSString, Bundle>()
+
     static var bundle: Bundle {
-        guard let path = Bundle.main.path(forResource: resolvedCode, ofType: "lproj"),
-              let bundle = Bundle(path: path) else { return .main }
+        let code = resolvedCode
+        if let cached = bundleCache.object(forKey: code as NSString) { return cached }
+        guard let path = Bundle.main.path(forResource: code, ofType: "lproj"),
+              let bundle = Bundle(path: path) else {
+            bundleCache.setObject(.main, forKey: code as NSString)
+            return .main
+        }
+        bundleCache.setObject(bundle, forKey: code as NSString)
         return bundle
     }
 

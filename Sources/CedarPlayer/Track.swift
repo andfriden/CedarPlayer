@@ -67,8 +67,6 @@ struct Track: Identifiable, Hashable, Codable {
         return String(format: "%d:%02d", total / 60, total % 60)
     }
 
-    var isCueTrack: Bool { cueStart != nil }
-
     var replayGainText: String? {
         guard let gain = replayGainDB else { return nil }
         return "ReplayGain \(ReplayGain.text(gain))"
@@ -150,14 +148,6 @@ enum RepeatMode: String, Codable {
         switch self {
         case .off, .all: return "repeat"
         case .one: return "repeat.1"
-        }
-    }
-
-    var title: String {
-        switch self {
-        case .off: return "Повтор выключен"
-        case .all: return "Повтор списка"
-        case .one: return "Повтор трека"
         }
     }
 

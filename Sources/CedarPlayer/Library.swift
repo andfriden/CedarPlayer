@@ -43,10 +43,12 @@ final class Library: ObservableObject {
     /// Grows on any track or playlist change; key for the query cache.
     private var revision = 0
 
-    /// List query result: tracks and a mixed-artwork flag.
+    /// List query result: tracks, artwork state and cached totals.
     struct TrackListResult {
         let tracks: [Track]
         let mixedArtwork: Bool
+        let totalDuration: TimeInterval
+        let totalSize: Double
     }
 
     private struct QueryKey: Hashable {
@@ -226,7 +228,18 @@ final class Library: ObservableObject {
             signatures.insert(track.artworkID ?? "\(track.album)|\(track.albumArtist)|\(track.artist)")
             if signatures.count > 1 { break }
         }
-        let result = TrackListResult(tracks: list, mixedArtwork: withArtwork > 1 && signatures.count > 1)
+        var totalDuration: TimeInterval = 0
+        var totalSize: Double = 0
+        for track in list {
+            totalDuration += max(0, track.duration)
+            if track.bitrate > 0, track.duration > 0 {
+                totalSize += Double(track.bitrate) * track.duration / 8
+            }
+        }
+        let result = TrackListResult(tracks: list,
+                                     mixedArtwork: withArtwork > 1 && signatures.count > 1,
+                                     totalDuration: totalDuration,
+                                     totalSize: totalSize)
 
         queryCache[key] = result
         queryOrder.append(key)
