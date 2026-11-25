@@ -298,10 +298,9 @@ struct MiniPlayerView: View {
     @EnvironmentObject private var engine: PlayerEngine
     @EnvironmentObject private var library: Library
 
-    @State private var angle: Double = 0
-    @State private var lastTick: Date?
+    @State private var rotationStart: Date?
+    @State private var rotationAngle: Double = 0
     @State private var miniWindow: NSWindow?
-    private let tick = Timer.publish(every: 1.0 / 60.0, on: .main, in: .common).autoconnect()
 
     var body: some View {
         HStack(spacing: Theme.Space.m) {
@@ -373,17 +372,18 @@ struct MiniPlayerView: View {
             .padding(Theme.Space.xs)
             .help("Вернуться в обычный режим")
         }
-        .onAppear { setMainWindowHidden(true) }
+        .onAppear {
+            setMainWindowHidden(true)
+            if engine.isPlaying { rotationStart = Date() }
+        }
         .onDisappear { setMainWindowHidden(false) }
-        .onReceive(tick) { now in
-            guard engine.isPlaying else {
-                lastTick = nil
-                return
+        .onChange(of: engine.isPlaying) { playing in
+            if playing {
+                rotationStart = Date()
+            } else {
+                rotationAngle = angle(at: Date())
+                rotationStart = nil
             }
-            if let lastTick {
-                angle = MiniRotation.advance(angle, by: now.timeIntervalSince(lastTick))
-            }
-            lastTick = now
         }
     }
 
@@ -416,6 +416,14 @@ struct MiniPlayerView: View {
     // MARK: Vinyl
 
     private var vinyl: some View {
+        TimelineView(.animation(minimumInterval: 1.0 / 60.0,
+                                paused: !engine.isPlaying)) { timeline in
+            vinylContent
+                .rotationEffect(.degrees(angle(at: timeline.date)))
+        }
+    }
+
+    private var vinylContent: some View {
         ZStack {
             Circle()
                 .fill(Color(hex: 0x0D0F13))
@@ -439,11 +447,15 @@ struct MiniPlayerView: View {
                 .fill(Theme.panel)
                 .frame(width: 6, height: 6)
         }
-        .rotationEffect(.degrees(angle))
         .overlay {
             Circle().strokeBorder(.white.opacity(0.06), lineWidth: 1)
         }
         .shadow(color: .black.opacity(0.25), radius: 3, y: 1)
+    }
+
+    private func angle(at date: Date) -> Double {
+        guard let rotationStart else { return rotationAngle }
+        return MiniRotation.advance(rotationAngle, by: date.timeIntervalSince(rotationStart))
     }
 
     private var currentCover: NSImage? {
