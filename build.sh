@@ -28,7 +28,7 @@ if [ "${BIN##*/}" = "CedarPlayer-universal" ]; then
     rm -f "$BIN"
 fi
 cp Resources/Info.plist "$APP/Contents/Info.plist"
-VERSION="${CEDAR_VERSION:-1.2.0}"
+VERSION="${CEDAR_VERSION:-1.3.0}"
 BUILD_NUMBER="${CEDAR_BUILD:-$(git rev-list --count HEAD 2>/dev/null || echo 1)}"
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" "$APP/Contents/Info.plist" >/dev/null
 /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUMBER" "$APP/Contents/Info.plist" >/dev/null

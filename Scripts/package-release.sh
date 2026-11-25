@@ -5,7 +5,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-VERSION="${1:-${CEDAR_VERSION:-1.2.0}}"
+VERSION="${1:-${CEDAR_VERSION:-1.3.0}}"
 APP="build/Cedar Player.app"
 if [ "${SKIP_BUILD:-0}" != "1" ]; then
     CEDAR_VERSION="$VERSION" CEDAR_UNIVERSAL="${CEDAR_UNIVERSAL:-1}" ./build.sh release
