@@ -373,3 +373,11 @@
 "В архиве нет backup.json" = "The Archive Has No backup.json";
 "Копия создана более новой версией" = "The Backup Was Created by a Newer Version";
 "Не удалось распаковать архив" = "Could Not Extract the Archive";
+"Скачивать текст автоматически" = "Download Lyrics Automatically";
+"При открытии окна текст ищется на LRCLIB, если рядом нет .lrc." = "When the window opens, lyrics are searched on LRCLIB if there is no .lrc next to the track.";
+"Варианты…" = "Variants…";
+"Ищу варианты текста…" = "Searching Lyrics Variants…";
+"Найдено вариантов: %ld" = "Found %ld Variants";
+"Варианты текста" = "Lyrics Variants";
+"Колонка исполнителя" = "Artist Column";
+"Колонка рейтинга" = "Rating Column";

@@ -5,6 +5,9 @@ struct SettingsView: View {
     @AppStorage("keepMiniOnTop") private var keepMiniOnTop = true
     @AppStorage("resumeLastTrack") private var resumeLastTrack = true
     @AppStorage("showFormatColumn") private var showFormatColumn = true
+    @AppStorage("autoDownloadLyrics") private var autoDownloadLyrics = true
+    @AppStorage("showArtistColumn") private var showArtistColumn = true
+    @AppStorage("showRatingColumn") private var showRatingColumn = true
     @AppStorage("autoCoverSearch") private var autoCoverSearch = true
     @AppStorage("checkForUpdates") private var checkForUpdates = true
     @State private var showDuplicates = false
@@ -17,12 +20,53 @@ struct SettingsView: View {
     var body: some View {
         Form {
             Section("Оформление") {
-                Picker("Тема", selection: $appearanceMode) {
-                    ForEach(AppearanceMode.allCases) { mode in
-                        Text(mode.title).tag(mode.rawValue)
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(L10n.string("Тема"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 145), spacing: 8)],
+                              alignment: .leading, spacing: 8) {
+                        ForEach(AppearanceMode.allCases) { mode in
+                            let selected = appearanceMode == mode.rawValue
+                            Button {
+                                appearanceMode = mode.rawValue
+                            } label: {
+                                VStack(alignment: .leading, spacing: 7) {
+                                    HStack(spacing: 4) {
+                                        Text(mode.title)
+                                            .font(.system(size: 11, weight: .medium))
+                                            .lineLimit(1)
+                                        Spacer(minLength: 0)
+                                        if selected {
+                                            Image(systemName: "checkmark")
+                                                .font(.system(size: 9, weight: .bold))
+                                        }
+                                    }
+                                    HStack(spacing: 4) {
+                                        Circle().fill(mode.preview.background)
+                                            .frame(width: 13, height: 13)
+                                        Circle().fill(mode.preview.panel)
+                                            .frame(width: 13, height: 13)
+                                        Circle().fill(mode.preview.accent)
+                                            .frame(width: 13, height: 13)
+                                    }
+                                }
+                                .padding(8)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(mode.preview.background,
+                                            in: RoundedRectangle(cornerRadius: 8))
+                                .overlay {
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .strokeBorder(selected ? mode.preview.accent : .secondary.opacity(0.25),
+                                                      lineWidth: selected ? 2 : 1)
+                                }
+                                .foregroundStyle(mode.preview.text)
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel(mode.title)
+                        }
                     }
                 }
-                .pickerStyle(.menu)
                 Picker("Акцент", selection: $accentChoice) {
                     ForEach(AccentChoice.allCases) { choice in
                         Text(choice.title).tag(choice.rawValue)
@@ -134,6 +178,12 @@ struct SettingsView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Toggle("Показывать формат и частоту дискретизации", isOn: $showFormatColumn)
+                Toggle("Колонка исполнителя", isOn: $showArtistColumn)
+                Toggle("Колонка рейтинга", isOn: $showRatingColumn)
+                Toggle("Скачивать текст автоматически", isOn: $autoDownloadLyrics)
+                Text("При открытии окна текст ищется на LRCLIB, если рядом нет .lrc.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 Button(L10n.string("Найти дубликаты…")) { showDuplicates = true }
                 Button(L10n.string("Перепривязать отсутствующие файлы…")) {
                     library.presentBatchRelinkPanel()

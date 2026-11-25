@@ -20,6 +20,27 @@ enum LyricsError: LocalizedError {
     }
 }
 
+struct LyricsCandidate: Identifiable, Decodable {
+    let id: Int
+    let trackName: String?
+    let artistName: String?
+    let albumName: String?
+    let duration: Double?
+    let instrumental: Bool?
+    let syncedLyrics: String?
+    let plainLyrics: String?
+
+    var lyrics: String? { syncedLyrics ?? plainLyrics }
+    var title: String { trackName ?? "" }
+    var artist: String { artistName ?? "" }
+    var album: String { albumName ?? "" }
+    var durationText: String {
+        guard let duration, duration > 0 else { return "" }
+        let total = Int(duration.rounded())
+        return String(format: "%d:%02d", total / 60, total % 60)
+    }
+}
+
 /// Downloads synchronized lyrics from LRCLIB.
 actor LyricsService {
     static let shared = LyricsService()
@@ -80,5 +101,41 @@ actor LyricsService {
             .first { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
         guard let lyrics else { throw LyricsError.notFound }
         return lyrics
+    }
+
+    func search(title: String, artist: String, album: String) async throws -> [LyricsCandidate] {
+        let title = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        let artist = artist.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !title.isEmpty, !artist.isEmpty else { throw LyricsError.noQuery }
+
+        var components = URLComponents(string: "https://lrclib.net/api/search")!
+        var query = [
+            URLQueryItem(name: "track_name", value: title),
+            URLQueryItem(name: "artist_name", value: artist)
+        ]
+        let album = album.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !album.isEmpty { query.append(URLQueryItem(name: "album_name", value: album)) }
+        components.queryItems = query
+        guard let url = components.url else { throw LyricsError.noQuery }
+
+        var request = URLRequest(url: url)
+        request.setValue("Cedar Player/1.0 (https://github.com/andfriden/CedarPlayer)",
+                         forHTTPHeaderField: "User-Agent")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        let (data, response) = try await session.data(for: request)
+        guard let http = response as? HTTPURLResponse else {
+            throw LyricsError.network(L10n.string("Нет ответа"))
+        }
+        guard http.statusCode == 200 else {
+            let retry = http.value(forHTTPHeaderField: "Retry-After")
+            let suffix = retry.map { L10n.format(" (повтор через %@ с)", $0) } ?? ""
+            throw LyricsError.network(L10n.format("LRCLIB вернул %ld%@", http.statusCode, suffix))
+        }
+        let rows = try JSONDecoder().decode([LyricsCandidate].self, from: data)
+        let result = rows.filter {
+            $0.instrumental != true && !($0.lyrics ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
+        guard !result.isEmpty else { throw LyricsError.notFound }
+        return result
     }
 }

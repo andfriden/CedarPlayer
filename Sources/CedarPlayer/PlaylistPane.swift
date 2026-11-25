@@ -10,6 +10,8 @@ struct PlaylistPane: View {
     @AppStorage("playlistFilter") private var filterID = "all"
     @AppStorage("sortKey") private var sortKeyRaw = SortKey.added.rawValue
     @AppStorage("playlistSortAscending") private var sortAscending = true
+    @AppStorage("showArtistColumn") private var showArtistColumn = true
+    @AppStorage("showRatingColumn") private var showRatingColumn = true
     @State private var search = ""
     @State private var appliedSearch = ""
     @State private var selection: Set<UUID> = []
@@ -150,10 +152,14 @@ struct PlaylistPane: View {
             Text(L10n.string("Название"))
                 .frame(minWidth: 150, maxWidth: .infinity, alignment: .leading)
                 .padding(.leading, 8)
-            Text(L10n.string("Исполнитель"))
-                .frame(minWidth: 100, maxWidth: .infinity, alignment: .leading)
-            Text(L10n.string("Рейтинг"))
-                .frame(width: ratingWidth, alignment: .center)
+            if showArtistColumn {
+                Text(L10n.string("Исполнитель"))
+                    .frame(minWidth: 100, maxWidth: .infinity, alignment: .leading)
+            }
+            if showRatingColumn {
+                Text(L10n.string("Рейтинг"))
+                    .frame(width: ratingWidth, alignment: .center)
+            }
             Text(L10n.string("Длительность"))
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
@@ -425,13 +431,16 @@ struct PlaylistPane: View {
                 .frame(minWidth: 150, maxWidth: .infinity, alignment: .leading)
                 .padding(.leading, 8)
 
-            Text(track.displayArtist)
-                .font(.system(size: 11, weight: .regular))
-                .foregroundStyle(secondary)
-                .lineLimit(1)
-                .frame(minWidth: 96, maxWidth: .infinity, alignment: .leading)
+            if showArtistColumn {
+                Text(track.displayArtist)
+                    .font(.system(size: 11, weight: .regular))
+                    .foregroundStyle(secondary)
+                    .lineLimit(1)
+                    .frame(minWidth: 96, maxWidth: .infinity, alignment: .leading)
+            }
 
-            HStack(spacing: 2) {
+            if showRatingColumn {
+                HStack(spacing: 2) {
                 ForEach(1...5, id: \.self) { value in
                     Button {
                         rate(track, value: value)
@@ -450,9 +459,10 @@ struct PlaylistPane: View {
                     .help(track.rating == value
                           ? L10n.string("Снять оценку")
                           : L10n.format("Оценка: %ld", value))
+                    }
                 }
+                .frame(width: ratingWidth, alignment: .center)
             }
-            .frame(width: ratingWidth, alignment: .center)
 
             Text(track.timeText)
                 .font(.system(size: 11, weight: .regular, design: .monospaced))

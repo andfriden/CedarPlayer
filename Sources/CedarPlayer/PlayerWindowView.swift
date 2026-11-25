@@ -6,13 +6,18 @@ import UniformTypeIdentifiers
 /// highlights the line matching the current playback position.
 struct LyricsView: View {
     @EnvironmentObject private var engine: PlayerEngine
+    @AppStorage("autoDownloadLyrics") private var autoDownloadLyrics = true
     @State private var text = ""
     @State private var loadedTrackID: UUID?
     @State private var status = ""
     @State private var isEditing = false
     @State private var isDownloading = false
+    @State private var isSearchingVariants = false
+    @State private var variants: [LyricsCandidate] = []
+    @State private var showVariants = false
     @State private var parsedLines: [LRCLine] = []
     @State private var currentLineIndex: Int?
+    @State private var offset: TimeInterval = 0
     private let tick = Timer.publish(every: 0.1, on: .main, in: .common).autoconnect()
 
     var body: some View {
@@ -33,12 +38,14 @@ struct LyricsView: View {
             HStack(spacing: 8) {
                 Button(L10n.string("Скачать .lrc")) { downloadLyrics() }
                     .disabled(engine.currentTrack == nil || isDownloading)
+                Button(L10n.string("Варианты…")) { searchVariants() }
+                    .disabled(engine.currentTrack == nil || isSearchingVariants)
                 Button(L10n.string("Загрузить .lrc")) { openLyrics() }
                 Button(isEditing ? L10n.string("Готово") : L10n.string("Редактировать")) {
                     toggleEditing()
                 }
                 Spacer()
-                if isDownloading { ProgressView().controlSize(.small) }
+                if isDownloading || isSearchingVariants { ProgressView().controlSize(.small) }
             }
 
             Group {
@@ -50,9 +57,15 @@ struct LyricsView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-            HStack {
+            HStack(spacing: 8) {
                 if isEditing {
                     Button(L10n.string("Сохранить")) { saveLyrics() }
+                }
+                Stepper(value: $offset, in: -5...5, step: 0.5) {
+                    Text(offsetText)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
                 }
                 Spacer()
                 Text(L10n.string("Формат: [мм:сс.xx] строка"))
@@ -67,6 +80,16 @@ struct LyricsView: View {
         .onChange(of: engine.currentTrack?.id) { _ in syncTrack() }
         .onReceive(tick) { _ in
             if !isEditing { syncCurrentLine() }
+        }
+        .onChange(of: offset) { newValue in
+            guard let id = engine.currentTrack?.id else { return }
+            UserDefaults.standard.set(newValue, forKey: "lrcOffset.\(id.uuidString)")
+            syncCurrentLine()
+        }
+        .sheet(isPresented: $showVariants) {
+            LyricsVariantPicker(candidates: variants) { candidate in
+                apply(candidate)
+            }
         }
     }
 
@@ -165,9 +188,13 @@ struct LyricsView: View {
         loadedTrackID = track.id
         status = ""
         isEditing = false
+        offset = UserDefaults.standard.double(forKey: "lrcOffset.\(track.id.uuidString)")
         text = readLyrics(sidecarURL(for: track)) ?? ""
         reparse()
         syncCurrentLine()
+        if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, autoDownloadLyrics {
+            downloadLyrics()
+        }
     }
 
     private func reparse() {
@@ -188,11 +215,11 @@ struct LyricsView: View {
             currentLineIndex = nil
             return
         }
-        let position = engine.position
+        let position = engine.position + offset
         var index: Int?
-        for (offset, line) in parsedLines.enumerated() {
+        for (lineIndex, line) in parsedLines.enumerated() {
             if line.time <= position + 0.02 {
-                index = offset
+                index = lineIndex
             } else {
                 break
             }
@@ -263,6 +290,48 @@ struct LyricsView: View {
         }
     }
 
+    private var offsetText: String {
+        String(format: "%+.1f с", offset)
+    }
+
+    private func searchVariants() {
+        guard let track = engine.currentTrack, !isSearchingVariants else { return }
+        let title = track.title
+        let artist = track.artist.isEmpty ? track.albumArtist : track.artist
+        let album = track.album
+        isSearchingVariants = true
+        status = L10n.string("Ищу варианты текста…")
+        Task { @MainActor in
+            do {
+                let result = try await LyricsService.shared.search(title: title,
+                                                                   artist: artist,
+                                                                   album: album)
+                variants = result
+                status = L10n.format("Найдено вариантов: %ld", result.count)
+                showVariants = true
+            } catch {
+                status = error.localizedDescription
+            }
+            isSearchingVariants = false
+        }
+    }
+
+    private func apply(_ candidate: LyricsCandidate) {
+        guard let track = engine.currentTrack,
+              let lyrics = candidate.lyrics,
+              !lyrics.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        text = lyrics
+        isEditing = false
+        reparse()
+        syncCurrentLine()
+        do {
+            let url = try writeLyrics(lyrics, for: track)
+            status = L10n.format("Скачано: %@", url.lastPathComponent)
+        } catch {
+            status = L10n.format("Ошибка сохранения: %@", error.localizedDescription)
+        }
+    }
+
     private func sidecarURL(for track: Track) -> URL {
         track.url.deletingPathExtension().appendingPathExtension("lrc")
     }
@@ -278,6 +347,53 @@ struct LyricsView: View {
         let url = sidecarURL(for: track)
         try text.write(to: url, atomically: true, encoding: .utf8)
         return url
+    }
+}
+
+struct LyricsVariantPicker: View {
+    let candidates: [LyricsCandidate]
+    let onSelect: (LyricsCandidate) -> Void
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                Text(L10n.string("Варианты текста"))
+                    .font(.system(size: 15, weight: .semibold))
+                Spacer()
+                Button(L10n.string("Отмена")) { dismiss() }
+                    .keyboardShortcut(.cancelAction)
+            }
+            .padding(16)
+            Divider()
+            List(candidates) { candidate in
+                Button {
+                    onSelect(candidate)
+                    dismiss()
+                } label: {
+                    HStack(spacing: 10) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(candidate.title)
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundStyle(Theme.text)
+                            Text([candidate.artist, candidate.album]
+                                .filter { !$0.isEmpty }
+                                .joined(separator: " · "))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        }
+                        Spacer()
+                        Text(candidate.durationText)
+                            .font(.caption.monospacedDigit())
+                            .foregroundStyle(.secondary)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .frame(width: 460, height: 420)
     }
 }
 

@@ -210,6 +210,53 @@ enum AppearanceMode: String, CaseIterable, Identifiable {
         case .light, .catppuccinLatte: return .light
         }
     }
+
+    var preview: ThemePreview {
+        switch self {
+        case .system:
+            return ThemePreview(background: Color(nsColor: .windowBackgroundColor),
+                                panel: Color(nsColor: .controlBackgroundColor),
+                                accent: Color(nsColor: .controlAccentColor),
+                                text: .primary)
+        case .dark:
+            return ThemePreview(background: Color(hex: 0x1E1E22),
+                                panel: Color(hex: 0x2A2A30),
+                                accent: Color(hex: 0x35D6FF),
+                                text: .white)
+        case .light:
+            return ThemePreview(background: Color(hex: 0xF4F4F7),
+                                panel: Color(hex: 0xFFFFFF),
+                                accent: Color(hex: 0x007EA8),
+                                text: Color(hex: 0x17171B))
+        case .catppuccinLatte:
+            return ThemePreview(background: Color(hex: 0xEFF1F5),
+                                panel: Color(hex: 0xE6E9EF),
+                                accent: Color(hex: 0x8839EF),
+                                text: Color(hex: 0x4C4F69))
+        case .catppuccinFrappe:
+            return ThemePreview(background: Color(hex: 0x303446),
+                                panel: Color(hex: 0x292C3C),
+                                accent: Color(hex: 0xCA9EE6),
+                                text: Color(hex: 0xC6D0F5))
+        case .catppuccinMacchiato:
+            return ThemePreview(background: Color(hex: 0x24273A),
+                                panel: Color(hex: 0x1E2030),
+                                accent: Color(hex: 0xC6A0F6),
+                                text: Color(hex: 0xCAD3F5))
+        case .catppuccinMocha:
+            return ThemePreview(background: Color(hex: 0x1E1E2E),
+                                panel: Color(hex: 0x181825),
+                                accent: Color(hex: 0xCBA6F7),
+                                text: Color(hex: 0xCDD6F4))
+        }
+    }
+}
+
+struct ThemePreview {
+    let background: Color
+    let panel: Color
+    let accent: Color
+    let text: Color
 }
 
 /// Accent selection: follow the theme, macOS accent, or a system color.
