@@ -310,13 +310,13 @@ final class IcySplitTests: XCTestCase {
 
 final class MiniRotationTests: XCTestCase {
     func testFullTurnMatchesVinylSpeed() {
-        XCTAssertEqual(MiniRotation.degreesPerSecond, 200, accuracy: 0.001)
+        XCTAssertEqual(MiniRotation.degreesPerSecond, 198, accuracy: 0.001)
         // A full turn wraps to 0, not 360.
-        XCTAssertEqual(MiniRotation.advance(0, by: 1.8), 0, accuracy: 0.001)
+        XCTAssertEqual(MiniRotation.advance(0, by: 360 / MiniRotation.degreesPerSecond), 0, accuracy: 0.001)
     }
 
     func testAdvanceWrapsAndIgnoresBadDeltas() {
-        XCTAssertEqual(MiniRotation.advance(350, by: 0.1), 10, accuracy: 0.001)
+        XCTAssertEqual(MiniRotation.advance(350, by: 0.1), 9.8, accuracy: 0.001)
         XCTAssertEqual(MiniRotation.advance(42, by: 0), 42, accuracy: 0.001)
         XCTAssertEqual(MiniRotation.advance(42, by: -1), 42, accuracy: 0.001)
     }

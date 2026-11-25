@@ -125,7 +125,7 @@ resources are not used.
 - Buffering is shown in the station line; on a drop the player reconnects
   automatically (up to three attempts with a 3 s pause). If the stream never
   starts, the player error line reports it.
-- Mini player: a spinning vinyl with artwork at 33⅓ rpm (like a record; it
+- Mini player: a spinning vinyl with artwork at 33 rpm (like a record; it
   stops when paused), title and artist, a thin progress bar with time, and
   back / play / forward. Colors and buttons match the main player; the window is
   320×96 by default, 286×92 minimum, and resizes from the corner. While the mini

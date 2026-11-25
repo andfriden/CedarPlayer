@@ -281,10 +281,10 @@ struct LyricsView: View {
     }
 }
 
-/// Vinyl rotation speed: 33⅓ rpm, as on a record.
+/// Vinyl rotation speed: 33 rpm, as on a record.
 /// The mini player uses the same speed.
 enum MiniRotation {
-    static let degreesPerSecond: Double = 200
+    static let degreesPerSecond: Double = 198
 
     static func advance(_ angle: Double, by seconds: Double) -> Double {
         guard seconds.isFinite, seconds > 0 else { return angle }
