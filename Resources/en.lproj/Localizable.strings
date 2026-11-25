@@ -359,3 +359,17 @@
 "Выберите папки с отсутствующими файлами" = "Choose Folders with Missing Files";
 "Привязано файлов: %ld из %ld" = "Relinked %ld of %ld Files";
 "Нет отсутствующих файлов" = "No Missing Files";
+"Создать резервную копию…" = "Create Backup…";
+"Восстановить из копии…" = "Restore from Backup…";
+"Сохранить библиотеку, плейлисты, настройки и обложки" = "Save Library, Playlists, Settings and Artwork";
+"Резервная копия: %@" = "Backup: %@";
+"Ошибка резервной копии: %@" = "Backup Error: %@";
+"Выберите резервную копию Cedar Player" = "Choose a Cedar Player Backup";
+"Заменить текущую библиотеку?" = "Replace the Current Library?";
+"Треки, плейлисты и настройки будут заменены данными из копии." = "Tracks, playlists and settings will be replaced with the backup data.";
+"Восстановить" = "Restore";
+"Библиотека восстановлена" = "Library Restored";
+"Ошибка восстановления: %@" = "Restore Error: %@";
+"В архиве нет backup.json" = "The Archive Has No backup.json";
+"Копия создана более новой версией" = "The Backup Was Created by a Newer Version";
+"Не удалось распаковать архив" = "Could Not Extract the Archive";

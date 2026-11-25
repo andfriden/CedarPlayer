@@ -138,6 +138,12 @@ struct SettingsView: View {
                 Button(L10n.string("Перепривязать отсутствующие файлы…")) {
                     library.presentBatchRelinkPanel()
                 }
+                Button(L10n.string("Создать резервную копию…")) {
+                    library.presentBackupExportPanel()
+                }
+                Button(L10n.string("Восстановить из копии…")) {
+                    library.presentBackupRestorePanel()
+                }
                 HStack {
                     Text(L10n.format("Треков в библиотеке: %ld", library.tracks.count))
                     Spacer()

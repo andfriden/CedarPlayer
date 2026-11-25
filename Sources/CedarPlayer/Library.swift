@@ -88,6 +88,7 @@ final class Library: ObservableObject {
         return base
     }()
 
+    static var dataDirectory: URL { supportDirectory }
     private static var storeURL: URL { supportDirectory.appendingPathComponent("library.json") }
 
     private struct Store: Codable {
