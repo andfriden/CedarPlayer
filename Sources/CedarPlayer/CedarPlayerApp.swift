@@ -7,7 +7,10 @@ import MediaPlayer
 struct CedarPlayerApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var library = Library()
-    @StateObject private var engine = PlayerEngine()
+    @StateObject private var services = PlayerServices()
+    @StateObject private var menu = PlayerMenuState()
+
+    private var engine: PlayerEngine { services.engine }
     @AppStorage("showPlaylist") private var showPlaylist = true
     @AppStorage("meterStyle") private var meterStyleRaw = MeterStyle.spectrum.rawValue
     @AppStorage("appearanceMode") private var appearanceMode = AppearanceMode.system.rawValue
@@ -875,7 +878,10 @@ struct CedarPlayerApp: App {
                 .environmentObject(engine)
                 .environment(\.player, engine)
                 .environment(\.locale, interfaceLocale)
-                .onAppear { appDelegate.configure(library: library, engine: engine) }
+                .onAppear {
+                    appDelegate.configure(library: library, engine: engine)
+                    menu.bind(engine: engine, library: library)
+                }
                 .id(interfaceIdentity)
                 .preferredColorScheme(colorScheme)
         }
@@ -892,16 +898,16 @@ struct CedarPlayerApp: App {
             }
 
             CommandMenu(L10n.string("Управление")) {
-                Button(engine.isPlaying ? L10n.string("Пауза") : L10n.string("Воспроизвести")) { engine.toggle() }
+                Button(menu.isPlaying ? L10n.string("Пауза") : L10n.string("Воспроизвести")) { engine.toggle() }
                     .keyboardShortcut(.space, modifiers: [])
-                    .disabled(engine.currentTrack == nil)
+                    .disabled(!menu.hasCurrentTrack)
                 Button(L10n.string("Следующий трек")) { engine.next(manual: true) }
                     .keyboardShortcut(.rightArrow, modifiers: .command)
                 Button(L10n.string("Предыдущий трек")) { engine.previous() }
                     .keyboardShortcut(.leftArrow, modifiers: .command)
                 Divider()
                 Button(L10n.string("Отменить импорт")) { library.cancelImport() }
-                    .disabled(!library.isImporting)
+                    .disabled(!menu.isImporting)
                 Menu(L10n.string("Оценка текущего трека")) {
                     ForEach(1...5, id: \.self) { value in
                         Button(String(repeating: "★", count: value)) {
@@ -919,7 +925,7 @@ struct CedarPlayerApp: App {
                     }
                     .keyboardShortcut("0", modifiers: [.option])
                 }
-                .disabled(engine.currentTrack == nil)
+                .disabled(!menu.hasCurrentTrack)
 
                 Menu(L10n.string("Добавить в плейлист")) {
                     if library.playlists.isEmpty {
@@ -934,16 +940,16 @@ struct CedarPlayerApp: App {
                         }
                     }
                 }
-                .disabled(engine.currentTrack == nil)
+                .disabled(!menu.hasCurrentTrack)
 
                 Button(L10n.string("Отменить удаление")) { library.undoRemove() }
                     .keyboardShortcut("z", modifiers: [.option, .command])
-                    .disabled(!library.canUndoRemove)
+                    .disabled(!menu.canUndoRemove)
                 Button(L10n.string("Изменить теги…")) {
                     NotificationCenter.default.post(name: .editTags, object: nil)
                 }
                 .keyboardShortcut("t", modifiers: .command)
-                .disabled(engine.currentTrack == nil)
+                .disabled(!menu.hasCurrentTrack)
                 Divider()
                 Button(L10n.string("Перемотка назад")) {
                     engine.seek(to: max(0, engine.position - 5))
@@ -958,12 +964,18 @@ struct CedarPlayerApp: App {
                     .keyboardShortcut(.upArrow, modifiers: [])
                 Button(L10n.string("Тише")) { engine.volume = max(0, engine.volume - 0.05) }
                     .keyboardShortcut(.downArrow, modifiers: [])
-                Button(engine.isMuted ? L10n.string("Включить звук") : L10n.string("Заглушить")) { engine.isMuted.toggle() }
+                Button(menu.isMuted ? L10n.string("Включить звук") : L10n.string("Заглушить")) { engine.isMuted.toggle() }
                     .keyboardShortcut("m", modifiers: [.command, .shift])
                 Divider()
-                Toggle(L10n.string("Перемешивание"), isOn: $engine.isShuffle)
-                    .keyboardShortcut("s", modifiers: [.command, .shift])
-                Picker(L10n.string("Повтор"), selection: $engine.repeatMode) {
+                Toggle(L10n.string("Перемешивание"), isOn: Binding(
+                    get: { menu.isShuffle },
+                    set: { engine.isShuffle = $0 }
+                ))
+                .keyboardShortcut("s", modifiers: [.command, .shift])
+                Picker(L10n.string("Повтор"), selection: Binding(
+                    get: { menu.repeatMode },
+                    set: { engine.repeatMode = $0 }
+                )) {
                     Text(L10n.string("Выключен")).tag(RepeatMode.off)
                     Text(L10n.string("Список")).tag(RepeatMode.all)
                     Text(L10n.string("Один трек")).tag(RepeatMode.one)

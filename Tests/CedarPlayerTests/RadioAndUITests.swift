@@ -1,6 +1,7 @@
 import XCTest
 import AVFoundation
 import SwiftUI
+import Combine
 @testable import CedarPlayer
 
 @MainActor
@@ -65,6 +66,38 @@ final class RadioBranchTests: XCTestCase {
         engine.isMuted = true
         engine.isMuted = false
         engine.stop()
+    }
+}
+
+@MainActor
+final class PlayerMenuStateTests: XCTestCase {
+    func testServicesDoesNotForwardEngineChanges() {
+        let services = PlayerServices()
+        var changes = 0
+        let cancellable = services.objectWillChange.sink { _ in changes += 1 }
+
+        services.engine.isShuffle = true
+        services.engine.isMuted = true
+
+        XCTAssertEqual(changes, 0)
+        withExtendedLifetime(cancellable) {}
+    }
+
+    func testMenuStateTracksPlaybackChanges() {
+        let engine = PlayerEngine()
+        let library = Library(testTracks: [])
+        let menu = PlayerMenuState()
+        menu.bind(engine: engine, library: library)
+
+        engine.isShuffle = true
+        engine.repeatMode = .one
+        engine.isMuted = true
+        library.isImporting = true
+
+        XCTAssertTrue(menu.isShuffle)
+        XCTAssertEqual(menu.repeatMode, .one)
+        XCTAssertTrue(menu.isMuted)
+        XCTAssertTrue(menu.isImporting)
     }
 }
 
