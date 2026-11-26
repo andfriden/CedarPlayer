@@ -28,6 +28,11 @@ enum Theme {
         surface0: 0x313244, surface1: 0x45475A, overlay0: 0x6C7086,
         subtext0: 0xA6ADC8, text: 0xCDD6F4, mauve: 0xCBA6F7,
         lavender: 0xB4BEFE, red: 0xF38BA8, yellow: 0xF9E2AF)
+    private static let rosePineDawn = Palette(
+        base: 0xFAF4ED, mantle: 0xF2E9E1, crust: 0xEAE0D5,
+        surface0: 0xFFFAF3, surface1: 0xF2E9E1, overlay0: 0x9893A5,
+        subtext0: 0x797593, text: 0x575279, mauve: 0x907AA9,
+        lavender: 0x56949F, red: 0xB4637A, yellow: 0xEA9D34)
 
     static var activePalette: Palette? {
         switch AppearanceMode.current {
@@ -35,6 +40,7 @@ enum Theme {
         case .catppuccinFrappe: return frappe
         case .catppuccinMacchiato: return macchiato
         case .catppuccinMocha: return mocha
+        case .rosePineDawn: return rosePineDawn
         default: return nil
         }
     }
@@ -180,6 +186,7 @@ enum AppearanceMode: String, CaseIterable, Identifiable {
     case system
     case dark
     case light
+    case rosePineDawn
     case catppuccinLatte
     case catppuccinFrappe
     case catppuccinMacchiato
@@ -196,6 +203,7 @@ enum AppearanceMode: String, CaseIterable, Identifiable {
         case .system: return L10n.string("Системное")
         case .dark: return L10n.string("Тёмное")
         case .light: return L10n.string("Светлое")
+        case .rosePineDawn: return "Rosé Pine Dawn"
         case .catppuccinLatte: return "Catppuccin Latte"
         case .catppuccinFrappe: return "Catppuccin Frappé"
         case .catppuccinMacchiato: return "Catppuccin Macchiato"
@@ -207,7 +215,7 @@ enum AppearanceMode: String, CaseIterable, Identifiable {
         switch self {
         case .system: return nil
         case .dark, .catppuccinFrappe, .catppuccinMacchiato, .catppuccinMocha: return .dark
-        case .light, .catppuccinLatte: return .light
+        case .light, .rosePineDawn, .catppuccinLatte: return .light
         }
     }
 
@@ -228,6 +236,11 @@ enum AppearanceMode: String, CaseIterable, Identifiable {
                                 panel: Color(hex: 0xFFFFFF),
                                 accent: Color(hex: 0x007EA8),
                                 text: Color(hex: 0x17171B))
+        case .rosePineDawn:
+            return ThemePreview(background: Color(hex: 0xFAF4ED),
+                                panel: Color(hex: 0xFFFAF3),
+                                accent: Color(hex: 0x907AA9),
+                                text: Color(hex: 0x575279))
         case .catppuccinLatte:
             return ThemePreview(background: Color(hex: 0xEFF1F5),
                                 panel: Color(hex: 0xE6E9EF),
